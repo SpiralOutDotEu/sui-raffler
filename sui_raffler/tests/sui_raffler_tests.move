@@ -8,16 +8,20 @@ use sui::coin::{Self, Coin};
 use sui::random::{Self, Random};
 use sui::sui::SUI;
 
+/// Helper function to mint SUI coins for testing
 fun mint(addr: address, amount: u64, scenario: &mut ts::Scenario) {
     transfer::public_transfer(coin::mint_for_testing<SUI>(amount, scenario.ctx()), addr);
     scenario.next_tx(addr);
 }
 
+/// Test the complete raffle flow:
+/// 1. Create a raffle
+/// 2. Buy tickets
+/// 3. Release raffle and select winners
 #[test]
 fun test_raffle_flow() {
-    let admin = @0xA11CE;
-    let buyer = @0xB0B;
     let organizer = @0xBEEF;
+    let buyer = @0xB0B;
     let fee_collector = @0xFEE5;
     let start_time = 0;
     let end_time = 1000;
@@ -37,17 +41,12 @@ fun test_raffle_flow() {
         ts.ctx(),
     );
 
-    // Switch to admin for rest of test
-    ts.next_tx(admin);
-
-    // Create factory and raffle
-    mint(admin, 1000, &mut ts);
-    ts.next_tx(admin);
-    sui_raffler::create_factory(admin, ts.ctx());
-    ts.next_tx(admin);
-    let factory = ts.take_shared<sui_raffler::RaffleFactory>();
-    sui_raffler::create_raffle(&factory, start_time, end_time, ticket_price, max_tickets, organizer, fee_collector, ts.ctx());
-    ts.next_tx(admin);
+    // Create raffle
+    ts.next_tx(organizer);
+    mint(organizer, 1000, &mut ts);
+    ts.next_tx(organizer);
+    sui_raffler::create_raffle(start_time, end_time, ticket_price, max_tickets, fee_collector, ts.ctx());
+    ts.next_tx(organizer);
     let mut raffle = ts.take_shared<sui_raffler::Raffle>();
     assert!(sui_raffler::get_tickets_sold(&raffle) == 0, 1);
 
@@ -60,8 +59,8 @@ fun test_raffle_flow() {
     assert!(sui_raffler::get_tickets_sold(&raffle) == 3, 1);
     clock.destroy_for_testing();
 
-    // Admin releases raffle after end_time
-    ts.next_tx(admin);
+    // Organizer releases raffle after end_time
+    ts.next_tx(organizer);
     let mut clock2 = clock::create_for_testing(ts.ctx());
     clock2.set_for_testing(end_time + 1);
     sui_raffler::release_raffle(&mut raffle, &random_state, &clock2, ts.ctx());
@@ -69,7 +68,6 @@ fun test_raffle_flow() {
     clock2.destroy_for_testing();
 
     // Return objects and end scenario
-    ts::return_shared(factory);
     ts::return_shared(raffle);
     ts::return_shared(random_state);
     ts.end();

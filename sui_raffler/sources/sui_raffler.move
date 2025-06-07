@@ -6,12 +6,10 @@ module sui_raffler::sui_raffler;
 /*
  * @title Sui Raffler
  * @description A decentralized raffle system built on Sui blockchain
- * @author Your Name
  * @version 1.0.0
  * 
  * This module implements a decentralized raffle system where:
- * - An admin can create raffle factories
- * - Organizers can create raffles with specific parameters
+ * - Anyone can create raffles with specific parameters
  * - Users can buy tickets for raffles
  * - Winners are selected randomly using Sui's on-chain randomness
  * - Prizes are automatically distributed to winners
@@ -21,15 +19,11 @@ module sui_raffler::sui_raffler;
 // https://docs.sui.io/concepts/sui-move-concepts/conventions
 
 module sui_raffler::sui_raffler {
-    use sui::object::{Self, UID, ID};
-    use sui::transfer;
-    use sui::tx_context::{Self, TxContext};
     use sui::coin::{Self, Coin};
     use sui::balance::{Self, Balance};
     use sui::sui::SUI;
     use sui::random::{Self, Random};
     use sui::clock::{Self, Clock};
-    use sui::table::{Self, Table};
     use sui::vec_map::{Self, VecMap};
     use sui::event;
 
@@ -38,12 +32,8 @@ module sui_raffler::sui_raffler {
     const FIRST_PRIZE_PERCENTAGE: u64 = 50;  // 50% of total prize pool
     const SECOND_PRIZE_PERCENTAGE: u64 = 25; // 25% of total prize pool
     const THIRD_PRIZE_PERCENTAGE: u64 = 10;  // 10% of total prize pool
-    const ORGANIZER_PERCENTAGE: u64 = 10;    // 10% goes to the organizer
-    const PROTOCOL_FEE_PERCENTAGE: u64 = 5;  // 5% protocol fee
 
     // === Error Codes ===
-    // Each error code corresponds to a specific failure condition
-    const ENotAdmin: u64 = 0;                // Caller is not the admin
     const EInvalidDates: u64 = 1;            // Start time must be before end time
     const EInvalidTicketPrice: u64 = 2;      // Ticket price must be greater than 0
     const EInvalidMaxTickets: u64 = 3;       // Max tickets per purchase must be greater than 0
@@ -53,13 +43,6 @@ module sui_raffler::sui_raffler {
     const EInvalidTicketAmount: u64 = 7;     // Invalid number of tickets requested
     const EInvalidTicket: u64 = 8;           // Ticket does not belong to this raffle
     const ENotWinner: u64 = 9;               // Ticket is not a winning ticket
-
-    /// The main raffle factory object that holds the admin address
-    /// This is the entry point for creating new raffles
-    public struct RaffleFactory has key {
-        id: UID,
-        admin: address,  // Address that can create new raffles
-    }
 
     /// A raffle object that holds all the raffle information
     /// This is the main object that tracks the raffle state
@@ -86,7 +69,7 @@ module sui_raffler::sui_raffler {
     }
 
     // === Events ===
-    // Events are emitted to track important state changes
+    /// Emitted when a new raffle is created
     public struct RaffleCreated has copy, drop {
         raffle_id: ID,
         organizer: address,
@@ -95,6 +78,7 @@ module sui_raffler::sui_raffler {
         ticket_price: u64,
     }
 
+    /// Emitted when tickets are purchased
     public struct TicketsPurchased has copy, drop {
         raffle_id: ID,
         buyer: address,
@@ -103,6 +87,7 @@ module sui_raffler::sui_raffler {
         end_ticket: u64,
     }
 
+    /// Emitted when winners are selected
     public struct RaffleReleased has copy, drop {
         raffle_id: ID,
         first_winner: address,
@@ -112,29 +97,16 @@ module sui_raffler::sui_raffler {
 
     // === Functions ===
 
-    /// Initialize the raffle factory with an admin address
-    public entry fun create_factory(admin: address, ctx: &mut TxContext) {
-        let factory = RaffleFactory {
-            id: object::new(ctx),
-            admin,
-        };
-        transfer::share_object(factory);
-    }
-
     /// Create a new raffle
+    /// Anyone can create a raffle by specifying the parameters
     public entry fun create_raffle(
-        factory: &RaffleFactory,
         start_time: u64,
         end_time: u64,
         ticket_price: u64,
         max_tickets_per_purchase: u64,
-        organizer: address,
         fee_collector: address,
         ctx: &mut TxContext
     ) {
-        // Only admin can create raffles
-        assert!(factory.admin == tx_context::sender(ctx), ENotAdmin);
-        
         // Validate dates
         assert!(start_time < end_time, EInvalidDates);
         
@@ -150,7 +122,7 @@ module sui_raffler::sui_raffler {
             end_time,
             ticket_price,
             max_tickets_per_purchase,
-            organizer,
+            organizer: tx_context::sender(ctx),
             fee_collector,
             balance: balance::zero(),
             tickets_sold: 0,
@@ -161,7 +133,7 @@ module sui_raffler::sui_raffler {
         // Emit event
         event::emit(RaffleCreated {
             raffle_id: object::id(&raffle),
-            organizer,
+            organizer: tx_context::sender(ctx),
             start_time,
             end_time,
             ticket_price,
@@ -171,6 +143,7 @@ module sui_raffler::sui_raffler {
     }
 
     /// Buy tickets for a raffle
+    /// Users can buy multiple tickets in a single transaction up to max_tickets_per_purchase
     public entry fun buy_tickets(
         raffle: &mut Raffle,
         payment: Coin<SUI>,
@@ -224,6 +197,8 @@ module sui_raffler::sui_raffler {
     }
 
     /// Release the raffle and select winners
+    /// Can only be called after the raffle end time
+    #[allow(lint(public_random))]
     public entry fun release_raffle(
         raffle: &mut Raffle,
         random: &Random,
@@ -274,6 +249,7 @@ module sui_raffler::sui_raffler {
     }
 
     /// Claim prize with a winning ticket
+    /// Winners can claim their prizes after the raffle is released
     public entry fun claim_prize(
         raffle: &mut Raffle,
         ticket: Ticket,
@@ -335,11 +311,6 @@ module sui_raffler::sui_raffler {
     }
 
     // === Test Helpers ===
-
-    #[test_only]
-    public fun get_factory_admin(factory: &RaffleFactory): address {
-        factory.admin
-    }
 
     #[test_only]
     public fun get_raffle_balance(raffle: &Raffle): u64 {
