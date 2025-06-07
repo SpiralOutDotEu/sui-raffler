@@ -23,7 +23,8 @@ fun mint(addr: address, amount: u64, scenario: &mut ts::Scenario) {
 #[test]
 fun test_raffle_flow() {
     let admin = @0xAD;
-    let organizer = @0xBEEF;
+    let creator = @0xBEEF;
+    let organizer = @0x1234;
     let buyer = @0xB0B;
     let fee_collector = @0xFEE5;
     let start_time = 0;
@@ -52,11 +53,11 @@ fun test_raffle_flow() {
     assert!(sui_raffler::get_config_fee_collector(&config) == fee_collector, 1);
 
     // Create raffle
-    ts.next_tx(organizer);
-    mint(organizer, 1000, &mut ts);
-    ts.next_tx(organizer);
-    sui_raffler::create_raffle(&config, start_time, end_time, ticket_price, max_tickets, ts.ctx());
-    ts.next_tx(organizer);
+    ts.next_tx(creator);
+    mint(creator, 1000, &mut ts);
+    ts.next_tx(creator);
+    sui_raffler::create_raffle(&config, start_time, end_time, ticket_price, max_tickets, organizer, ts.ctx());
+    ts.next_tx(creator);
     let mut raffle = ts.take_shared<sui_raffler::Raffle>();
     assert!(sui_raffler::get_tickets_sold(&raffle) == 0, 1);
 
@@ -127,6 +128,31 @@ fun test_fee_collector_update_unauthorized() {
     // Try to update fee collector as non-admin
     ts.next_tx(non_admin);
     sui_raffler::update_fee_collector(&mut config, new_fee_collector, ts.ctx());
+
+    // Return objects and end scenario
+    ts::return_shared(config);
+    ts.end();
+}
+
+/// Test that invalid organizer address is rejected
+#[test]
+#[expected_failure(abort_code = sui_raffler::EInvalidOrganizer)]
+fun test_invalid_organizer() {
+    let admin = @0xAD;
+    let creator = @0xBEEF;
+    let fee_collector = @0xFEE5;
+    let invalid_organizer = @0x0;
+
+    let mut ts = ts::begin(admin);
+
+    // Initialize module configuration
+    sui_raffler::initialize(admin, fee_collector, ts.ctx());
+    ts.next_tx(admin);
+    let config = ts.take_shared<sui_raffler::Config>();
+
+    // Try to create raffle with invalid organizer address
+    ts.next_tx(creator);
+    sui_raffler::create_raffle(&config, 0, 1000, 100, 5, invalid_organizer, ts.ctx());
 
     // Return objects and end scenario
     ts::return_shared(config);

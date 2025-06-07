@@ -35,6 +35,8 @@ module sui_raffler::sui_raffler {
     const FIRST_PRIZE_PERCENTAGE: u64 = 50;  // 50% of total prize pool
     const SECOND_PRIZE_PERCENTAGE: u64 = 25; // 25% of total prize pool
     const THIRD_PRIZE_PERCENTAGE: u64 = 10;  // 10% of total prize pool
+    const ORGANIZER_PERCENTAGE: u64 = 10;    // 10% of total prize pool
+    const PROTOCOL_FEE_PERCENTAGE: u64 = 5;  // 5% of total prize pool
 
     // === Error Codes ===
     const ENotAdmin: u64 = 0;                // Caller is not the admin
@@ -47,6 +49,7 @@ module sui_raffler::sui_raffler {
     const EInvalidTicketAmount: u64 = 7;     // Invalid number of tickets requested
     const EInvalidTicket: u64 = 8;           // Ticket does not belong to this raffle
     const ENotWinner: u64 = 9;               // Ticket is not a winning ticket
+    const EInvalidOrganizer: u64 = 10;       // Invalid organizer address
 
     /// Module configuration that holds admin and fee collector addresses
     public struct Config has key {
@@ -149,6 +152,7 @@ module sui_raffler::sui_raffler {
         end_time: u64,
         ticket_price: u64,
         max_tickets_per_purchase: u64,
+        organizer: address,
         ctx: &mut TxContext
     ) {
         // Validate dates
@@ -160,13 +164,16 @@ module sui_raffler::sui_raffler {
         // Validate max tickets
         assert!(max_tickets_per_purchase > 0, EInvalidMaxTickets);
 
+        // Validate organizer address
+        assert!(organizer != @0x0, EInvalidOrganizer);
+
         let raffle = Raffle {
             id: object::new(ctx),
             start_time,
             end_time,
             ticket_price,
             max_tickets_per_purchase,
-            organizer: tx_context::sender(ctx),
+            organizer,
             fee_collector: config.fee_collector,
             balance: balance::zero(),
             tickets_sold: 0,
@@ -177,7 +184,7 @@ module sui_raffler::sui_raffler {
         // Emit event
         event::emit(RaffleCreated {
             raffle_id: object::id(&raffle),
-            organizer: tx_context::sender(ctx),
+            organizer,
             start_time,
             end_time,
             ticket_price,
@@ -321,6 +328,21 @@ module sui_raffler::sui_raffler {
         // Transfer prize
         let prize = coin::from_balance(balance::split(&mut raffle.balance, prize_amount), ctx);
         transfer::public_transfer(prize, tx_context::sender(ctx));
+
+        // If this is the last winner, transfer organizer's share and protocol fee
+        if (vec_map::size(winners) == 3) {
+            let remaining_balance = balance::value(&raffle.balance);
+            let organizer_share = (remaining_balance * ORGANIZER_PERCENTAGE) / 100;
+            let protocol_fee = (remaining_balance * PROTOCOL_FEE_PERCENTAGE) / 100;
+
+            // Transfer organizer's share
+            let organizer_prize = coin::from_balance(balance::split(&mut raffle.balance, organizer_share), ctx);
+            transfer::public_transfer(organizer_prize, raffle.organizer);
+
+            // Transfer protocol fee
+            let fee = coin::from_balance(balance::split(&mut raffle.balance, protocol_fee), ctx);
+            transfer::public_transfer(fee, raffle.fee_collector);
+        };
 
         // Burn the ticket
         let Ticket { id, raffle_id: _, ticket_number: _ } = ticket;
