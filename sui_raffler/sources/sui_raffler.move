@@ -26,6 +26,9 @@ module sui_raffler::sui_raffler {
     use sui::clock::{Self, Clock};
     use sui::vec_map::{Self, VecMap};
     use sui::event;
+    use sui::transfer;
+    use sui::object::{Self, UID};
+    use sui::tx_context::{Self, TxContext};
 
     // === Constants ===
     // Prize distribution percentages (must sum to 100)
@@ -34,6 +37,7 @@ module sui_raffler::sui_raffler {
     const THIRD_PRIZE_PERCENTAGE: u64 = 10;  // 10% of total prize pool
 
     // === Error Codes ===
+    const ENotAdmin: u64 = 0;                // Caller is not the admin
     const EInvalidDates: u64 = 1;            // Start time must be before end time
     const EInvalidTicketPrice: u64 = 2;      // Ticket price must be greater than 0
     const EInvalidMaxTickets: u64 = 3;       // Max tickets per purchase must be greater than 0
@@ -43,6 +47,13 @@ module sui_raffler::sui_raffler {
     const EInvalidTicketAmount: u64 = 7;     // Invalid number of tickets requested
     const EInvalidTicket: u64 = 8;           // Ticket does not belong to this raffle
     const ENotWinner: u64 = 9;               // Ticket is not a winning ticket
+
+    /// Module configuration that holds admin and fee collector addresses
+    public struct Config has key {
+        id: UID,
+        admin: address,
+        fee_collector: address,
+    }
 
     /// A raffle object that holds all the raffle information
     /// This is the main object that tracks the raffle state
@@ -95,16 +106,49 @@ module sui_raffler::sui_raffler {
         third_winner: address,
     }
 
+    /// Emitted when fee collector is updated
+    public struct FeeCollectorUpdated has copy, drop {
+        old_fee_collector: address,
+        new_fee_collector: address,
+    }
+
     // === Functions ===
+
+    /// Initialize the module with admin and fee collector addresses
+    /// This function can only be called once during module deployment
+    public entry fun initialize(admin: address, fee_collector: address, ctx: &mut TxContext) {
+        let config = Config {
+            id: object::new(ctx),
+            admin,
+            fee_collector,
+        };
+        transfer::share_object(config);
+    }
+
+    /// Update the fee collector address
+    /// Only the admin can call this function
+    public entry fun update_fee_collector(
+        config: &mut Config,
+        new_fee_collector: address,
+        ctx: &mut TxContext
+    ) {
+        assert!(config.admin == tx_context::sender(ctx), ENotAdmin);
+        let old_fee_collector = config.fee_collector;
+        config.fee_collector = new_fee_collector;
+        event::emit(FeeCollectorUpdated {
+            old_fee_collector,
+            new_fee_collector,
+        });
+    }
 
     /// Create a new raffle
     /// Anyone can create a raffle by specifying the parameters
     public entry fun create_raffle(
+        config: &Config,
         start_time: u64,
         end_time: u64,
         ticket_price: u64,
         max_tickets_per_purchase: u64,
-        fee_collector: address,
         ctx: &mut TxContext
     ) {
         // Validate dates
@@ -123,7 +167,7 @@ module sui_raffler::sui_raffler {
             ticket_price,
             max_tickets_per_purchase,
             organizer: tx_context::sender(ctx),
-            fee_collector,
+            fee_collector: config.fee_collector,
             balance: balance::zero(),
             tickets_sold: 0,
             is_released: false,
@@ -325,6 +369,11 @@ module sui_raffler::sui_raffler {
     #[test_only]
     public fun is_released(raffle: &Raffle): bool {
         raffle.is_released
+    }
+
+    #[test_only]
+    public fun get_config_fee_collector(config: &Config): address {
+        config.fee_collector
     }
 }
 
