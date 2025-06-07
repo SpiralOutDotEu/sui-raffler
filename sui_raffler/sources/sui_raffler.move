@@ -26,9 +26,6 @@ module sui_raffler::sui_raffler {
     use sui::clock::{Self, Clock};
     use sui::vec_map::{Self, VecMap};
     use sui::event;
-    use sui::transfer;
-    use sui::object::{Self, UID};
-    use sui::tx_context::{Self, TxContext};
 
     // === Constants ===
     // Prize distribution percentages (must sum to 100)

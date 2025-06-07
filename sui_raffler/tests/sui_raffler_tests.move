@@ -7,8 +7,6 @@ use sui::clock;
 use sui::coin::{Self, Coin};
 use sui::random::{Self, Random};
 use sui::sui::SUI;
-use sui::transfer;
-use sui::object::ID;
 
 /// Helper function to mint SUI coins for testing
 fun mint(addr: address, amount: u64, scenario: &mut ts::Scenario) {
