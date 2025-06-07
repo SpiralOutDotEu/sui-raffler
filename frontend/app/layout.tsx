@@ -10,7 +10,7 @@ import theme from "./theme";
 
 const queryClient = new QueryClient();
 const networks = {
-  devnet: { url: getFullnodeUrl("devnet") },
+  testnet: { url: getFullnodeUrl("testnet") },
   mainnet: { url: getFullnodeUrl("mainnet") },
 };
 
@@ -23,7 +23,7 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <QueryClientProvider client={queryClient}>
-          <SuiClientProvider networks={networks} defaultNetwork="devnet">
+          <SuiClientProvider networks={networks} defaultNetwork="testnet">
             <WalletProvider>
               <ThemeProvider theme={theme}>
                 <CssBaseline />
