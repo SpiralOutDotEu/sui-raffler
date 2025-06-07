@@ -3,6 +3,20 @@
 module sui_raffler::sui_raffler;
 */
 
+/*
+ * @title Sui Raffler
+ * @description A decentralized raffle system built on Sui blockchain
+ * @author Your Name
+ * @version 1.0.0
+ * 
+ * This module implements a decentralized raffle system where:
+ * - An admin can create raffle factories
+ * - Organizers can create raffles with specific parameters
+ * - Users can buy tickets for raffles
+ * - Winners are selected randomly using Sui's on-chain randomness
+ * - Prizes are automatically distributed to winners
+ */
+
 // For Move coding conventions, see
 // https://docs.sui.io/concepts/sui-move-concepts/conventions
 
@@ -18,57 +32,61 @@ module sui_raffler::sui_raffler {
     use sui::table::{Self, Table};
     use sui::vec_map::{Self, VecMap};
     use sui::event;
-    use sui::test_utils;
-    use sui::test_scenario;
 
-    // Constants for prize distribution
-    const FIRST_PRIZE_PERCENTAGE: u64 = 50;
-    const SECOND_PRIZE_PERCENTAGE: u64 = 25;
-    const THIRD_PRIZE_PERCENTAGE: u64 = 10;
-    const ORGANIZER_PERCENTAGE: u64 = 10;
-    const PROTOCOL_FEE_PERCENTAGE: u64 = 5;
+    // === Constants ===
+    // Prize distribution percentages (must sum to 100)
+    const FIRST_PRIZE_PERCENTAGE: u64 = 50;  // 50% of total prize pool
+    const SECOND_PRIZE_PERCENTAGE: u64 = 25; // 25% of total prize pool
+    const THIRD_PRIZE_PERCENTAGE: u64 = 10;  // 10% of total prize pool
+    const ORGANIZER_PERCENTAGE: u64 = 10;    // 10% goes to the organizer
+    const PROTOCOL_FEE_PERCENTAGE: u64 = 5;  // 5% protocol fee
 
-    // Error codes
-    const ENotAdmin: u64 = 0;
-    const EInvalidDates: u64 = 1;
-    const EInvalidTicketPrice: u64 = 2;
-    const EInvalidMaxTickets: u64 = 3;
-    const ERaffleNotActive: u64 = 4;
-    const ERaffleNotEnded: u64 = 5;
-    const ERaffleAlreadyReleased: u64 = 6;
-    const EInvalidTicketAmount: u64 = 7;
-    const EInvalidTicket: u64 = 8;
-    const ENotWinner: u64 = 9;
+    // === Error Codes ===
+    // Each error code corresponds to a specific failure condition
+    const ENotAdmin: u64 = 0;                // Caller is not the admin
+    const EInvalidDates: u64 = 1;            // Start time must be before end time
+    const EInvalidTicketPrice: u64 = 2;      // Ticket price must be greater than 0
+    const EInvalidMaxTickets: u64 = 3;       // Max tickets per purchase must be greater than 0
+    const ERaffleNotActive: u64 = 4;         // Raffle is not active (current time outside start/end time)
+    const ERaffleNotEnded: u64 = 5;          // Raffle has not ended yet
+    const ERaffleAlreadyReleased: u64 = 6;   // Winners have already been selected
+    const EInvalidTicketAmount: u64 = 7;     // Invalid number of tickets requested
+    const EInvalidTicket: u64 = 8;           // Ticket does not belong to this raffle
+    const ENotWinner: u64 = 9;               // Ticket is not a winning ticket
 
     /// The main raffle factory object that holds the admin address
+    /// This is the entry point for creating new raffles
     public struct RaffleFactory has key {
         id: UID,
-        admin: address,
+        admin: address,  // Address that can create new raffles
     }
 
     /// A raffle object that holds all the raffle information
+    /// This is the main object that tracks the raffle state
     public struct Raffle has key {
         id: UID,
-        start_time: u64,
-        end_time: u64,
-        ticket_price: u64,
-        max_tickets_per_purchase: u64,
-        organizer: address,
-        fee_collector: address,
-        balance: Balance<SUI>,
-        tickets_sold: u64,
-        is_released: bool,
-        winners: VecMap<u64, address>, // Maps ticket numbers to winner addresses
+        start_time: u64,         // Unix timestamp in milliseconds when raffle starts
+        end_time: u64,           // Unix timestamp in milliseconds when raffle ends
+        ticket_price: u64,       // Price per ticket in SUI
+        max_tickets_per_purchase: u64,  // Maximum tickets one can buy in a single transaction
+        organizer: address,      // Address that created the raffle
+        fee_collector: address,  // Address that receives protocol fees
+        balance: Balance<SUI>,   // Current balance of the raffle
+        tickets_sold: u64,       // Total number of tickets sold
+        is_released: bool,       // Whether winners have been selected
+        winners: VecMap<u64, address>,  // Maps winning ticket numbers to winner addresses
     }
 
     /// A ticket object that represents a raffle ticket
+    /// Each ticket has a unique number and is linked to a specific raffle
     public struct Ticket has key, store {
         id: UID,
-        raffle_id: ID,
-        ticket_number: u64,
+        raffle_id: ID,          // ID of the raffle this ticket belongs to
+        ticket_number: u64,     // Unique ticket number
     }
 
     // === Events ===
+    // Events are emitted to track important state changes
     public struct RaffleCreated has copy, drop {
         raffle_id: ID,
         organizer: address,
