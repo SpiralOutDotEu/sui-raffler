@@ -351,7 +351,7 @@ module sui_raffler::sui_raffler {
 
     // === View Functions ===
 
-    /// Get raffle information
+    /// Get detailed raffle information
     public fun get_raffle_info(raffle: &Raffle): (
         u64, // start_time
         u64, // end_time
@@ -361,8 +361,15 @@ module sui_raffler::sui_raffler {
         address, // fee_collector
         u64, // balance
         u64, // tickets_sold
-        bool // is_released
+        bool, // is_released
+        u64, // total_prize_pool
+        u64, // first_prize_amount
+        u64, // second_prize_amount
+        u64, // third_prize_amount
+        u64, // organizer_share_amount
+        u64  // protocol_fee_amount
     ) {
+        let total_balance = balance::value(&raffle.balance);
         (
             raffle.start_time,
             raffle.end_time,
@@ -370,9 +377,93 @@ module sui_raffler::sui_raffler {
             raffle.max_tickets_per_purchase,
             raffle.organizer,
             raffle.fee_collector,
-            balance::value(&raffle.balance),
+            total_balance,
             raffle.tickets_sold,
-            raffle.is_released
+            raffle.is_released,
+            total_balance,
+            (total_balance * FIRST_PRIZE_PERCENTAGE) / 100,
+            (total_balance * SECOND_PRIZE_PERCENTAGE) / 100,
+            (total_balance * THIRD_PRIZE_PERCENTAGE) / 100,
+            (total_balance * ORGANIZER_PERCENTAGE) / 100,
+            (total_balance * PROTOCOL_FEE_PERCENTAGE) / 100
+        )
+    }
+
+    /// Get winner information for a raffle
+    public fun get_winners(raffle: &Raffle): (
+        bool, // has_winners
+        vector<address>, // winner_addresses
+        vector<u64> // winning_ticket_numbers
+    ) {
+        if (!raffle.is_released) {
+            return (false, vector::empty(), vector::empty())
+        };
+        let winner_keys = vec_map::keys(&raffle.winners);
+        let mut winner_values = vector::empty<address>();
+        let mut i = 0;
+        let len = vector::length(&winner_keys);
+        while (i < len) {
+            let key = vector::borrow(&winner_keys, i);
+            let value = *vec_map::get(&raffle.winners, key);
+            vector::push_back(&mut winner_values, value);
+            i = i + 1;
+        };
+        (true, winner_values, winner_keys)
+    }
+
+    /// Get ticket information
+    public fun get_ticket_info(ticket: &Ticket): (
+        ID, // raffle_id
+        u64 // ticket_number
+    ) {
+        (ticket.raffle_id, ticket.ticket_number)
+    }
+
+    /// Check if a ticket is a winning ticket
+    public fun is_winning_ticket(raffle: &Raffle, ticket: &Ticket): (
+        bool, // is_winner
+        u64 // prize_amount (0 if not winner)
+    ) {
+        if (!raffle.is_released) {
+            return (false, 0)
+        };
+        let ticket_number = ticket.ticket_number;
+        if (!vec_map::contains(&raffle.winners, &ticket_number)) {
+            return (false, 0)
+        };
+        let total_balance = balance::value(&raffle.balance);
+        let winner_keys = vec_map::keys(&raffle.winners);
+        let prize_amount = if (ticket_number == *vector::borrow(&winner_keys, 0)) {
+            (total_balance * FIRST_PRIZE_PERCENTAGE) / 100
+        } else if (ticket_number == *vector::borrow(&winner_keys, 1)) {
+            (total_balance * SECOND_PRIZE_PERCENTAGE) / 100
+        } else {
+            (total_balance * THIRD_PRIZE_PERCENTAGE) / 100
+        };
+        (true, prize_amount)
+    }
+
+    /// Get raffle statistics
+    public fun get_raffle_stats(raffle: &Raffle, clock: &Clock): (
+        u64, // total_tickets_sold
+        u64, // total_volume
+        u64, // average_tickets_per_purchase
+        u64, // time_remaining_ms (0 if ended)
+        bool // is_active
+    ) {
+        let current_time = clock::timestamp_ms(clock);
+        let time_remaining = if (current_time < raffle.end_time) {
+            raffle.end_time - current_time
+        } else {
+            0
+        };
+        let is_active = current_time >= raffle.start_time && current_time <= raffle.end_time;
+        (
+            raffle.tickets_sold,
+            balance::value(&raffle.balance),
+            if (raffle.tickets_sold > 0) { balance::value(&raffle.balance) / raffle.tickets_sold } else { 0 },
+            time_remaining,
+            is_active
         )
     }
 

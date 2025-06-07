@@ -8,6 +8,7 @@ use sui::coin::{Self, Coin};
 use sui::random::{Self, Random};
 use sui::sui::SUI;
 use sui::transfer;
+use sui::object::ID;
 
 /// Helper function to mint SUI coins for testing
 fun mint(addr: address, amount: u64, scenario: &mut ts::Scenario) {
@@ -68,6 +69,38 @@ fun test_raffle_flow() {
     let clock = clock::create_for_testing(ts.ctx());
     sui_raffler::buy_tickets(&mut raffle, coin, 3, &clock, ts.ctx());
     assert!(sui_raffler::get_tickets_sold(&raffle) == 3, 1);
+
+    // Test view functions before release
+    let (start_time, end_time, price, max_tix, org, fee_col, balance, sold, released, total, first, second, third, org_share, fee) = 
+        sui_raffler::get_raffle_info(&raffle);
+    assert!(start_time == 0, 1);
+    assert!(end_time == 1000, 1);
+    assert!(price == 100, 1);
+    assert!(max_tix == 5, 1);
+    assert!(org == organizer, 1);
+    assert!(fee_col == fee_collector, 1);
+    assert!(balance == 300, 1);
+    assert!(sold == 3, 1);
+    assert!(!released, 1);
+    assert!(total == 300, 1);
+    assert!(first == 150, 1);
+    assert!(second == 75, 1);
+    assert!(third == 30, 1);
+    assert!(org_share == 30, 1);
+    assert!(fee == 15, 1);
+
+    let (total_sold, volume, avg_tix, time_left, is_active) = sui_raffler::get_raffle_stats(&raffle, &clock);
+    assert!(total_sold == 3, 1);
+    assert!(volume == 300, 1);
+    assert!(avg_tix == 100, 1);
+    assert!(time_left > 0, 1);
+    assert!(is_active, 1);
+
+    let (has_winners, winners, tickets) = sui_raffler::get_winners(&raffle);
+    assert!(!has_winners, 1);
+    assert!(vector::is_empty(&winners), 1);
+    assert!(vector::is_empty(&tickets), 1);
+
     clock.destroy_for_testing();
 
     // Organizer releases raffle after end_time
@@ -76,6 +109,20 @@ fun test_raffle_flow() {
     clock2.set_for_testing(end_time + 1);
     sui_raffler::release_raffle(&mut raffle, &random_state, &clock2, ts.ctx());
     assert!(sui_raffler::is_released(&raffle), 1);
+
+    // Test view functions after release
+    let (has_winners, winners, tickets) = sui_raffler::get_winners(&raffle);
+    assert!(has_winners, 1);
+    assert!(vector::length(&winners) == 3, 1);
+    assert!(vector::length(&tickets) == 3, 1);
+
+    let (total_sold, volume, avg_tix, time_left, is_active) = sui_raffler::get_raffle_stats(&raffle, &clock2);
+    assert!(total_sold == 3, 1);
+    assert!(volume == 300, 1);
+    assert!(avg_tix == 100, 1);
+    assert!(time_left == 0, 1);
+    assert!(!is_active, 1);
+
     clock2.destroy_for_testing();
 
     // Return objects and end scenario
