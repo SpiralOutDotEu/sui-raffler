@@ -11,6 +11,7 @@ import { useParams } from "next/navigation";
 import { useState } from "react";
 import { PACKAGE_ID, MODULE } from "../../../constants";
 import { Transaction } from "@mysten/sui/transactions";
+import { useWallet } from "../../context/WalletContext";
 
 interface Raffle {
   id: string;
@@ -170,14 +171,14 @@ export default function RaffleDetail() {
   const [transactionDigest, setTransactionDigest] = useState<string | null>(
     null
   );
-  const currentAccount = useCurrentAccount();
+  const { address: currentAccount, isConnected } = useWallet();
   const { mutateAsync: signAndExecute } = useSignAndExecuteTransaction();
   const queryClient = useQueryClient();
   const { data: userTickets = [], isLoading: isLoadingTickets } =
-    useUserTickets(id as string, currentAccount?.address);
+    useUserTickets(id as string, currentAccount);
 
   const handleBuyTickets = async () => {
-    if (!currentAccount?.address || !raffle) return;
+    if (!isConnected || !currentAccount || !raffle) return;
 
     setIsPurchasing(true);
     setPurchaseError(null);
@@ -236,7 +237,7 @@ export default function RaffleDetail() {
   };
 
   const handleClaimPrize = async (ticketId: string) => {
-    if (!currentAccount?.address || !raffle) return;
+    if (!isConnected || !currentAccount || !raffle) return;
 
     setIsPurchasing(true);
     setPurchaseError(null);
@@ -256,7 +257,7 @@ export default function RaffleDetail() {
 
       setTransactionDigest(result.digest);
       await queryClient.invalidateQueries({
-        queryKey: ["tickets", id, currentAccount.address],
+        queryKey: ["tickets", id, currentAccount],
       });
       await queryClient.invalidateQueries({ queryKey: ["raffle", id] });
     } catch (err) {
@@ -582,9 +583,7 @@ export default function RaffleDetail() {
                 </div>
                 <button
                   type="submit"
-                  disabled={
-                    isPurchasing || !currentAccount || raffle.is_released
-                  }
+                  disabled={isPurchasing || !isConnected || raffle.is_released}
                   className="w-full px-6 py-4 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg font-semibold hover:from-indigo-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-lg shadow-lg"
                 >
                   {isPurchasing ? (

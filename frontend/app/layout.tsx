@@ -1,19 +1,14 @@
-"use client";
-
 import "@mysten/dapp-kit/dist/index.css";
-import {
-  SuiClientProvider,
-  WalletProvider as SuiWalletProvider,
-} from "@mysten/dapp-kit";
-import { getFullnodeUrl } from "@mysten/sui/client";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { WalletProvider } from "./context/WalletContext";
+import { Inter } from "next/font/google";
 import "./globals.css";
+import Providers from "@/app/components/Providers";
+import type { Metadata } from "next";
 
-const queryClient = new QueryClient();
+const inter = Inter({ subsets: ["latin"] });
 
-const networks = {
-  testnet: { url: getFullnodeUrl("testnet") },
+export const metadata: Metadata = {
+  title: "SUI-Raffler",
+  description: "Create and participate in raffles on the SUI blockchain",
 };
 
 export default function RootLayout({
@@ -23,14 +18,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="min-h-screen bg-gray-50">
-        <QueryClientProvider client={queryClient}>
-          <SuiClientProvider networks={networks} defaultNetwork="testnet">
-            <SuiWalletProvider autoConnect>
-              <WalletProvider>{children}</WalletProvider>
-            </SuiWalletProvider>
-          </SuiClientProvider>
-        </QueryClientProvider>
+      <body className={inter.className}>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

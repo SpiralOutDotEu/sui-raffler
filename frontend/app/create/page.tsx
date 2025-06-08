@@ -2,7 +2,6 @@
 
 import {
   useSuiClient,
-  useCurrentAccount,
   useSignAndExecuteTransaction,
   ConnectButton,
 } from "@mysten/dapp-kit";
@@ -10,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { PACKAGE_ID, MODULE, CONFIG_OBJECT_ID } from "../../constants";
 import { Transaction } from "@mysten/sui/transactions";
+import { useWallet } from "../context/WalletContext";
 
 // Helper function to format relative time
 function formatRelativeTime(target: number, currentTime: number) {
@@ -124,7 +124,7 @@ const quickMaxTicketsOptions = [
 
 export default function CreateRaffle() {
   const router = useRouter();
-  const currentAccount = useCurrentAccount();
+  const { address: currentAccount, isConnected } = useWallet();
   const { mutateAsync: signAndExecute } = useSignAndExecuteTransaction();
   const suiClient = useSuiClient();
   const [isCreating, setIsCreating] = useState(false);
@@ -198,7 +198,7 @@ export default function CreateRaffle() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentAccount?.address) return;
+    if (!isConnected || !currentAccount) return;
 
     setIsCreating(true);
     setError(null);
@@ -232,7 +232,7 @@ export default function CreateRaffle() {
           tx.pure.u64(endTime),
           tx.pure.u64(ticketPrice),
           tx.pure.u64(maxTicketsPerPurchase),
-          tx.pure.address(currentAccount.address),
+          tx.pure.address(currentAccount),
         ],
       });
 
@@ -276,7 +276,9 @@ export default function CreateRaffle() {
                 </p>
               </div>
             </div>
-            <ConnectButton />
+            <div className="flex items-center gap-4">
+              <ConnectButton />
+            </div>
           </div>
         </div>
 
@@ -651,7 +653,7 @@ export default function CreateRaffle() {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={isCreating || !currentAccount}
+              disabled={isCreating || !isConnected}
               className="w-full px-6 py-4 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg font-semibold hover:from-indigo-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-lg shadow-lg"
             >
               {isCreating ? (
