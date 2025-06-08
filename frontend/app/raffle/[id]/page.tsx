@@ -151,6 +151,32 @@ function useUserTickets(raffleId: string, userAddress: string | undefined) {
   });
 }
 
+// Add a helper function for relative time
+function getRelativeTime(target: number) {
+  const now = Date.now();
+  const diff = target - now;
+  const absDiff = Math.abs(diff);
+  const isFuture = diff > 0;
+
+  const units = [
+    { label: "year", ms: 1000 * 60 * 60 * 24 * 365 },
+    { label: "month", ms: 1000 * 60 * 60 * 24 * 30 },
+    { label: "day", ms: 1000 * 60 * 60 * 24 },
+    { label: "hour", ms: 1000 * 60 * 60 },
+    { label: "minute", ms: 1000 * 60 },
+    { label: "second", ms: 1000 },
+  ];
+  for (const unit of units) {
+    const value = Math.floor(absDiff / unit.ms);
+    if (value > 0) {
+      return isFuture
+        ? `in ${value} ${unit.label}${value > 1 ? "s" : ""}`
+        : `${value} ${unit.label}${value > 1 ? "s" : ""} ago`;
+    }
+  }
+  return isFuture ? "in a moment" : "just now";
+}
+
 export default function RaffleDetail() {
   const { id } = useParams();
   const { data: raffle, isLoading, error } = useRaffle(id as string);
@@ -363,6 +389,15 @@ export default function RaffleDetail() {
                   </Typography>
                   <Typography variant="body1">
                     {new Date(Number(raffle.start_time)).toUTCString()}
+                    <span
+                      style={{
+                        color: "#888",
+                        marginLeft: 8,
+                        fontSize: "0.95em",
+                      }}
+                    >
+                      ({getRelativeTime(Number(raffle.start_time))})
+                    </span>
                   </Typography>
                 </Box>
 
@@ -372,6 +407,15 @@ export default function RaffleDetail() {
                   </Typography>
                   <Typography variant="body1">
                     {new Date(Number(raffle.end_time)).toUTCString()}
+                    <span
+                      style={{
+                        color: "#888",
+                        marginLeft: 8,
+                        fontSize: "0.95em",
+                      }}
+                    >
+                      ({getRelativeTime(Number(raffle.end_time))})
+                    </span>
                   </Typography>
                 </Box>
 
