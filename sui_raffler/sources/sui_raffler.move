@@ -68,7 +68,8 @@ module sui_raffler::sui_raffler {
         balance: Balance<SUI>,   // Current balance of the raffle
         tickets_sold: u64,       // Total number of tickets sold
         is_released: bool,       // Whether winners have been selected
-        winners: VecMap<u64, address>,  // Maps winning ticket numbers to winner addresses
+        winners: VecMap<u64, u64>,  // Maps winning ticket numbers to winner addresses
+        prize_pool: u64,         // Store the original prize pool at release
     }
 
     /// A ticket object that represents a raffle ticket
@@ -101,9 +102,9 @@ module sui_raffler::sui_raffler {
     /// Emitted when winners are selected
     public struct RaffleReleased has copy, drop {
         raffle_id: ID,
-        first_winner: address,
-        second_winner: address,
-        third_winner: address,
+        first_winner: u64,
+        second_winner: u64,
+        third_winner: u64,
     }
 
     /// Emitted when fee collector is updated
@@ -176,6 +177,7 @@ module sui_raffler::sui_raffler {
             tickets_sold: 0,
             is_released: false,
             winners: vec_map::empty(),
+            prize_pool: 0,
         };
 
         // Emit event
@@ -261,11 +263,6 @@ module sui_raffler::sui_raffler {
         // Check if raffle is already released
         assert!(!raffle.is_released, ERaffleAlreadyReleased);
 
-        // Winner addresses
-        let winner1 = @0x1;
-        let winner2 = @0x2;
-        let winner3 = @0x3;
-
         // Generate unique random numbers for winners
         let mut random_generator = random::new_generator(random, ctx);
         let first_winner = random_generator.generate_u64() % raffle.tickets_sold + 1;
@@ -280,19 +277,22 @@ module sui_raffler::sui_raffler {
             third_winner = random_generator.generate_u64() % raffle.tickets_sold + 1;
         };
 
-        // Store winners with different addresses
-        vec_map::insert(&mut raffle.winners, first_winner, winner1);
-        vec_map::insert(&mut raffle.winners, second_winner, winner2);
-        vec_map::insert(&mut raffle.winners, third_winner, winner3);
+        // Store winning ticket numbers
+        vec_map::insert(&mut raffle.winners, first_winner, first_winner);
+        vec_map::insert(&mut raffle.winners, second_winner, second_winner);
+        vec_map::insert(&mut raffle.winners, third_winner, third_winner);
 
         raffle.is_released = true;
+
+        // Store the prize pool at release
+        raffle.prize_pool = balance::value(&raffle.balance);
 
         // Emit event
         event::emit(RaffleReleased {
             raffle_id: object::id(raffle),
-            first_winner: winner1,
-            second_winner: winner2,
-            third_winner: winner3,
+            first_winner: first_winner,
+            second_winner: second_winner,
+            third_winner: third_winner,
         });
     }
 
@@ -304,7 +304,7 @@ module sui_raffler::sui_raffler {
         ctx: &mut TxContext
     ) {
         // Verify ticket belongs to this raffle
-        assert!(object::id(&ticket) == object::id(raffle), EInvalidTicket);
+        assert!(ticket.raffle_id == object::id(raffle), EInvalidTicket);
         
         // Verify ticket is a winner
         let ticket_number = ticket.ticket_number;
@@ -312,11 +312,11 @@ module sui_raffler::sui_raffler {
         assert!(vec_map::contains(winners, &ticket_number), ENotWinner);
 
         // Calculate prize amount based on position
-        let total_balance = balance::value(&raffle.balance);
+        let total_balance = raffle.prize_pool;
         let winner_keys = vec_map::keys(winners);
-        let prize_amount = if (ticket_number == winner_keys[0]) {
+        let prize_amount = if (ticket_number == *vector::borrow(&winner_keys, 0)) {
             (total_balance * FIRST_PRIZE_PERCENTAGE) / 100
-        } else if (ticket_number == winner_keys[1]) {
+        } else if (ticket_number == *vector::borrow(&winner_keys, 1)) {
             (total_balance * SECOND_PRIZE_PERCENTAGE) / 100
         } else {
             (total_balance * THIRD_PRIZE_PERCENTAGE) / 100
@@ -329,8 +329,8 @@ module sui_raffler::sui_raffler {
         // If this is the last winner, transfer organizer's share and protocol fee
         if (vec_map::size(winners) == 3) {
             let remaining_balance = balance::value(&raffle.balance);
-            let organizer_share = (remaining_balance * ORGANIZER_PERCENTAGE) / 100;
-            let protocol_fee = (remaining_balance * PROTOCOL_FEE_PERCENTAGE) / 100;
+            let organizer_share = (raffle.prize_pool * ORGANIZER_PERCENTAGE) / 100;
+            let protocol_fee = (raffle.prize_pool * PROTOCOL_FEE_PERCENTAGE) / 100;
 
             // Transfer organizer's share
             let organizer_prize = coin::from_balance(balance::split(&mut raffle.balance, organizer_share), ctx);
@@ -366,7 +366,7 @@ module sui_raffler::sui_raffler {
         u64, // organizer_share_amount
         u64  // protocol_fee_amount
     ) {
-        let total_balance = balance::value(&raffle.balance);
+        let total_balance = if (raffle.is_released) { raffle.prize_pool } else { balance::value(&raffle.balance) };
         (
             raffle.start_time,
             raffle.end_time,
@@ -374,7 +374,7 @@ module sui_raffler::sui_raffler {
             raffle.max_tickets_per_purchase,
             raffle.organizer,
             raffle.fee_collector,
-            total_balance,
+            balance::value(&raffle.balance),
             raffle.tickets_sold,
             raffle.is_released,
             total_balance,
@@ -389,14 +389,14 @@ module sui_raffler::sui_raffler {
     /// Get winner information for a raffle
     public fun get_winners(raffle: &Raffle): (
         bool, // has_winners
-        vector<address>, // winner_addresses
-        vector<u64> // winning_ticket_numbers
+        vector<u64>, // winning_ticket_numbers
+        vector<u64> // winner_addresses
     ) {
         if (!raffle.is_released) {
             return (false, vector::empty(), vector::empty())
         };
         let winner_keys = vec_map::keys(&raffle.winners);
-        let mut winner_values = vector::empty<address>();
+        let mut winner_values = vector::empty<u64>();
         let mut i = 0;
         let len = vector::length(&winner_keys);
         while (i < len) {
@@ -428,7 +428,7 @@ module sui_raffler::sui_raffler {
         if (!vec_map::contains(&raffle.winners, &ticket_number)) {
             return (false, 0)
         };
-        let total_balance = balance::value(&raffle.balance);
+        let total_balance = raffle.prize_pool;
         let winner_keys = vec_map::keys(&raffle.winners);
         let prize_amount = if (ticket_number == *vector::borrow(&winner_keys, 0)) {
             (total_balance * FIRST_PRIZE_PERCENTAGE) / 100

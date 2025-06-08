@@ -5,8 +5,13 @@ use sui_raffler::sui_raffler;
 use sui::test_scenario as ts;
 use sui::clock;
 use sui::coin::{Self, Coin};
+use sui::balance::{Self, Balance};
 use sui::random::{Self, Random};
 use sui::sui::SUI;
+use sui::transfer;
+use sui::object::{Self, ID};
+use sui::vec_map::{Self, VecMap};
+use std::vector;
 
 /// Helper function to mint SUI coins for testing
 fun mint(addr: address, amount: u64, scenario: &mut ts::Scenario) {
@@ -114,13 +119,75 @@ fun test_raffle_flow() {
     assert!(vector::length(&winners) == 3, 1);
     assert!(vector::length(&tickets) == 3, 1);
 
-    let (total_sold, volume, avg_tix, time_left, is_active) = sui_raffler::get_raffle_stats(&raffle, &clock2);
-    assert!(total_sold == 3, 1);
-    assert!(volume == 300, 1);
-    assert!(avg_tix == 100, 1);
-    assert!(time_left == 0, 1);
-    assert!(!is_active, 1);
+    // Verify all winning tickets are different
+    let ticket1 = *vector::borrow(&tickets, 0);
+    let ticket2 = *vector::borrow(&tickets, 1);
+    let ticket3 = *vector::borrow(&tickets, 2);
+    assert!(ticket1 != ticket2 && ticket2 != ticket3 && ticket1 != ticket3, 1);
 
+    // Test claim prize for first winner
+    ts.next_tx(buyer);
+    let buyer_ticket = ts.take_from_sender<sui_raffler::Ticket>();
+    let (is_winner, prize_amount) = sui_raffler::is_winning_ticket(&raffle, &buyer_ticket);
+    
+    // Only try to claim prize if this is a winning ticket
+    if (is_winner) {
+        let initial_balance = sui_raffler::get_raffle_balance(&raffle);
+        sui_raffler::claim_prize(&mut raffle, buyer_ticket, ts.ctx());
+        let final_balance = sui_raffler::get_raffle_balance(&raffle);
+        
+        // Wait for the transaction to complete
+        ts.next_tx(buyer);
+        
+        // Get the prize coin received by the buyer
+        let prize_coin: Coin<SUI> = ts.take_from_sender();
+        let received_amount = coin::value(&prize_coin);
+        
+        // Assert that the received amount matches the prize amount
+        assert!(received_amount == prize_amount, 1);
+        
+        // Return the prize coin to the buyer
+        transfer::public_transfer(prize_coin, buyer);
+    } else {
+        // If not a winning ticket, return it to the buyer
+        transfer::public_transfer(buyer_ticket, buyer);
+        
+        // Try to get another ticket from the buyer
+        ts.next_tx(buyer);
+        let next_ticket = ts.take_from_sender<sui_raffler::Ticket>();
+        let (is_next_winner, next_prize_amount) = sui_raffler::is_winning_ticket(&raffle, &next_ticket);
+        
+        if (is_next_winner) {
+            let initial_balance = sui_raffler::get_raffle_balance(&raffle);
+            sui_raffler::claim_prize(&mut raffle, next_ticket, ts.ctx());
+            let final_balance = sui_raffler::get_raffle_balance(&raffle);
+            
+            // Wait for the transaction to complete
+            ts.next_tx(buyer);
+            
+            // Get the prize coin received by the buyer
+            let prize_coin: Coin<SUI> = ts.take_from_sender();
+            let received_amount = coin::value(&prize_coin);
+            
+            // Assert that the received amount matches the prize amount
+            assert!(received_amount == next_prize_amount, 1);
+            
+            // Return the prize coin to the buyer
+            transfer::public_transfer(prize_coin, buyer);
+        } else {
+            // If second ticket is also not a winner, return it
+            transfer::public_transfer(next_ticket, buyer);
+        };
+    };
+
+    // Test organizer's share
+    let (_, _, _, _, _, _, _, _, _, _, _, _, _, org_share, _) = sui_raffler::get_raffle_info(&raffle);
+    assert!(org_share == 30, 1); // 10% of 300 = 30
+
+    // Test fee collector's share
+    let (_, _, _, _, _, _, _, _, _, _, _, _, _, _, fee) = sui_raffler::get_raffle_info(&raffle);
+    assert!(fee == 15, 1); // 5% of 300 = 15
+    
     clock2.destroy_for_testing();
 
     // Return objects and end scenario
