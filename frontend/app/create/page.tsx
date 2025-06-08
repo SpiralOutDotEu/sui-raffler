@@ -104,6 +104,24 @@ const quickDurationOptions = [
   { label: "1 week", value: 7 * 24 * 60 * 60 * 1000 },
 ];
 
+// Quick ticket price options
+const quickTicketPriceOptions = [
+  { label: "0.1 SUI", value: "0.1" },
+  { label: "1 SUI", value: "1" },
+  { label: "5 SUI", value: "5" },
+  { label: "10 SUI", value: "10" },
+];
+
+// Quick max tickets options
+const quickMaxTicketsOptions = [
+  { label: "1", value: "1" },
+  { label: "2", value: "2" },
+  { label: "5", value: "5" },
+  { label: "10", value: "10" },
+  { label: "20", value: "20" },
+  { label: "50", value: "50" },
+];
+
 export default function CreateRaffle() {
   const router = useRouter();
   const currentAccount = useCurrentAccount();
@@ -183,12 +201,7 @@ export default function CreateRaffle() {
       const ticketPrice = Math.floor(Number(formData.ticketPrice) * 1e9); // Convert SUI to MIST
       const maxTicketsPerPurchase = Number(formData.maxTicketsPerPurchase);
 
-      // Validate times against blockchain time
-      if (startTime < currentBlockchainTime) {
-        throw new Error(
-          "Start time must be in the future relative to blockchain time"
-        );
-      }
+      // Validate times
       if (endTime <= startTime) {
         throw new Error("End time must be after start time");
       }
@@ -409,9 +422,26 @@ export default function CreateRaffle() {
                     }
                     className="w-full px-4 py-3 border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-lg bg-white"
                   />
-                  <p className="mt-2 text-sm text-indigo-600">
+                  <p className="mt-2 text-sm text-indigo-600 mb-4">
                     Minimum price: 0.001 SUI
                   </p>
+                  <div className="flex gap-2 flex-wrap">
+                    {quickTicketPriceOptions.map((option) => (
+                      <button
+                        key={option.label}
+                        type="button"
+                        onClick={() =>
+                          setFormData({
+                            ...formData,
+                            ticketPrice: option.value,
+                          })
+                        }
+                        className="px-3 py-1 text-sm bg-indigo-100 text-indigo-700 rounded-full hover:bg-indigo-200 transition-colors"
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <div className="bg-indigo-50 rounded-xl p-6">
                   <label
@@ -425,6 +455,7 @@ export default function CreateRaffle() {
                     id="maxTicketsPerPurchase"
                     required
                     min="1"
+                    max="50"
                     value={formData.maxTicketsPerPurchase}
                     onChange={(e) =>
                       setFormData({
@@ -434,6 +465,26 @@ export default function CreateRaffle() {
                     }
                     className="w-full px-4 py-3 border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-lg bg-white"
                   />
+                  <p className="mt-2 text-sm text-indigo-600 mb-4">
+                    Maximum possible: 50
+                  </p>
+                  <div className="flex gap-2 flex-wrap">
+                    {quickMaxTicketsOptions.map((option) => (
+                      <button
+                        key={option.label}
+                        type="button"
+                        onClick={() =>
+                          setFormData({
+                            ...formData,
+                            maxTicketsPerPurchase: option.value,
+                          })
+                        }
+                        className="px-3 py-1 text-sm bg-indigo-100 text-indigo-700 rounded-full hover:bg-indigo-200 transition-colors"
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
