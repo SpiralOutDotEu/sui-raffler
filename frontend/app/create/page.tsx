@@ -56,6 +56,36 @@ function formatDuration(start: number, end: number) {
   return "less than a minute";
 }
 
+// Helper function to format time for display - using blockchain time directly
+function formatTimeForDisplay(timestamp: number) {
+  const date = new Date(timestamp);
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  const hours = String(date.getUTCHours()).padStart(2, "0");
+  const minutes = String(date.getUTCMinutes()).padStart(2, "0");
+  return `${day}/${month}/${year}, ${hours}:${minutes} UTC`;
+}
+
+// Helper function to convert blockchain timestamp to ISO string for input
+function blockchainTimeToISOString(timestamp: number) {
+  const date = new Date(timestamp);
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  const hours = String(date.getUTCHours()).padStart(2, "0");
+  const minutes = String(date.getUTCMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+// Helper function to convert ISO string to blockchain timestamp
+function isoStringToBlockchainTime(isoString: string) {
+  const [datePart, timePart] = isoString.split("T");
+  const [year, month, day] = datePart.split("-").map(Number);
+  const [hours, minutes] = timePart.split(":").map(Number);
+  return Date.UTC(year, month - 1, day, hours, minutes);
+}
+
 // Quick time options
 const quickStartOptions = [
   { label: "Now", value: 0 },
@@ -124,17 +154,17 @@ export default function CreateRaffle() {
     const startTime = currentBlockchainTime + offset;
     setFormData((prev) => ({
       ...prev,
-      startTime: new Date(startTime).toISOString().slice(0, 16),
+      startTime: blockchainTimeToISOString(startTime),
     }));
   };
 
   const handleQuickDuration = (duration: number) => {
     if (!formData.startTime) return;
-    const startTime = new Date(formData.startTime).getTime();
+    const startTime = isoStringToBlockchainTime(formData.startTime);
     const endTime = startTime + duration;
     setFormData((prev) => ({
       ...prev,
-      endTime: new Date(endTime).toISOString().slice(0, 16),
+      endTime: blockchainTimeToISOString(endTime),
     }));
   };
 
@@ -147,15 +177,17 @@ export default function CreateRaffle() {
     setTransactionDigest(null);
 
     try {
-      // Convert form data to required format
-      const startTime = Math.floor(new Date(formData.startTime).getTime());
-      const endTime = Math.floor(new Date(formData.endTime).getTime());
+      // Convert form data to required format using blockchain time
+      const startTime = isoStringToBlockchainTime(formData.startTime);
+      const endTime = isoStringToBlockchainTime(formData.endTime);
       const ticketPrice = Math.floor(Number(formData.ticketPrice) * 1e9); // Convert SUI to MIST
       const maxTicketsPerPurchase = Number(formData.maxTicketsPerPurchase);
 
-      // Validate times
+      // Validate times against blockchain time
       if (startTime < currentBlockchainTime) {
-        throw new Error("Start time must be in the future");
+        throw new Error(
+          "Start time must be in the future relative to blockchain time"
+        );
       }
       if (endTime <= startTime) {
         throw new Error("End time must be after start time");
@@ -202,19 +234,6 @@ export default function CreateRaffle() {
     }
   };
 
-  // Helper function to format time for display
-  const formatTimeForDisplay = (timestamp: number) => {
-    return new Date(timestamp).toLocaleString("en-GB", {
-      hour12: false,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      timeZoneName: "short",
-    });
-  };
-
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
@@ -251,8 +270,7 @@ export default function CreateRaffle() {
                 {formatTimeForDisplay(currentBlockchainTime)}
               </p>
               <p className="mt-2 text-sm text-blue-600">
-                ⚠️ All times should be set relative to the blockchain time
-                above, not your local time.
+                ⚠️ All times are in blockchain time (UTC)
               </p>
             </div>
 
@@ -293,21 +311,19 @@ export default function CreateRaffle() {
                   onChange={(e) =>
                     setFormData({ ...formData, startTime: e.target.value })
                   }
-                  min={new Date(currentBlockchainTime)
-                    .toISOString()
-                    .slice(0, 16)}
+                  min={blockchainTimeToISOString(currentBlockchainTime)}
                   className="w-full px-4 py-3 border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-lg bg-white"
                 />
                 {formData.startTime && (
                   <p className="mt-2 text-sm text-purple-600">
                     Raffle will start{" "}
                     {formatRelativeTime(
-                      new Date(formData.startTime).getTime(),
+                      isoStringToBlockchainTime(formData.startTime),
                       currentBlockchainTime
                     )}{" "}
                     (
                     {formatTimeForDisplay(
-                      new Date(formData.startTime).getTime()
+                      isoStringToBlockchainTime(formData.startTime)
                     )}
                     )
                   </p>
@@ -346,7 +362,7 @@ export default function CreateRaffle() {
                   }
                   min={
                     formData.startTime ||
-                    new Date(currentBlockchainTime).toISOString().slice(0, 16)
+                    blockchainTimeToISOString(currentBlockchainTime)
                   }
                   className="w-full px-4 py-3 border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-lg bg-white"
                 />
@@ -354,11 +370,13 @@ export default function CreateRaffle() {
                   <p className="mt-2 text-sm text-purple-600">
                     Raffle will last for{" "}
                     {formatDuration(
-                      new Date(formData.startTime).getTime(),
-                      new Date(formData.endTime).getTime()
+                      isoStringToBlockchainTime(formData.startTime),
+                      isoStringToBlockchainTime(formData.endTime)
                     )}{" "}
                     (Ends at{" "}
-                    {formatTimeForDisplay(new Date(formData.endTime).getTime())}
+                    {formatTimeForDisplay(
+                      isoStringToBlockchainTime(formData.endTime)
+                    )}
                     )
                   </p>
                 )}
