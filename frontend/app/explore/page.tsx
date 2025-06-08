@@ -14,16 +14,11 @@ interface RaffleEvent {
   ticket_price: number;
 }
 
-interface Raffle {
-  id: string;
-  organizer: string;
-  start_time: number;
-  end_time: number;
-  ticket_price: number;
+interface RaffleFields {
   tickets_sold: number;
   is_released: boolean;
   balance: number;
-  winners?: { [key: number]: string };
+  winners: { [key: number]: string } | undefined;
 }
 
 // Helper function to format relative time
@@ -118,7 +113,7 @@ function useRaffles() {
 
             if (raffleObject.data?.content?.dataType === "moveObject") {
               const fields = raffleObject.data.content
-                .fields as unknown as Raffle;
+                .fields as unknown as RaffleFields;
               return {
                 id: raffleData.raffle_id,
                 organizer: raffleData.organizer,
@@ -135,7 +130,9 @@ function useRaffles() {
           })
       );
 
-      return raffles.filter((raffle): raffle is Raffle => raffle !== null);
+      return raffles.filter(
+        (raffle): raffle is NonNullable<typeof raffle> => raffle !== null
+      );
     },
   });
 }
@@ -301,7 +298,6 @@ export default function Explore() {
               raffle.end_time > now &&
               !raffle.is_released;
             const isUpcoming = raffle.start_time > now;
-            const isEnded = raffle.end_time <= now || raffle.is_released;
 
             return (
               <Link
@@ -388,7 +384,7 @@ export default function Explore() {
                   No Raffles Found
                 </h3>
                 <p className="text-gray-600">
-                  Try adjusting your search or filters to find what you're
+                  Try adjusting your search or filters to find what you&apos;re
                   looking for.
                 </p>
               </div>
