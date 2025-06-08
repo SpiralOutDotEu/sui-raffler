@@ -1,4 +1,4 @@
-export const PACKAGE_ID = "0x8b6a334868f6b5b149b677863d7f70e9e30ec2cde62f2afff62c1e6af144a50e";
+export const PACKAGE_ID = "0xc094a480583a30523e60ba5bc7ef3b0f5ed8e08d9e7f2db64f03b6bad69779bf";
 export const MODULE = "sui_raffler";
 export const RANDOM_OBJECT_ID = "0x8"; // Standard Sui random object
 
