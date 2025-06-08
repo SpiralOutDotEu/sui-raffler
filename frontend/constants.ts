@@ -3,9 +3,13 @@ export const NETWORK = "testnet"; // or "mainnet" or "devnet"
 export const FULLNODE_URL = `https://fullnode.${NETWORK}.sui.io:443`;
 
 // Contract configuration
-export const PACKAGE_ID = "0xc094a480583a30523e60ba5bc7ef3b0f5ed8e08d9e7f2db64f03b6bad69779bf"; 
+export const PACKAGE_ID = "0xc094a480583a30523e60ba5bc7ef3b0f5ed8e08d9e7f2db64f03b6bad69779bf";
 export const MODULE = "sui_raffler";
 export const CONFIG_OBJECT_ID = "0xcdb8766024590675201703a921e84983af5f9acb1807eabc1a97d31d70ad1f65";
+
+// Shared objects
+export const RANDOM_OBJECT_ID = "0x8";
+export const CLOCK_OBJECT_ID = "0x6";
 
 // Raffle prize distribution percentages
 export const FIRST_PRIZE_PERCENTAGE = 50;
