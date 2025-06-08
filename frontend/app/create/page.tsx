@@ -133,6 +133,7 @@ export default function CreateRaffle() {
     null
   );
   const [currentBlockchainTime, setCurrentBlockchainTime] = useState<number>(0);
+  const [isPriceUpdating, setIsPriceUpdating] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -141,6 +142,15 @@ export default function CreateRaffle() {
     ticketPrice: "",
     maxTicketsPerPurchase: "",
   });
+
+  // Debounced price update handler
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsPriceUpdating(false);
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timer);
+  }, [formData.ticketPrice]);
 
   // Update blockchain time every minute
   useEffect(() => {
@@ -410,18 +420,48 @@ export default function CreateRaffle() {
                   >
                     Ticket Price (SUI)
                   </label>
-                  <input
-                    type="number"
-                    id="ticketPrice"
-                    required
-                    min="0.001"
-                    step="0.001"
-                    value={formData.ticketPrice}
-                    onChange={(e) =>
-                      setFormData({ ...formData, ticketPrice: e.target.value })
-                    }
-                    className="w-full px-4 py-3 border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-lg bg-white"
-                  />
+                  <div className="relative">
+                    <input
+                      type="number"
+                      id="ticketPrice"
+                      required
+                      min="0.001"
+                      step="0.001"
+                      value={formData.ticketPrice}
+                      onChange={(e) => {
+                        setIsPriceUpdating(true);
+                        setFormData({
+                          ...formData,
+                          ticketPrice: e.target.value,
+                        });
+                      }}
+                      className="w-full px-4 py-3 border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-lg bg-white"
+                    />
+                    {isPriceUpdating && (
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                        <svg
+                          className="animate-spin h-5 w-5 text-indigo-500"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          ></path>
+                        </svg>
+                      </div>
+                    )}
+                  </div>
                   <p className="mt-2 text-sm text-indigo-600 mb-4">
                     Minimum price: 0.001 SUI
                   </p>
@@ -430,12 +470,13 @@ export default function CreateRaffle() {
                       <button
                         key={option.label}
                         type="button"
-                        onClick={() =>
+                        onClick={() => {
+                          setIsPriceUpdating(true);
                           setFormData({
                             ...formData,
                             ticketPrice: option.value,
-                          })
-                        }
+                          });
+                        }}
                         className="px-3 py-1 text-sm bg-indigo-100 text-indigo-700 rounded-full hover:bg-indigo-200 transition-colors"
                       >
                         {option.label}
@@ -495,28 +536,116 @@ export default function CreateRaffle() {
                 <span className="text-yellow-500">🏆</span>
                 Prize Distribution
               </h2>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-yellow-800">1st Place</span>
-                  <span className="font-semibold text-yellow-800">50%</span>
+              {!formData.ticketPrice ? (
+                <div className="space-y-3">
+                  {[
+                    { position: "1st Place", percentage: 50 },
+                    { position: "2nd Place", percentage: 25 },
+                    { position: "3rd Place", percentage: 10 },
+                    { position: "Organizer", percentage: 10 },
+                    { position: "Protocol Fee", percentage: 5 },
+                  ].map((row) => (
+                    <div
+                      key={row.position}
+                      className="flex justify-between items-center"
+                    >
+                      <span className="text-yellow-800">{row.position}</span>
+                      <span className="font-semibold text-yellow-800">
+                        {row.percentage}%
+                      </span>
+                    </div>
+                  ))}
+                  <p className="mt-4 text-sm text-yellow-700">
+                    * Enter a ticket price to see estimated prize distributions
+                  </p>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-yellow-800">2nd Place</span>
-                  <span className="font-semibold text-yellow-800">25%</span>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-yellow-200">
+                        <th className="text-left py-3 px-4 text-yellow-800 font-semibold">
+                          Position
+                        </th>
+                        <th className="text-right py-3 px-4 text-yellow-800 font-semibold">
+                          Percentage
+                        </th>
+                        <th className="text-right py-3 px-4 text-yellow-800 font-semibold">
+                          100 Tickets
+                        </th>
+                        <th className="text-right py-3 px-4 text-yellow-800 font-semibold">
+                          500 Tickets
+                        </th>
+                        <th className="text-right py-3 px-4 text-yellow-800 font-semibold">
+                          1000 Tickets
+                        </th>
+                        <th className="text-right py-3 px-4 text-yellow-800 font-semibold">
+                          5000 Tickets
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[
+                        { position: "1st Place", percentage: 50 },
+                        { position: "2nd Place", percentage: 25 },
+                        { position: "3rd Place", percentage: 10 },
+                        { position: "Organizer", percentage: 10 },
+                        { position: "Protocol Fee", percentage: 5 },
+                      ].map((row) => (
+                        <tr
+                          key={row.position}
+                          className="border-b border-yellow-100"
+                        >
+                          <td className="py-3 px-4 text-yellow-800">
+                            {row.position}
+                          </td>
+                          <td className="py-3 px-4 text-right text-yellow-800 font-semibold">
+                            {row.percentage}%
+                          </td>
+                          {[100, 500, 1000, 5000].map((tickets) => {
+                            const ticketPrice =
+                              Number(formData.ticketPrice) || 0;
+                            const totalPrize = tickets * ticketPrice;
+                            const amount = (totalPrize * row.percentage) / 100;
+                            return (
+                              <td
+                                key={tickets}
+                                className="py-3 px-4 text-right text-yellow-800"
+                              >
+                                {amount.toFixed(2)} SUI
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                      <tr className="bg-yellow-100/50">
+                        <td className="py-3 px-4 text-yellow-800 font-semibold">
+                          Total Prize Pool
+                        </td>
+                        <td className="py-3 px-4 text-right text-yellow-800 font-semibold">
+                          100%
+                        </td>
+                        {[100, 500, 1000, 5000].map((tickets) => {
+                          const ticketPrice = Number(formData.ticketPrice) || 0;
+                          const totalPrize = tickets * ticketPrice;
+                          return (
+                            <td
+                              key={tickets}
+                              className="py-3 px-4 text-right text-yellow-800 font-semibold"
+                            >
+                              {totalPrize.toFixed(2)} SUI
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    </tbody>
+                  </table>
+                  <p className="mt-4 text-sm text-yellow-700">
+                    * Estimated distributions are calculated based on the
+                    current ticket price of {formData.ticketPrice} SUI
+                  </p>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-yellow-800">3rd Place</span>
-                  <span className="font-semibold text-yellow-800">10%</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-yellow-800">Organizer</span>
-                  <span className="font-semibold text-yellow-800">10%</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-yellow-800">Protocol Fee</span>
-                  <span className="font-semibold text-yellow-800">5%</span>
-                </div>
-              </div>
+              )}
             </div>
 
             {/* Submit Button */}
