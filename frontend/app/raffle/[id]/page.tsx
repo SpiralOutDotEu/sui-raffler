@@ -283,13 +283,6 @@ export default function RaffleDetail() {
     );
   }
 
-  // Debug timestamps
-  console.log("Raw timestamps:", {
-    start_time: raffle.start_time,
-    end_time: raffle.end_time,
-    current: Date.now(),
-  });
-
   const isActive =
     !raffle.is_released &&
     Date.now() >= Number(raffle.start_time) &&
@@ -369,7 +362,7 @@ export default function RaffleDetail() {
                     Start Time
                   </Typography>
                   <Typography variant="body1">
-                    {new Date(Number(raffle.start_time)).toLocaleString()}
+                    {new Date(Number(raffle.start_time)).toUTCString()}
                   </Typography>
                 </Box>
 
@@ -378,7 +371,7 @@ export default function RaffleDetail() {
                     End Time
                   </Typography>
                   <Typography variant="body1">
-                    {new Date(Number(raffle.end_time)).toLocaleString()}
+                    {new Date(Number(raffle.end_time)).toUTCString()}
                   </Typography>
                 </Box>
 
