@@ -516,7 +516,32 @@ export default function RaffleDetail() {
                 <Typography variant="h6" gutterBottom>
                   Your Tickets
                 </Typography>
-                {isLoadingTickets ? (
+                {/* Ticket statistics overview */}
+                <Box mb={2}>
+                  <Typography variant="body2">
+                    <strong>Total Tickets You Own:</strong> {userTickets.length}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Total Tickets Sold:</strong> {raffle.tickets_sold}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Your Win Probability:</strong>{" "}
+                    {raffle.tickets_sold > 0
+                      ? (
+                          (userTickets.length / raffle.tickets_sold) *
+                          100
+                        ).toFixed(2)
+                      : "0.00"}
+                    %
+                  </Typography>
+                </Box>
+                {/* If raffle not ended, show message */}
+                {!raffle.is_released ? (
+                  <Alert severity="info">
+                    The raffle hasn&apos;t concluded yet. When it ends,
+                    you&apos;ll see the results here.
+                  </Alert>
+                ) : isLoadingTickets ? (
                   <Box display="flex" justifyContent="center" p={2}>
                     <CircularProgress />
                   </Box>
