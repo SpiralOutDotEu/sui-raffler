@@ -2,7 +2,6 @@
 
 import {
   useSuiClient,
-  useCurrentAccount,
   useSignAndExecuteTransaction,
   ConnectButton,
 } from "@mysten/dapp-kit";
@@ -338,17 +337,24 @@ export default function RaffleDetail() {
           <div className="lg:col-span-2 space-y-8">
             {/* Prize Pool Card */}
             <div className="bg-white rounded-2xl shadow-lg p-8 border border-gray-100">
-              <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                <span className="text-yellow-500">🏆</span>
-                Prize Pool Distribution
-              </h2>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                  <span className="text-yellow-500">🏆</span>
+                  Prize Pool Distribution
+                </h2>
+              </div>
+              <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-100">
+                <p className="text-blue-700 text-sm">
+                  💡 The prize pool grows with each ticket purchase until the
+                  raffle ends. Current minimum prizes shown below.
+                </p>
+              </div>
               <div className="space-y-4">
                 <div className="bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-xl p-6">
                   <div className="flex justify-between items-center">
                     <div>
-                      <p className="text-yellow-800 font-semibold">1st Place</p>
-                      <p className="text-yellow-600 text-sm">
-                        50% of Prize Pool
+                      <p className="text-yellow-800 font-semibold flex items-center gap-2">
+                        <span className="text-2xl">🥇</span> 1st Place
                       </p>
                     </div>
                     <p className="text-2xl font-bold text-yellow-800">
@@ -359,8 +365,9 @@ export default function RaffleDetail() {
                 <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-6">
                   <div className="flex justify-between items-center">
                     <div>
-                      <p className="text-gray-800 font-semibold">2nd Place</p>
-                      <p className="text-gray-600 text-sm">25% of Prize Pool</p>
+                      <p className="text-gray-800 font-semibold flex items-center gap-2">
+                        <span className="text-2xl">🥈</span> 2nd Place
+                      </p>
                     </div>
                     <p className="text-2xl font-bold text-gray-800">
                       {(raffle.balance * 0.25) / 1e9} SUI
@@ -370,9 +377,8 @@ export default function RaffleDetail() {
                 <div className="bg-gradient-to-r from-amber-50 to-amber-100 rounded-xl p-6">
                   <div className="flex justify-between items-center">
                     <div>
-                      <p className="text-amber-800 font-semibold">3rd Place</p>
-                      <p className="text-amber-600 text-sm">
-                        10% of Prize Pool
+                      <p className="text-amber-800 font-semibold flex items-center gap-2">
+                        <span className="text-2xl">🥉</span> 3rd Place
                       </p>
                     </div>
                     <p className="text-2xl font-bold text-amber-800">
@@ -523,7 +529,7 @@ export default function RaffleDetail() {
                       <span className="text-2xl">🎫</span>
                     </div>
                     <p className="text-gray-600 text-lg font-medium">
-                      You don't have any tickets for this raffle yet.
+                      You don&apos;t have any tickets for this raffle yet.
                     </p>
                     <p className="text-gray-500 mt-2">
                       Buy some tickets to participate!
