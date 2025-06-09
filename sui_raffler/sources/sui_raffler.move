@@ -61,13 +61,6 @@ module sui_raffler::sui_raffler {
         fee_collector: address,
         paused: bool,
         permissionless: bool,
-        roles: vector<address>,  // List of addresses with special roles
-    }
-
-    /// Role types that can be assigned
-    public struct Role has copy, drop {
-        ADMIN: u8,
-        CONTROLLER: u8,
     }
 
     /// A raffle object that holds all the raffle information
@@ -136,10 +129,6 @@ module sui_raffler::sui_raffler {
     /// Initialize the module with admin, controller, and fee collector addresses
     /// This function can only be called once during module deployment
     public entry fun initialize(admin: address, controller: address, fee_collector: address, ctx: &mut TxContext) {
-        let mut roles = vector::empty();
-        vector::push_back(&mut roles, admin);
-        vector::push_back(&mut roles, controller);
-
         let config = Config {
             id: object::new(ctx),
             admin,
@@ -147,7 +136,6 @@ module sui_raffler::sui_raffler {
             fee_collector,
             paused: false,
             permissionless: true,
-            roles,
         };
         transfer::share_object(config);
     }
@@ -156,42 +144,14 @@ module sui_raffler::sui_raffler {
     /// Only the admin can call this function
     public entry fun update_admin(config: &mut Config, new_admin: address, ctx: &mut TxContext) {
         assert!(config.admin == tx_context::sender(ctx), ENotAdmin);
-        let old_admin = config.admin;
         config.admin = new_admin;
-        
-        // Update roles list
-        let mut i = 0;
-        let len = vector::length(&config.roles);
-        while (i < len) {
-            let role = vector::borrow(&config.roles, i);
-            if (*role == old_admin) {
-                let role_mut = vector::borrow_mut(&mut config.roles, i);
-                *role_mut = new_admin;
-                break
-            };
-            i = i + 1;
-        };
     }
 
     /// Update the controller address
     /// Only the admin can call this function
     public entry fun update_controller(config: &mut Config, new_controller: address, ctx: &mut TxContext) {
         assert!(config.admin == tx_context::sender(ctx), ENotAdmin);
-        let old_controller = config.controller;
         config.controller = new_controller;
-        
-        // Update roles list
-        let mut i = 0;
-        let len = vector::length(&config.roles);
-        while (i < len) {
-            let role = vector::borrow(&config.roles, i);
-            if (*role == old_controller) {
-                let role_mut = vector::borrow_mut(&mut config.roles, i);
-                *role_mut = new_controller;
-                break
-            };
-            i = i + 1;
-        };
     }
 
     /// Update the fee collector address
