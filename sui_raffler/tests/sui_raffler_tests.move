@@ -8,12 +8,6 @@ use sui::coin::{Self, Coin};
 use sui::random::{Self, Random};
 use sui::sui::SUI;
 use std::debug;
-use sui::transfer;
-use std::vector;
-use sui::object::{Self, UID, ID};
-use sui::tx_context;
-use sui::balance;
-use sui::event;
 use std::string;
 
 /// Helper function to mint SUI coins for testing
@@ -22,16 +16,6 @@ fun mint(addr: address, amount: u64, scenario: &mut ts::Scenario) {
     scenario.next_tx(addr);
 }
 
-/// Helper function to get balance in tests
-fun get_balance(addr: address, scenario: &mut ts::Scenario): u64 {
-    let mut total = 0;
-    while (ts::has_most_recent_for_sender<Coin<SUI>>(scenario)) {
-        let coin = ts::take_from_sender<Coin<SUI>>(scenario);
-        total = total + coin::value(&coin);
-        ts::return_to_sender(scenario, coin);
-    };
-    total
-}
 
 /// Test the complete raffle flow:
 /// 1. Initialize module configuration

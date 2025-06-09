@@ -51,9 +51,7 @@ module sui_raffler::sui_raffler {
     const EPaused: u64 = 13;                 // Contract or raffle is paused
     const EPermissionDenied: u64 = 14;       // Not allowed in current permission mode
     const ERafflePaused: u64 = 15;           // Raffle is paused
-    const EInvalidRole: u64 = 16;            // Invalid role specified
     const ENotAuthorized: u64 = 17;          // Not authorized for this operation
-    const EInvalidOperation: u64 = 18;       // Invalid operation for current role
 
     /// Module configuration that holds admin, controller, fee collector, pause, and permissionless info
     public struct Config has key {
@@ -169,7 +167,7 @@ module sui_raffler::sui_raffler {
             if (*role == old_admin) {
                 let role_mut = vector::borrow_mut(&mut config.roles, i);
                 *role_mut = new_admin;
-                break;
+                break
             };
             i = i + 1;
         };
@@ -190,7 +188,7 @@ module sui_raffler::sui_raffler {
             if (*role == old_controller) {
                 let role_mut = vector::borrow_mut(&mut config.roles, i);
                 *role_mut = new_controller;
-                break;
+                break
             };
             i = i + 1;
         };

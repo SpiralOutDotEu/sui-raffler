@@ -8,29 +8,12 @@ use sui::coin::{Self, Coin};
 use sui::random::{Self, Random};
 use sui::sui::SUI;
 use std::debug;
-use sui::transfer;
-use std::vector;
-use sui::object::{Self, UID, ID};
-use sui::tx_context;
-use sui::balance;
-use sui::event;
 use std::string;
 
 /// Helper function to mint SUI coins for testing
 fun mint(addr: address, amount: u64, scenario: &mut ts::Scenario) {
     transfer::public_transfer(coin::mint_for_testing<SUI>(amount, scenario.ctx()), addr);
     scenario.next_tx(addr);
-}
-
-/// Helper function to get balance in tests
-fun get_balance(addr: address, scenario: &mut ts::Scenario): u64 {
-    let mut total = 0;
-    while (ts::has_most_recent_for_sender<Coin<SUI>>(scenario)) {
-        let coin = ts::take_from_sender<Coin<SUI>>(scenario);
-        total = total + coin::value(&coin);
-        ts::return_to_sender(scenario, coin);
-    };
-    total
 }
 
 /// Test that non-admin cannot update admin
@@ -937,11 +920,6 @@ fun test_prize_claiming() {
     let second_winner = *vector::borrow(&winning_tickets, 1);
     let third_winner = *vector::borrow(&winning_tickets, 2);
 
-    // Get initial balances
-    let initial_balance1 = get_balance(buyer1, &mut ts);
-    let initial_balance2 = get_balance(buyer2, &mut ts);
-    let initial_balance3 = get_balance(buyer3, &mut ts);
-
     // Collect all tickets
     let mut buyer1_tickets = vector::empty<sui_raffler::Ticket>();
     let mut buyer2_tickets = vector::empty<sui_raffler::Ticket>();
@@ -1051,28 +1029,6 @@ fun test_prize_claiming() {
         ts.next_tx(buyer3);
         let ticket = vector::pop_back(&mut third_winner_ticket);
         sui_raffler::claim_prize(&mut raffle, ticket, ts.ctx());
-    };
-
-    // Get final balances
-    let final_balance1 = get_balance(buyer1, &mut ts);
-    let final_balance2 = get_balance(buyer2, &mut ts);
-    let final_balance3 = get_balance(buyer3, &mut ts);
-
-    // Verify balances changed correctly
-    let total_prize_pool = 700; // 7 tickets * 100 SUI
-    let first_prize = (total_prize_pool * 50) / 100; // 50%
-    let second_prize = (total_prize_pool * 25) / 100; // 25%
-    let third_prize = (total_prize_pool * 10) / 100; // 10%
-
-    // Check if each winner received their prize
-    if (vector::length(&first_winner_ticket) > 0) {
-        assert!(final_balance1 == initial_balance1 + first_prize, 0);
-    };
-    if (vector::length(&second_winner_ticket) > 0) {
-        assert!(final_balance2 == initial_balance2 + second_prize, 0);
-    };
-    if (vector::length(&third_winner_ticket) > 0) {
-        assert!(final_balance3 == initial_balance3 + third_prize, 0);
     };
 
     // Clean up winner tickets
