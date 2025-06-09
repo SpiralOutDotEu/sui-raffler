@@ -7,11 +7,31 @@ use sui::clock;
 use sui::coin::{Self, Coin};
 use sui::random::{Self, Random};
 use sui::sui::SUI;
+use std::debug;
+use sui::transfer;
+use std::vector;
+use sui::object::{Self, UID, ID};
+use sui::tx_context;
+use sui::vec_map;
+use sui::balance;
+use sui::event;
+use std::string;
 
 /// Helper function to mint SUI coins for testing
 fun mint(addr: address, amount: u64, scenario: &mut ts::Scenario) {
     transfer::public_transfer(coin::mint_for_testing<SUI>(amount, scenario.ctx()), addr);
     scenario.next_tx(addr);
+}
+
+/// Helper function to get balance in tests
+fun get_balance(addr: address, scenario: &mut ts::Scenario): u64 {
+    let mut total = 0;
+    while (ts::has_most_recent_for_sender<Coin<SUI>>(scenario)) {
+        let coin = ts::take_from_sender<Coin<SUI>>(scenario);
+        total = total + coin::value(&coin);
+        ts::return_to_sender(scenario, coin);
+    };
+    total
 }
 
 /// Test the complete raffle flow:
@@ -64,7 +84,7 @@ fun test_raffle_flow() {
     ts.next_tx(buyer);
     mint(buyer, ticket_price * 3, &mut ts);
     let coin: Coin<SUI> = ts.take_from_sender();
-    let clock = clock::create_for_testing(ts.ctx());
+    let mut clock = clock::create_for_testing(ts.ctx());
     sui_raffler::buy_tickets(&mut raffle, coin, 3, &clock, ts.ctx());
     assert!(sui_raffler::get_tickets_sold(&raffle) == 3, 1);
 
@@ -99,13 +119,10 @@ fun test_raffle_flow() {
     assert!(vector::is_empty(&winners), 1);
     assert!(vector::is_empty(&tickets), 1);
 
-    clock.destroy_for_testing();
-
     // Organizer releases raffle after end_time
     ts.next_tx(organizer);
-    let mut clock2 = clock::create_for_testing(ts.ctx());
-    clock2.set_for_testing(end_time + 1);
-    sui_raffler::release_raffle(&mut raffle, &random_state, &clock2, ts.ctx());
+    clock.set_for_testing(end_time + 1);
+    sui_raffler::release_raffle(&mut raffle, &random_state, &clock, ts.ctx());
     assert!(sui_raffler::is_released(&raffle), 1);
 
     // Test view functions after release
@@ -120,56 +137,32 @@ fun test_raffle_flow() {
     let ticket3 = *vector::borrow(&tickets, 2);
     assert!(ticket1 != ticket2 && ticket2 != ticket3 && ticket1 != ticket3, 1);
 
-    // Test claim prize for first winner
+    // Test claim prize for buyer
     ts.next_tx(buyer);
-    let buyer_ticket = ts.take_from_sender<sui_raffler::Ticket>();
-    let (is_winner, prize_amount) = sui_raffler::is_winning_ticket(&raffle, &buyer_ticket);
+    let mut buyer_tickets = vector::empty<sui_raffler::Ticket>();
+    let mut i = 0;
+    while (i < 3) {
+        let ticket = ts.take_from_sender<sui_raffler::Ticket>();
+        vector::push_back(&mut buyer_tickets, ticket);
+        i = i + 1;
+    };
     
-    // Only try to claim prize if this is a winning ticket
-    if (is_winner) {
-        sui_raffler::claim_prize(&mut raffle, buyer_ticket, ts.ctx());
-        
-        // Wait for the transaction to complete
-        ts.next_tx(buyer);
-        
-        // Get the prize coin received by the buyer
-        let prize_coin: Coin<SUI> = ts.take_from_sender();
-        let received_amount = coin::value(&prize_coin);
-        
-        // Assert that the received amount matches the prize amount
-        assert!(received_amount == prize_amount, 1);
-        
-        // Return the prize coin to the buyer
-        transfer::public_transfer(prize_coin, buyer);
-    } else {
-        // If not a winning ticket, return it to the buyer
-        transfer::public_transfer(buyer_ticket, buyer);
-        
-        // Try to get another ticket from the buyer
-        ts.next_tx(buyer);
-        let next_ticket = ts.take_from_sender<sui_raffler::Ticket>();
-        let (is_next_winner, next_prize_amount) = sui_raffler::is_winning_ticket(&raffle, &next_ticket);
-        
-        if (is_next_winner) {
-            sui_raffler::claim_prize(&mut raffle, next_ticket, ts.ctx());
-            
-            // Wait for the transaction to complete
+    // Check each ticket for buyer
+    while (!vector::is_empty(&buyer_tickets)) {
+        let ticket = vector::pop_back(&mut buyer_tickets);
+        let (is_winner, prize_amount) = sui_raffler::is_winning_ticket(&raffle, &ticket);
+        if (is_winner) {
+            sui_raffler::claim_prize(&mut raffle, ticket, ts.ctx());
             ts.next_tx(buyer);
-            
-            // Get the prize coin received by the buyer
             let prize_coin: Coin<SUI> = ts.take_from_sender();
             let received_amount = coin::value(&prize_coin);
-            
-            // Assert that the received amount matches the prize amount
-            assert!(received_amount == next_prize_amount, 1);
-            
-            // Return the prize coin to the buyer
+            assert!(received_amount == prize_amount, 1);
             transfer::public_transfer(prize_coin, buyer);
         } else {
-            // If second ticket is also not a winner, return it
-            transfer::public_transfer(next_ticket, buyer);
+            transfer::public_transfer(ticket, buyer);
         };
     };
+    vector::destroy_empty(buyer_tickets);
 
     // Test organizer's share
     let (_, _, _, _, _, _, _, _, _, _, _, _, _, org_share, _) = sui_raffler::get_raffle_info(&raffle);
@@ -179,9 +172,8 @@ fun test_raffle_flow() {
     let (_, _, _, _, _, _, _, _, _, _, _, _, _, _, fee) = sui_raffler::get_raffle_info(&raffle);
     assert!(fee == 15, 1); // 5% of 300 = 15
     
-    clock2.destroy_for_testing();
-
-    // Return objects and end scenario
+    // Clean up
+    clock.destroy_for_testing();
     ts::return_shared(config);
     ts::return_shared(raffle);
     ts::return_shared(random_state);
@@ -259,5 +251,277 @@ fun test_invalid_organizer() {
 
     // Return objects and end scenario
     ts::return_shared(config);
+    ts.end();
+}
+
+/// Test raffle balances and fee distribution
+#[test]
+fun test_raffle_balances() {
+    let admin = @0xAD;
+    let creator = @0xBEEF;
+    let organizer = @0x1234;
+    let buyer1 = @0xB0B;
+    let buyer2 = @0xB0B2;
+    let buyer3 = @0xB0B3;
+    let fee_collector = @0xFEE5;
+    let start_time = 0;
+    let end_time = 1000;
+    let ticket_price = 100;
+    let max_tickets = 10;
+
+    // Start with system address for random setup
+    let mut ts = ts::begin(@0x0);
+
+    // Setup randomness
+    random::create_for_testing(ts.ctx());
+    ts.next_tx(@0x0);
+    let mut random_state: Random = ts.take_shared();
+    random_state.update_randomness_state_for_testing(
+        0,
+        x"1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F",
+        ts.ctx(),
+    );
+
+    // Initialize module configuration
+    ts.next_tx(admin);
+    sui_raffler::initialize(admin, fee_collector, ts.ctx());
+    ts.next_tx(admin);
+    let config = ts.take_shared<sui_raffler::Config>();
+    assert!(sui_raffler::get_config_fee_collector(&config) == fee_collector, 1);
+
+    // Create raffle
+    ts.next_tx(creator);
+    mint(creator, 1000, &mut ts);
+    ts.next_tx(creator);
+    sui_raffler::create_raffle(&config, start_time, end_time, ticket_price, max_tickets, organizer, ts.ctx());
+    ts.next_tx(creator);
+    let mut raffle = ts.take_shared<sui_raffler::Raffle>();
+    assert!(sui_raffler::get_tickets_sold(&raffle) == 0, 1);
+
+    // Buyer1 buys 3 tickets (cost: 300)
+    ts.next_tx(buyer1);
+    mint(buyer1, 300, &mut ts); // Mint exact amount needed
+    let coin1: Coin<SUI> = ts.take_from_sender();
+    let mut clock = clock::create_for_testing(ts.ctx());
+    sui_raffler::buy_tickets(&mut raffle, coin1, 3, &clock, ts.ctx());
+    
+    // Verify state after first purchase
+    let (_, _, _, _, _, _, balance, sold, _, total, _, _, _, _, _) = sui_raffler::get_raffle_info(&raffle);
+    debug::print(&string::utf8(b"=== AFTER FIRST PURCHASE ==="));
+    debug::print(&string::utf8(b"Balance: "));
+    debug::print(&balance);
+    debug::print(&string::utf8(b"Tickets sold: "));
+    debug::print(&sold);
+    debug::print(&string::utf8(b"Total: "));
+    debug::print(&total);
+    assert!(sold == 3, 1);
+    assert!(balance == 300, 1);
+    assert!(total == 300, 1);
+
+    // Buyer2 buys 2 tickets (cost: 200)
+    ts.next_tx(buyer2);
+    mint(buyer2, 200, &mut ts); // Mint exact amount needed
+    let coin2: Coin<SUI> = ts.take_from_sender();
+    sui_raffler::buy_tickets(&mut raffle, coin2, 2, &clock, ts.ctx());
+    
+    // Verify state after second purchase
+    let (_, _, _, _, _, _, balance, sold, _, total, _, _, _, _, _) = sui_raffler::get_raffle_info(&raffle);
+    debug::print(&string::utf8(b"=== AFTER SECOND PURCHASE ==="));
+    debug::print(&string::utf8(b"Balance: "));
+    debug::print(&balance);
+    debug::print(&string::utf8(b"Tickets sold: "));
+    debug::print(&sold);
+    debug::print(&string::utf8(b"Total: "));
+    debug::print(&total);
+    assert!(sold == 5, 1);
+    assert!(balance == 500, 1);
+    assert!(total == 500, 1);
+
+    // Buyer3 buys 4 tickets (cost: 400)
+    ts.next_tx(buyer3);
+    mint(buyer3, 400, &mut ts); // Mint exact amount needed
+    let coin3: Coin<SUI> = ts.take_from_sender();
+    sui_raffler::buy_tickets(&mut raffle, coin3, 4, &clock, ts.ctx());
+    
+    // Verify state after third purchase
+    let (_, _, _, _, _, _, balance, sold, _, total, first, second, third, org_share, fee) = sui_raffler::get_raffle_info(&raffle);
+    debug::print(&string::utf8(b"=== AFTER THIRD PURCHASE ==="));
+    debug::print(&string::utf8(b"Balance: "));
+    debug::print(&balance);
+    debug::print(&string::utf8(b"Tickets sold: "));
+    debug::print(&sold);
+    debug::print(&string::utf8(b"Total: "));
+    debug::print(&total);
+    debug::print(&string::utf8(b"First prize share: "));
+    debug::print(&first);
+    debug::print(&string::utf8(b"Second prize share: "));
+    debug::print(&second);
+    debug::print(&string::utf8(b"Third prize share: "));
+    debug::print(&third);
+    debug::print(&string::utf8(b"Organizer share: "));
+    debug::print(&org_share);
+    debug::print(&string::utf8(b"Protocol fee: "));
+    debug::print(&fee);
+    assert!(sold == 9, 1);
+    assert!(balance == 900, 1);
+    assert!(total == 900, 1);
+    assert!(first == 450, 1); // 50% of 900
+    assert!(second == 225, 1); // 25% of 900
+    assert!(third == 90, 1); // 10% of 900
+    assert!(org_share == 90, 1); // 10% of 900
+    assert!(fee == 45, 1); // 5% of 900
+
+    // Organizer releases raffle after end_time
+    ts.next_tx(organizer);
+    clock.set_for_testing(end_time + 1);
+    sui_raffler::release_raffle(&mut raffle, &random_state, &clock, ts.ctx());
+    
+    // Verify raffle is released and has winners
+    assert!(sui_raffler::is_released(&raffle), 1);
+    let (has_winners, winners, tickets) = sui_raffler::get_winners(&raffle);
+    assert!(has_winners, 1);
+    assert!(vector::length(&winners) == 3, 1);
+    assert!(vector::length(&tickets) == 3, 1);
+
+    // Verify all winning tickets are different
+    let ticket1 = *vector::borrow(&tickets, 0);
+    let ticket2 = *vector::borrow(&tickets, 1);
+    let ticket3 = *vector::borrow(&tickets, 2);
+    assert!(ticket1 != ticket2 && ticket2 != ticket3 && ticket1 != ticket3, 1);
+
+    // Print values after release to confirm they are fixed
+    let (_, _, _, _, _, _, balance, sold, _, total, first, second, third, org_share, fee) = sui_raffler::get_raffle_info(&raffle);
+    debug::print(&string::utf8(b"=== AFTER RELEASE ==="));
+    debug::print(&string::utf8(b"Balance: "));
+    debug::print(&balance);
+    debug::print(&string::utf8(b"Tickets sold: "));
+    debug::print(&sold);
+    debug::print(&string::utf8(b"Total prize pool: "));
+    debug::print(&total);
+    debug::print(&string::utf8(b"First prize share: "));
+    debug::print(&first);
+    debug::print(&string::utf8(b"Second prize share: "));
+    debug::print(&second);
+    debug::print(&string::utf8(b"Third prize share: "));
+    debug::print(&third);
+    debug::print(&string::utf8(b"Organizer share: "));
+    debug::print(&org_share);
+    debug::print(&string::utf8(b"Protocol fee: "));
+    debug::print(&fee);
+    assert!(total == 900, 1); // Prize pool is fixed at release
+    assert!(first == 450, 1); // 50% of 900
+    assert!(second == 225, 1); // 25% of 900
+    assert!(third == 90, 1); // 10% of 900
+    assert!(org_share == 90, 1); // 10% of 900
+    assert!(fee == 45, 1); // 5% of 900
+
+    // Test claim prize for buyer1
+    ts.next_tx(buyer1);
+    let mut buyer1_tickets = vector::empty<sui_raffler::Ticket>();
+    let mut i = 0;
+    while (i < 3) {
+        let ticket = ts.take_from_sender<sui_raffler::Ticket>();
+        vector::push_back(&mut buyer1_tickets, ticket);
+        i = i + 1;
+    };
+    
+    // Check each ticket for buyer1
+    while (!vector::is_empty(&buyer1_tickets)) {
+        let ticket = vector::pop_back(&mut buyer1_tickets);
+        let (is_winner, prize_amount) = sui_raffler::is_winning_ticket(&raffle, &ticket);
+        if (is_winner) {
+            sui_raffler::claim_prize(&mut raffle, ticket, ts.ctx());
+            ts.next_tx(buyer1);
+            let prize_coin: Coin<SUI> = ts.take_from_sender();
+            let received_amount = coin::value(&prize_coin);
+            assert!(received_amount == prize_amount, 1);
+            transfer::public_transfer(prize_coin, buyer1);
+        } else {
+            transfer::public_transfer(ticket, buyer1);
+        };
+    };
+    vector::destroy_empty(buyer1_tickets);
+
+    // Test claim prize for buyer2
+    ts.next_tx(buyer2);
+    let mut buyer2_tickets = vector::empty<sui_raffler::Ticket>();
+    let mut i = 0;
+    while (i < 2) {
+        let ticket = ts.take_from_sender<sui_raffler::Ticket>();
+        vector::push_back(&mut buyer2_tickets, ticket);
+        i = i + 1;
+    };
+    
+    // Check each ticket for buyer2
+    while (!vector::is_empty(&buyer2_tickets)) {
+        let ticket = vector::pop_back(&mut buyer2_tickets);
+        let (is_winner, prize_amount) = sui_raffler::is_winning_ticket(&raffle, &ticket);
+        if (is_winner) {
+            sui_raffler::claim_prize(&mut raffle, ticket, ts.ctx());
+            ts.next_tx(buyer2);
+            let prize_coin: Coin<SUI> = ts.take_from_sender();
+            let received_amount = coin::value(&prize_coin);
+            assert!(received_amount == prize_amount, 1);
+            transfer::public_transfer(prize_coin, buyer2);
+        } else {
+            transfer::public_transfer(ticket, buyer2);
+        };
+    };
+    vector::destroy_empty(buyer2_tickets);
+
+    // Test claim prize for buyer3
+    ts.next_tx(buyer3);
+    let mut buyer3_tickets = vector::empty<sui_raffler::Ticket>();
+    let mut i = 0;
+    while (i < 4) {
+        let ticket = ts.take_from_sender<sui_raffler::Ticket>();
+        vector::push_back(&mut buyer3_tickets, ticket);
+        i = i + 1;
+    };
+    
+    // Check each ticket for buyer3
+    while (!vector::is_empty(&buyer3_tickets)) {
+        let ticket = vector::pop_back(&mut buyer3_tickets);
+        let (is_winner, prize_amount) = sui_raffler::is_winning_ticket(&raffle, &ticket);
+        if (is_winner) {
+            sui_raffler::claim_prize(&mut raffle, ticket, ts.ctx());
+            ts.next_tx(buyer3);
+            let prize_coin: Coin<SUI> = ts.take_from_sender();
+            let received_amount = coin::value(&prize_coin);
+            assert!(received_amount == prize_amount, 1);
+            transfer::public_transfer(prize_coin, buyer3);
+        } else {
+            transfer::public_transfer(ticket, buyer3);
+        };
+    };
+    vector::destroy_empty(buyer3_tickets);
+
+    // Verify final state
+    let (_, _, _, _, _, _, _, _, _, total, first, second, third, org_share, fee) = sui_raffler::get_raffle_info(&raffle);
+    debug::print(&string::utf8(b"=== FINAL STATE ==="));
+    debug::print(&string::utf8(b"Total prize pool: "));
+    debug::print(&total);
+    debug::print(&string::utf8(b"First prize share: "));
+    debug::print(&first);
+    debug::print(&string::utf8(b"Second prize share: "));
+    debug::print(&second);
+    debug::print(&string::utf8(b"Third prize share: "));
+    debug::print(&third);
+    debug::print(&string::utf8(b"Organizer share: "));
+    debug::print(&org_share);
+    debug::print(&string::utf8(b"Protocol fee: "));
+    debug::print(&fee);
+    assert!(total == 900, 1); // Prize pool is fixed at release
+    assert!(first == 450, 1); // 50% of 900
+    assert!(second == 225, 1); // 25% of 900
+    assert!(third == 90, 1); // 10% of 900
+    assert!(org_share == 90, 1); // 10% of 900
+    assert!(fee == 45, 1); // 5% of 900
+
+    // Clean up
+    clock.destroy_for_testing();
+    ts::return_shared(config);
+    ts::return_shared(raffle);
+    ts::return_shared(random_state);
     ts.end();
 }

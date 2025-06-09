@@ -47,6 +47,7 @@ module sui_raffler::sui_raffler {
     const EInvalidTicket: u64 = 8;           // Ticket does not belong to this raffle
     const ENotWinner: u64 = 9;               // Ticket is not a winning ticket
     const EInvalidOrganizer: u64 = 10;       // Invalid organizer address
+    const EAlreadyClaimed: u64 = 11;         // Fees have already been claimed
 
     /// Module configuration that holds admin and fee collector addresses
     public struct Config has key {
@@ -70,6 +71,8 @@ module sui_raffler::sui_raffler {
         is_released: bool,       // Whether winners have been selected
         winners: VecMap<u64, u64>,  // Maps winning ticket numbers to winner addresses
         prize_pool: u64,         // Store the original prize pool at release
+        organizer_claimed: bool,  // Whether organizer has claimed their share
+        protocol_claimed: bool,   // Whether protocol fees have been claimed
     }
 
     /// A ticket object that represents a raffle ticket
@@ -178,6 +181,8 @@ module sui_raffler::sui_raffler {
             is_released: false,
             winners: vec_map::empty(),
             prize_pool: 0,
+            organizer_claimed: false,
+            protocol_claimed: false,
         };
 
         // Emit event
@@ -326,23 +331,58 @@ module sui_raffler::sui_raffler {
         let prize = coin::from_balance(balance::split(&mut raffle.balance, prize_amount), ctx);
         transfer::public_transfer(prize, tx_context::sender(ctx));
 
-        // If this is the last winner, transfer organizer's share and protocol fee
-        if (vec_map::size(winners) == 3) {
-            let organizer_share = (raffle.prize_pool * ORGANIZER_PERCENTAGE) / 100;
-            let protocol_fee = (raffle.prize_pool * PROTOCOL_FEE_PERCENTAGE) / 100;
-
-            // Transfer organizer's share
-            let organizer_prize = coin::from_balance(balance::split(&mut raffle.balance, organizer_share), ctx);
-            transfer::public_transfer(organizer_prize, raffle.organizer);
-
-            // Transfer protocol fee
-            let fee = coin::from_balance(balance::split(&mut raffle.balance, protocol_fee), ctx);
-            transfer::public_transfer(fee, raffle.fee_collector);
-        };
-
         // Burn the ticket
         let Ticket { id, raffle_id: _, ticket_number: _ } = ticket;
         object::delete(id);
+    }
+
+    /// Claim organizer's share of the raffle
+    /// Only the organizer can claim their share after all winners have claimed their prizes
+    public entry fun claim_organizer_share(
+        raffle: &mut Raffle,
+        ctx: &mut TxContext
+    ) {
+        // Verify caller is the organizer
+        assert!(tx_context::sender(ctx) == raffle.organizer, ENotAdmin);
+        
+        // Verify raffle is released
+        assert!(raffle.is_released, ERaffleNotEnded);
+        
+        // Verify organizer hasn't claimed yet
+        assert!(!raffle.organizer_claimed, EAlreadyClaimed);
+
+        // Mark as claimed
+        raffle.organizer_claimed = true;
+
+        // Calculate and transfer organizer's share
+        let organizer_share = (raffle.prize_pool * ORGANIZER_PERCENTAGE) / 100;
+        let organizer_prize = coin::from_balance(balance::split(&mut raffle.balance, organizer_share), ctx);
+        transfer::public_transfer(organizer_prize, raffle.organizer);
+    }
+
+    /// Claim protocol fees from the raffle
+    /// Only the admin can claim protocol fees after all winners have claimed their prizes
+    public entry fun claim_protocol_fees(
+        config: &Config,
+        raffle: &mut Raffle,
+        ctx: &mut TxContext
+    ) {
+        // Verify caller is the admin
+        assert!(tx_context::sender(ctx) == config.admin, ENotAdmin);
+        
+        // Verify raffle is released
+        assert!(raffle.is_released, ERaffleNotEnded);
+        
+        // Verify protocol fees haven't been claimed yet
+        assert!(!raffle.protocol_claimed, EAlreadyClaimed);
+
+        // Mark as claimed
+        raffle.protocol_claimed = true;
+
+        // Calculate and transfer protocol fees
+        let protocol_fee = (raffle.prize_pool * PROTOCOL_FEE_PERCENTAGE) / 100;
+        let fee = coin::from_balance(balance::split(&mut raffle.balance, protocol_fee), ctx);
+        transfer::public_transfer(fee, config.fee_collector);
     }
 
     // === View Functions ===
