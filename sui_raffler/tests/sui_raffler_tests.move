@@ -256,7 +256,7 @@ fun test_invalid_organizer() {
 
 /// Test raffle balances and fee distribution
 #[test]
-fun test_raffle_balances() {
+fun test_happy_path_raffle() {
     let admin = @0xAD;
     let creator = @0xBEEF;
     let organizer = @0x1234;
@@ -517,6 +517,28 @@ fun test_raffle_balances() {
     assert!(third == 90, 1); // 10% of 900
     assert!(org_share == 90, 1); // 10% of 900
     assert!(fee == 45, 1); // 5% of 900
+
+    // Test organizer's share claim
+    ts.next_tx(organizer);
+    sui_raffler::claim_organizer_share(&mut raffle, ts.ctx());
+    ts.next_tx(organizer);
+    let organizer_coin: Coin<SUI> = ts.take_from_sender();
+    let organizer_amount = coin::value(&organizer_coin);
+    assert!(organizer_amount == 90, 1); // 10% of 900
+    transfer::public_transfer(organizer_coin, organizer);
+
+    // Test protocol fee claim
+    ts.next_tx(admin);
+    sui_raffler::claim_protocol_fees(&config, &mut raffle, ts.ctx());
+    ts.next_tx(fee_collector);
+    let fee_coin: Coin<SUI> = ts.take_from_sender();
+    let fee_amount = coin::value(&fee_coin);
+    assert!(fee_amount == 45, 1); // 5% of 900
+    transfer::public_transfer(fee_coin, fee_collector);
+
+    // Verify final balance is 0 after all claims
+    let (_, _, _, _, _, _, final_balance, _, _, _, _, _, _, _, _) = sui_raffler::get_raffle_info(&raffle);
+    assert!(final_balance == 0, 1);
 
     // Clean up
     clock.destroy_for_testing();
