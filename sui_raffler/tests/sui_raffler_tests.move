@@ -12,7 +12,6 @@ use sui::transfer;
 use std::vector;
 use sui::object::{Self, UID, ID};
 use sui::tx_context;
-use sui::vec_map;
 use sui::balance;
 use sui::event;
 use std::string;
@@ -114,10 +113,9 @@ fun test_raffle_flow() {
     assert!(time_left > 0, 1);
     assert!(is_active, 1);
 
-    let (has_winners, winners, tickets) = sui_raffler::get_winners(&raffle);
+    let (has_winners, winners) = sui_raffler::get_winners(&raffle);
     assert!(!has_winners, 1);
     assert!(vector::is_empty(&winners), 1);
-    assert!(vector::is_empty(&tickets), 1);
 
     // Organizer releases raffle after end_time
     ts.next_tx(organizer);
@@ -126,15 +124,14 @@ fun test_raffle_flow() {
     assert!(sui_raffler::is_released(&raffle), 1);
 
     // Test view functions after release
-    let (has_winners, winners, tickets) = sui_raffler::get_winners(&raffle);
+    let (has_winners, winners) = sui_raffler::get_winners(&raffle);
     assert!(has_winners, 1);
     assert!(vector::length(&winners) == 3, 1);
-    assert!(vector::length(&tickets) == 3, 1);
 
     // Verify all winning tickets are different
-    let ticket1 = *vector::borrow(&tickets, 0);
-    let ticket2 = *vector::borrow(&tickets, 1);
-    let ticket3 = *vector::borrow(&tickets, 2);
+    let ticket1 = *vector::borrow(&winners, 0);
+    let ticket2 = *vector::borrow(&winners, 1);
+    let ticket3 = *vector::borrow(&winners, 2);
     assert!(ticket1 != ticket2 && ticket2 != ticket3 && ticket1 != ticket3, 1);
 
     // Test claim prize for buyer
@@ -378,15 +375,14 @@ fun test_happy_path_raffle() {
     
     // Verify raffle is released and has winners
     assert!(sui_raffler::is_released(&raffle), 1);
-    let (has_winners, winners, tickets) = sui_raffler::get_winners(&raffle);
+    let (has_winners, winners) = sui_raffler::get_winners(&raffle);
     assert!(has_winners, 1);
     assert!(vector::length(&winners) == 3, 1);
-    assert!(vector::length(&tickets) == 3, 1);
 
     // Verify all winning tickets are different
-    let ticket1 = *vector::borrow(&tickets, 0);
-    let ticket2 = *vector::borrow(&tickets, 1);
-    let ticket3 = *vector::borrow(&tickets, 2);
+    let ticket1 = *vector::borrow(&winners, 0);
+    let ticket2 = *vector::borrow(&winners, 1);
+    let ticket3 = *vector::borrow(&winners, 2);
     assert!(ticket1 != ticket2 && ticket2 != ticket3 && ticket1 != ticket3, 1);
 
     // Print values after release to confirm they are fixed

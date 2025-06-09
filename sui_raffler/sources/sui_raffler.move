@@ -24,7 +24,6 @@ module sui_raffler::sui_raffler {
     use sui::sui::SUI;
     use sui::random::{Self, Random};
     use sui::clock::{Self, Clock};
-    use sui::vec_map::{Self, VecMap};
     use sui::event;
 
     // === Constants ===
@@ -69,7 +68,7 @@ module sui_raffler::sui_raffler {
         balance: Balance<SUI>,   // Current balance of the raffle
         tickets_sold: u64,       // Total number of tickets sold
         is_released: bool,       // Whether winners have been selected
-        winners: VecMap<u64, u64>,  // Maps winning ticket numbers to winner addresses
+        winning_tickets: vector<u64>,  // List of winning ticket numbers
         prize_pool: u64,         // Store the original prize pool at release
         organizer_claimed: bool,  // Whether organizer has claimed their share
         protocol_claimed: bool,   // Whether protocol fees have been claimed
@@ -179,7 +178,7 @@ module sui_raffler::sui_raffler {
             balance: balance::zero(),
             tickets_sold: 0,
             is_released: false,
-            winners: vec_map::empty(),
+            winning_tickets: vector::empty(),
             prize_pool: 0,
             organizer_claimed: false,
             protocol_claimed: false,
@@ -283,9 +282,9 @@ module sui_raffler::sui_raffler {
         };
 
         // Store winning ticket numbers
-        vec_map::insert(&mut raffle.winners, first_winner, first_winner);
-        vec_map::insert(&mut raffle.winners, second_winner, second_winner);
-        vec_map::insert(&mut raffle.winners, third_winner, third_winner);
+        vector::push_back(&mut raffle.winning_tickets, first_winner);
+        vector::push_back(&mut raffle.winning_tickets, second_winner);
+        vector::push_back(&mut raffle.winning_tickets, third_winner);
 
         raffle.is_released = true;
 
@@ -313,15 +312,13 @@ module sui_raffler::sui_raffler {
         
         // Verify ticket is a winner
         let ticket_number = ticket.ticket_number;
-        let winners = &raffle.winners;
-        assert!(vec_map::contains(winners, &ticket_number), ENotWinner);
+        assert!(vector::contains(&raffle.winning_tickets, &ticket_number), ENotWinner);
 
         // Calculate prize amount based on position
         let total_balance = raffle.prize_pool;
-        let winner_keys = vec_map::keys(winners);
-        let prize_amount = if (ticket_number == *vector::borrow(&winner_keys, 0)) {
+        let prize_amount = if (ticket_number == *vector::borrow(&raffle.winning_tickets, 0)) {
             (total_balance * FIRST_PRIZE_PERCENTAGE) / 100
-        } else if (ticket_number == *vector::borrow(&winner_keys, 1)) {
+        } else if (ticket_number == *vector::borrow(&raffle.winning_tickets, 1)) {
             (total_balance * SECOND_PRIZE_PERCENTAGE) / 100
         } else {
             (total_balance * THIRD_PRIZE_PERCENTAGE) / 100
@@ -428,23 +425,20 @@ module sui_raffler::sui_raffler {
     /// Get winner information for a raffle
     public fun get_winners(raffle: &Raffle): (
         bool, // has_winners
-        vector<u64>, // winning_ticket_numbers
-        vector<u64> // winner_addresses
+        vector<u64> // winning_ticket_numbers
     ) {
         if (!raffle.is_released) {
-            return (false, vector::empty(), vector::empty())
+            return (false, vector::empty())
         };
-        let winner_keys = vec_map::keys(&raffle.winners);
-        let mut winner_values = vector::empty<u64>();
+        let mut winning_tickets = vector::empty<u64>();
         let mut i = 0;
-        let len = vector::length(&winner_keys);
+        let len = vector::length(&raffle.winning_tickets);
         while (i < len) {
-            let key = vector::borrow(&winner_keys, i);
-            let value = *vec_map::get(&raffle.winners, key);
-            vector::push_back(&mut winner_values, value);
+            let ticket = *vector::borrow(&raffle.winning_tickets, i);
+            vector::push_back(&mut winning_tickets, ticket);
             i = i + 1;
         };
-        (true, winner_values, winner_keys)
+        (true, winning_tickets)
     }
 
     /// Get ticket information
@@ -464,14 +458,13 @@ module sui_raffler::sui_raffler {
             return (false, 0)
         };
         let ticket_number = ticket.ticket_number;
-        if (!vec_map::contains(&raffle.winners, &ticket_number)) {
+        if (!vector::contains(&raffle.winning_tickets, &ticket_number)) {
             return (false, 0)
         };
         let total_balance = raffle.prize_pool;
-        let winner_keys = vec_map::keys(&raffle.winners);
-        let prize_amount = if (ticket_number == *vector::borrow(&winner_keys, 0)) {
+        let prize_amount = if (ticket_number == *vector::borrow(&raffle.winning_tickets, 0)) {
             (total_balance * FIRST_PRIZE_PERCENTAGE) / 100
-        } else if (ticket_number == *vector::borrow(&winner_keys, 1)) {
+        } else if (ticket_number == *vector::borrow(&raffle.winning_tickets, 1)) {
             (total_balance * SECOND_PRIZE_PERCENTAGE) / 100
         } else {
             (total_balance * THIRD_PRIZE_PERCENTAGE) / 100
