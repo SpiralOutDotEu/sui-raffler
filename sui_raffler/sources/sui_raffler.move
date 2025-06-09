@@ -328,7 +328,6 @@ module sui_raffler::sui_raffler {
 
         // If this is the last winner, transfer organizer's share and protocol fee
         if (vec_map::size(winners) == 3) {
-            let remaining_balance = balance::value(&raffle.balance);
             let organizer_share = (raffle.prize_pool * ORGANIZER_PERCENTAGE) / 100;
             let protocol_fee = (raffle.prize_pool * PROTOCOL_FEE_PERCENTAGE) / 100;
 

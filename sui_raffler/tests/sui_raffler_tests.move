@@ -5,13 +5,8 @@ use sui_raffler::sui_raffler;
 use sui::test_scenario as ts;
 use sui::clock;
 use sui::coin::{Self, Coin};
-use sui::balance::{Self, Balance};
 use sui::random::{Self, Random};
 use sui::sui::SUI;
-use sui::transfer;
-use sui::object::{Self, ID};
-use sui::vec_map::{Self, VecMap};
-use std::vector;
 
 /// Helper function to mint SUI coins for testing
 fun mint(addr: address, amount: u64, scenario: &mut ts::Scenario) {
@@ -132,9 +127,7 @@ fun test_raffle_flow() {
     
     // Only try to claim prize if this is a winning ticket
     if (is_winner) {
-        let initial_balance = sui_raffler::get_raffle_balance(&raffle);
         sui_raffler::claim_prize(&mut raffle, buyer_ticket, ts.ctx());
-        let final_balance = sui_raffler::get_raffle_balance(&raffle);
         
         // Wait for the transaction to complete
         ts.next_tx(buyer);
@@ -158,9 +151,7 @@ fun test_raffle_flow() {
         let (is_next_winner, next_prize_amount) = sui_raffler::is_winning_ticket(&raffle, &next_ticket);
         
         if (is_next_winner) {
-            let initial_balance = sui_raffler::get_raffle_balance(&raffle);
             sui_raffler::claim_prize(&mut raffle, next_ticket, ts.ctx());
-            let final_balance = sui_raffler::get_raffle_balance(&raffle);
             
             // Wait for the transaction to complete
             ts.next_tx(buyer);
