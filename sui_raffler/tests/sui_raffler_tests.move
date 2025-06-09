@@ -45,6 +45,7 @@ fun test_raffle_flow() {
     let organizer = @0x1234;
     let buyer = @0xB0B;
     let fee_collector = @0xFEE5;
+    let controller = @0x1235;
     let start_time = 0;
     let end_time = 1000;
     let ticket_price = 100;
@@ -65,7 +66,7 @@ fun test_raffle_flow() {
 
     // Initialize module configuration
     ts.next_tx(admin);
-    sui_raffler::initialize(admin, fee_collector, ts.ctx());
+    sui_raffler::initialize(admin, controller, fee_collector, ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
     assert!(sui_raffler::get_config_fee_collector(&config) == fee_collector, 1);
@@ -117,10 +118,10 @@ fun test_raffle_flow() {
     assert!(!has_winners, 1);
     assert!(vector::is_empty(&winners), 1);
 
-    // Organizer releases raffle after end_time
-    ts.next_tx(organizer);
+    // Controller releases raffle after end_time
+    ts.next_tx(controller);
     clock.set_for_testing(end_time + 1);
-    sui_raffler::release_raffle(&mut raffle, &random_state, &clock, ts.ctx());
+    sui_raffler::release_raffle(&config, &mut raffle, &random_state, &clock, ts.ctx());
     assert!(sui_raffler::is_released(&raffle), 1);
 
     // Test view functions after release
@@ -183,11 +184,12 @@ fun test_fee_collector_update() {
     let admin = @0xAD;
     let initial_fee_collector = @0xFEE5;
     let new_fee_collector = @0xFEE6;
+    let controller = @0x1235;
 
     let mut ts = ts::begin(admin);
 
     // Initialize module configuration
-    sui_raffler::initialize(admin, initial_fee_collector, ts.ctx());
+    sui_raffler::initialize(admin, controller, initial_fee_collector, ts.ctx());
     ts.next_tx(admin);
     let mut config = ts.take_shared<sui_raffler::Config>();
     assert!(sui_raffler::get_config_fee_collector(&config) == initial_fee_collector, 1);
@@ -209,11 +211,12 @@ fun test_fee_collector_update_unauthorized() {
     let non_admin = @0xBEEF;
     let initial_fee_collector = @0xFEE5;
     let new_fee_collector = @0xFEE6;
+    let controller = @0x1235;
 
     let mut ts = ts::begin(admin);
 
     // Initialize module configuration
-    sui_raffler::initialize(admin, initial_fee_collector, ts.ctx());
+    sui_raffler::initialize(admin, controller, initial_fee_collector, ts.ctx());
     ts.next_tx(admin);
     let mut config = ts.take_shared<sui_raffler::Config>();
 
@@ -233,12 +236,13 @@ fun test_invalid_organizer() {
     let admin = @0xAD;
     let creator = @0xBEEF;
     let fee_collector = @0xFEE5;
+    let controller = @0x1235;
     let invalid_organizer = @0x0;
 
     let mut ts = ts::begin(admin);
 
     // Initialize module configuration
-    sui_raffler::initialize(admin, fee_collector, ts.ctx());
+    sui_raffler::initialize(admin, controller, fee_collector, ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
 
@@ -261,6 +265,7 @@ fun test_happy_path_raffle() {
     let buyer2 = @0xB0B2;
     let buyer3 = @0xB0B3;
     let fee_collector = @0xFEE5;
+    let controller = @0x1235;
     let start_time = 0;
     let end_time = 1000;
     let ticket_price = 100;
@@ -281,7 +286,7 @@ fun test_happy_path_raffle() {
 
     // Initialize module configuration
     ts.next_tx(admin);
-    sui_raffler::initialize(admin, fee_collector, ts.ctx());
+    sui_raffler::initialize(admin, controller, fee_collector, ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
     assert!(sui_raffler::get_config_fee_collector(&config) == fee_collector, 1);
@@ -368,10 +373,10 @@ fun test_happy_path_raffle() {
     assert!(org_share == 90, 1); // 10% of 900
     assert!(fee == 45, 1); // 5% of 900
 
-    // Organizer releases raffle after end_time
-    ts.next_tx(organizer);
+    // Controller releases raffle after end_time
+    ts.next_tx(controller);
     clock.set_for_testing(end_time + 1);
-    sui_raffler::release_raffle(&mut raffle, &random_state, &clock, ts.ctx());
+    sui_raffler::release_raffle(&config, &mut raffle, &random_state, &clock, ts.ctx());
     
     // Verify raffle is released and has winners
     assert!(sui_raffler::is_released(&raffle), 1);

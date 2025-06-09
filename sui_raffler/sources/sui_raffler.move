@@ -47,12 +47,29 @@ module sui_raffler::sui_raffler {
     const ENotWinner: u64 = 9;               // Ticket is not a winning ticket
     const EInvalidOrganizer: u64 = 10;       // Invalid organizer address
     const EAlreadyClaimed: u64 = 11;         // Fees have already been claimed
+    const ENotController: u64 = 12;          // Caller is not the controller
+    const EPaused: u64 = 13;                 // Contract or raffle is paused
+    const EPermissionDenied: u64 = 14;       // Not allowed in current permission mode
+    const ERafflePaused: u64 = 15;           // Raffle is paused
+    const EInvalidRole: u64 = 16;            // Invalid role specified
+    const ENotAuthorized: u64 = 17;          // Not authorized for this operation
+    const EInvalidOperation: u64 = 18;       // Invalid operation for current role
 
-    /// Module configuration that holds admin and fee collector addresses
+    /// Module configuration that holds admin, controller, fee collector, pause, and permissionless info
     public struct Config has key {
         id: UID,
         admin: address,
+        controller: address,
         fee_collector: address,
+        paused: bool,
+        permissionless: bool,
+        roles: vector<address>,  // List of addresses with special roles
+    }
+
+    /// Role types that can be assigned
+    public struct Role has copy, drop {
+        ADMIN: u8,
+        CONTROLLER: u8,
     }
 
     /// A raffle object that holds all the raffle information
@@ -72,6 +89,7 @@ module sui_raffler::sui_raffler {
         prize_pool: u64,         // Store the original prize pool at release
         organizer_claimed: bool,  // Whether organizer has claimed their share
         protocol_claimed: bool,   // Whether protocol fees have been claimed
+        paused: bool,            // Whether this specific raffle is paused
     }
 
     /// A ticket object that represents a raffle ticket
@@ -117,15 +135,65 @@ module sui_raffler::sui_raffler {
 
     // === Functions ===
 
-    /// Initialize the module with admin and fee collector addresses
+    /// Initialize the module with admin, controller, and fee collector addresses
     /// This function can only be called once during module deployment
-    public entry fun initialize(admin: address, fee_collector: address, ctx: &mut TxContext) {
+    public entry fun initialize(admin: address, controller: address, fee_collector: address, ctx: &mut TxContext) {
+        let mut roles = vector::empty();
+        vector::push_back(&mut roles, admin);
+        vector::push_back(&mut roles, controller);
+
         let config = Config {
             id: object::new(ctx),
             admin,
+            controller,
             fee_collector,
+            paused: false,
+            permissionless: true,
+            roles,
         };
         transfer::share_object(config);
+    }
+
+    /// Update the admin address
+    /// Only the admin can call this function
+    public entry fun update_admin(config: &mut Config, new_admin: address, ctx: &mut TxContext) {
+        assert!(config.admin == tx_context::sender(ctx), ENotAdmin);
+        let old_admin = config.admin;
+        config.admin = new_admin;
+        
+        // Update roles list
+        let mut i = 0;
+        let len = vector::length(&config.roles);
+        while (i < len) {
+            let role = vector::borrow(&config.roles, i);
+            if (*role == old_admin) {
+                let role_mut = vector::borrow_mut(&mut config.roles, i);
+                *role_mut = new_admin;
+                break;
+            };
+            i = i + 1;
+        };
+    }
+
+    /// Update the controller address
+    /// Only the admin can call this function
+    public entry fun update_controller(config: &mut Config, new_controller: address, ctx: &mut TxContext) {
+        assert!(config.admin == tx_context::sender(ctx), ENotAdmin);
+        let old_controller = config.controller;
+        config.controller = new_controller;
+        
+        // Update roles list
+        let mut i = 0;
+        let len = vector::length(&config.roles);
+        while (i < len) {
+            let role = vector::borrow(&config.roles, i);
+            if (*role == old_controller) {
+                let role_mut = vector::borrow_mut(&mut config.roles, i);
+                *role_mut = new_controller;
+                break;
+            };
+            i = i + 1;
+        };
     }
 
     /// Update the fee collector address
@@ -144,6 +212,66 @@ module sui_raffler::sui_raffler {
         });
     }
 
+    /// Set permissionless mode (true = anyone can create raffles, false = only admin)
+    /// Only the admin can call this function
+    public entry fun set_permissionless(config: &mut Config, value: bool, ctx: &mut TxContext) {
+        assert!(config.admin == tx_context::sender(ctx), ENotAdmin);
+        config.permissionless = value;
+    }
+
+    /// Pause the contract globally
+    /// Only the admin or controller can call this function
+    public entry fun pause(config: &mut Config, ctx: &mut TxContext) {
+        assert!(is_admin_or_controller(config, tx_context::sender(ctx)), ENotAuthorized);
+        config.paused = true;
+    }
+
+    /// Unpause the contract globally
+    /// Only the admin or controller can call this function
+    public entry fun unpause(config: &mut Config, ctx: &mut TxContext) {
+        assert!(is_admin_or_controller(config, tx_context::sender(ctx)), ENotAuthorized);
+        config.paused = false;
+    }
+
+    /// Pause a specific raffle
+    /// Only the admin or controller can call this function
+    public entry fun pause_raffle(config: &Config, raffle: &mut Raffle, ctx: &mut TxContext) {
+        assert!(is_admin_or_controller(config, tx_context::sender(ctx)), ENotAuthorized);
+        raffle.paused = true;
+    }
+
+    /// Unpause a specific raffle
+    /// Only the admin or controller can call this function
+    public entry fun unpause_raffle(config: &Config, raffle: &mut Raffle, ctx: &mut TxContext) {
+        assert!(is_admin_or_controller(config, tx_context::sender(ctx)), ENotAuthorized);
+        raffle.paused = false;
+    }
+
+    /// Helper: check if contract is paused
+    public fun is_paused(config: &Config): bool {
+        config.paused
+    }
+
+    /// Helper: check if a raffle is paused
+    public fun is_raffle_paused(raffle: &Raffle): bool {
+        raffle.paused
+    }
+
+    /// Helper: check if sender is admin
+    public fun is_admin(config: &Config, sender: address): bool {
+        config.admin == sender
+    }
+
+    /// Helper: check if sender is controller
+    public fun is_controller(config: &Config, sender: address): bool {
+        config.controller == sender
+    }
+
+    /// Helper: check if sender is admin or controller
+    public fun is_admin_or_controller(config: &Config, sender: address): bool {
+        config.admin == sender || config.controller == sender
+    }
+
     /// Create a new raffle
     /// Anyone can create a raffle by specifying the parameters
     public entry fun create_raffle(
@@ -155,20 +283,22 @@ module sui_raffler::sui_raffler {
         organizer: address,
         ctx: &mut TxContext
     ) {
-        // Validate dates
+        assert!(!config.paused, EPaused);
+        assert!(config.permissionless || tx_context::sender(ctx) == config.admin, EPermissionDenied);
         assert!(start_time < end_time, EInvalidDates);
-        
-        // Validate ticket price
         assert!(ticket_price > 0, EInvalidTicketPrice);
-        
-        // Validate max tickets
         assert!(max_tickets_per_purchase > 0, EInvalidMaxTickets);
-
-        // Validate organizer address
-        assert!(organizer != @0x0, EInvalidOrganizer);
-
-        let raffle = Raffle {
-            id: object::new(ctx),
+        assert!(!(organizer == @0x0), EInvalidOrganizer);
+        let raffle_uid = object::new(ctx);
+        event::emit(RaffleCreated {
+            raffle_id: object::uid_to_inner(&raffle_uid),
+            organizer,
+            start_time,
+            end_time,
+            ticket_price,
+        });
+        transfer::share_object(Raffle {
+            id: raffle_uid,
             start_time,
             end_time,
             ticket_price,
@@ -182,18 +312,8 @@ module sui_raffler::sui_raffler {
             prize_pool: 0,
             organizer_claimed: false,
             protocol_claimed: false,
-        };
-
-        // Emit event
-        event::emit(RaffleCreated {
-            raffle_id: object::id(&raffle),
-            organizer,
-            start_time,
-            end_time,
-            ticket_price,
+            paused: false,
         });
-
-        transfer::share_object(raffle);
     }
 
     /// Buy tickets for a raffle
@@ -209,6 +329,8 @@ module sui_raffler::sui_raffler {
         
         // Check if raffle is active
         assert!(current_time >= raffle.start_time && current_time <= raffle.end_time, ERaffleNotActive);
+        // Check if raffle is paused
+        assert!(!raffle.paused, ERafflePaused);
         
         // Validate amount
         assert!(amount > 0 && amount <= raffle.max_tickets_per_purchase, EInvalidTicketAmount);
@@ -254,43 +376,43 @@ module sui_raffler::sui_raffler {
     /// Can only be called after the raffle end time
     #[allow(lint(public_random))]
     public entry fun release_raffle(
+        config: &Config,
         raffle: &mut Raffle,
         random: &Random,
         clock: &Clock,
         ctx: &mut TxContext
     ) {
+        // Check if contract is paused
+        assert!(!config.paused, EPaused);
+        // Check if raffle is paused
+        assert!(!raffle.paused, ERafflePaused);
+        // Only admin or controller can call
+        if (!(config.admin == tx_context::sender(ctx) || config.controller == tx_context::sender(ctx))) {
+            abort(ENotController)
+        };
         let current_time = clock::timestamp_ms(clock);
-        
         // Check if raffle has ended
         assert!(current_time > raffle.end_time, ERaffleNotEnded);
-        
         // Check if raffle is already released
         assert!(!raffle.is_released, ERaffleAlreadyReleased);
-
         // Generate unique random numbers for winners
         let mut random_generator = random::new_generator(random, ctx);
         let first_winner = random_generator.generate_u64() % raffle.tickets_sold + 1;
-
         let mut second_winner = random_generator.generate_u64() % raffle.tickets_sold + 1;
         while (second_winner == first_winner) {
             second_winner = random_generator.generate_u64() % raffle.tickets_sold + 1;
         };
-
         let mut third_winner = random_generator.generate_u64() % raffle.tickets_sold + 1;
         while (third_winner == first_winner || third_winner == second_winner) {
             third_winner = random_generator.generate_u64() % raffle.tickets_sold + 1;
         };
-
         // Store winning ticket numbers
         vector::push_back(&mut raffle.winning_tickets, first_winner);
         vector::push_back(&mut raffle.winning_tickets, second_winner);
         vector::push_back(&mut raffle.winning_tickets, third_winner);
-
         raffle.is_released = true;
-
         // Store the prize pool at release
         raffle.prize_pool = balance::value(&raffle.balance);
-
         // Emit event
         event::emit(RaffleReleased {
             raffle_id: object::id(raffle),
