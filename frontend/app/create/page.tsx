@@ -10,6 +10,10 @@ import { useState, useEffect } from "react";
 import { PACKAGE_ID, MODULE, CONFIG_OBJECT_ID } from "../../constants";
 import { Transaction } from "@mysten/sui/transactions";
 import { useWallet } from "../context/WalletContext";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
+import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
+import { format, parse } from "date-fns";
 
 // Helper function to format relative time
 function formatRelativeTime(target: number, currentTime: number) {
@@ -122,6 +126,21 @@ const quickMaxTicketsOptions = [
   { label: "50", value: "50" },
 ];
 
+// Add validation helper function
+function validateEndTime(
+  startTime: number,
+  endTime: number,
+  currentBlockchainTime: number
+): string | null {
+  if (endTime <= startTime) {
+    return "End time must be after start time";
+  }
+  if (endTime <= currentBlockchainTime) {
+    return "End time must be in the future";
+  }
+  return null;
+}
+
 export default function CreateRaffle() {
   const router = useRouter();
   const { address: currentAccount, isConnected } = useWallet();
@@ -212,8 +231,9 @@ export default function CreateRaffle() {
       const maxTicketsPerPurchase = Number(formData.maxTicketsPerPurchase);
 
       // Validate times
-      if (endTime <= startTime) {
-        throw new Error("End time must be after start time");
+      const error = validateEndTime(startTime, endTime, currentBlockchainTime);
+      if (error) {
+        throw new Error(error);
       }
 
       // Ensure minimum duration of 1 minute
@@ -308,13 +328,8 @@ export default function CreateRaffle() {
 
               {/* Start Time Section */}
               <div className="bg-purple-50 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-purple-800 mb-4">Start Time</h3>
                 <div className="flex justify-between items-center mb-4">
-                  <label
-                    htmlFor="startTime"
-                    className="block text-purple-600 text-sm font-medium"
-                  >
-                    Start Time
-                  </label>
                   <div className="flex gap-2 flex-wrap">
                     {quickStartOptions.map((option) => (
                       <button
@@ -328,17 +343,27 @@ export default function CreateRaffle() {
                     ))}
                   </div>
                 </div>
-                <input
-                  type="datetime-local"
-                  id="startTime"
-                  required
-                  value={formData.startTime}
-                  onChange={(e) =>
-                    setFormData({ ...formData, startTime: e.target.value })
-                  }
-                  min={blockchainTimeToISOString(currentBlockchainTime)}
-                  className="w-full px-4 py-3 border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-lg bg-white"
-                />
+                <LocalizationProvider dateAdapter={AdapterDateFns}>
+                  <DateTimePicker
+                    label="Select Start Time"
+                    value={formData.startTime ? new Date(isoStringToBlockchainTime(formData.startTime)) : null}
+                    onChange={(newValue) => {
+                      if (newValue) {
+                        setFormData({
+                          ...formData,
+                          startTime: blockchainTimeToISOString(newValue.getTime()),
+                        });
+                      }
+                    }}
+                    slotProps={{
+                      textField: {
+                        fullWidth: true,
+                        required: true,
+                        className: "bg-white",
+                      },
+                    }}
+                  />
+                </LocalizationProvider>
                 {formData.startTime && (
                   <p className="mt-2 text-sm text-purple-600">
                     Raffle will start{" "}
@@ -346,24 +371,15 @@ export default function CreateRaffle() {
                       isoStringToBlockchainTime(formData.startTime),
                       currentBlockchainTime
                     )}{" "}
-                    (
-                    {formatTimeForDisplay(
-                      isoStringToBlockchainTime(formData.startTime)
-                    )}
-                    )
+                    ({formatTimeForDisplay(isoStringToBlockchainTime(formData.startTime))})
                   </p>
                 )}
               </div>
 
               {/* End Time Section */}
               <div className="bg-purple-50 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-purple-800 mb-4">End Time</h3>
                 <div className="flex justify-between items-center mb-4">
-                  <label
-                    htmlFor="endTime"
-                    className="block text-purple-600 text-sm font-medium"
-                  >
-                    End Time
-                  </label>
                   <div className="flex gap-2 flex-wrap">
                     {quickDurationOptions.map((option) => (
                       <button
@@ -377,20 +393,40 @@ export default function CreateRaffle() {
                     ))}
                   </div>
                 </div>
-                <input
-                  type="datetime-local"
-                  id="endTime"
-                  required
-                  value={formData.endTime}
-                  onChange={(e) =>
-                    setFormData({ ...formData, endTime: e.target.value })
-                  }
-                  min={
-                    formData.startTime ||
-                    blockchainTimeToISOString(currentBlockchainTime)
-                  }
-                  className="w-full px-4 py-3 border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-lg bg-white"
-                />
+                <LocalizationProvider dateAdapter={AdapterDateFns}>
+                  <DateTimePicker
+                    label="Select End Time"
+                    value={formData.endTime ? new Date(isoStringToBlockchainTime(formData.endTime)) : null}
+                    onChange={(newValue) => {
+                      if (newValue) {
+                        const newEndTime = newValue.getTime();
+                        const startTime = formData.startTime ? isoStringToBlockchainTime(formData.startTime) : currentBlockchainTime;
+                        const error = validateEndTime(startTime, newEndTime, currentBlockchainTime);
+                        
+                        if (error) {
+                          setError(error);
+                          return;
+                        }
+                        
+                        setFormData({
+                          ...formData,
+                          endTime: blockchainTimeToISOString(newEndTime),
+                        });
+                        setError(null);
+                      }
+                    }}
+                    minDateTime={formData.startTime ? new Date(isoStringToBlockchainTime(formData.startTime)) : new Date(currentBlockchainTime)}
+                    slotProps={{
+                      textField: {
+                        fullWidth: true,
+                        required: true,
+                        className: "bg-white",
+                        error: !!error && error.includes("End time"),
+                        helperText: error && error.includes("End time") ? error : undefined,
+                      },
+                    }}
+                  />
+                </LocalizationProvider>
                 {formData.startTime && formData.endTime && (
                   <p className="mt-2 text-sm text-purple-600">
                     Raffle will last for{" "}
@@ -398,11 +434,7 @@ export default function CreateRaffle() {
                       isoStringToBlockchainTime(formData.startTime),
                       isoStringToBlockchainTime(formData.endTime)
                     )}{" "}
-                    (Ends at{" "}
-                    {formatTimeForDisplay(
-                      isoStringToBlockchainTime(formData.endTime)
-                    )}
-                    )
+                    (Ends at {formatTimeForDisplay(isoStringToBlockchainTime(formData.endTime))})
                   </p>
                 )}
               </div>
