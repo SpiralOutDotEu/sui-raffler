@@ -1,5 +1,9 @@
 # Sui Raffler
 
+> 🎉 **Create Your Own On-Chain SUI Raffle in Minutes!** 🎉
+>
+> No coding required to launch your own decentralized raffle on Sui blockchain. Create exciting raffles, let users participate, and watch as winners are automatically selected and rewarded. Join the future of fair and transparent raffles!
+
 A decentralized raffle system built on the Sui blockchain that allows users to create and participate in raffles with automated winner selection and prize distribution.
 
 ## Overview
@@ -11,14 +15,42 @@ Sui Raffler is a smart contract that enables:
 - Automated winner selection using on-chain randomness
 - Automatic prize distribution to winners
 - Centralized protocol fee collection managed by admin
+- Flexible organizer address for receiving organizer's share
+- Pause/unpause functionality for both global and individual raffles
+- Permissionless mode toggle for raffle creation
 
 ### Prize Distribution
 
 - First Prize: 50% of total prize pool
 - Second Prize: 25% of total prize pool
 - Third Prize: 10% of total prize pool
-- Organizer: 10% of total prize pool
-- Protocol Fee: 5% of total prize pool
+- Organizer: 10% of total prize pool (sent to specified organizer address)
+- Protocol Fee: 5% of total prize pool (sent to fee collector)
+
+## How It Works
+
+```mermaid
+graph LR
+    A[Organizer] -->|Creates| B[Raffle]
+    C[Users] -->|Buy| D[Tickets]
+    B -->|End Time| E[Winners Selected]
+    E -->|Claim| F[Prizes Distributed]
+    F -->|50%| G[1st Place]
+    F -->|25%| H[2nd Place]
+    F -->|10%| I[3rd Place]
+    F -->|10%| J[Organizer]
+    F -->|5%| K[Protocol Fee]
+```
+
+### Winning Tickets
+
+The contract provides a built-in function to check winning tickets for any raffle. After a raffle ends and winners are selected, you can:
+
+1. Get the list of all winning ticket numbers
+2. Check if a specific ticket is a winner
+3. See the prize amount for each winning ticket
+
+This makes it easy for users to verify their tickets and claim their prizes without any manual verification.
 
 ## Architecture
 
@@ -26,13 +58,20 @@ Sui Raffler is a smart contract that enables:
 graph TD
     A[Admin] -->|Manages| B[Module Config]
     B -->|Sets| C[Fee Collector]
-    D[Organizer] -->|Creates| E[Raffle]
-    F[Users] -->|Buy| G[Tickets]
-    G -->|Hold| F
-    E -->|Selects| H[Winners]
-    H -->|Claim| I[Prizes]
-    E -->|Collects| J[Protocol Fees]
-    J -->|Sends to| C
+    B -->|Controls| D[Controller]
+    B -->|Toggles| E[Permissionless Mode]
+    B -->|Controls| F[Global Pause]
+    D -->|Controls| G[Individual Raffles]
+    H[Creator] -->|Creates| I[Raffle]
+    I -->|Specifies| J[Organizer]
+    K[Users] -->|Buy| L[Tickets]
+    L -->|Hold| K
+    I -->|Selects| M[Winners]
+    M -->|Claim| N[Prizes]
+    I -->|Collects| O[Protocol Fees]
+    O -->|Sends to| C
+    I -->|Distributes| P[Organizer Share]
+    P -->|Sends to| J
 ```
 
 ## Prerequisites
@@ -64,6 +103,13 @@ sui client publish
 
 ## Usage
 
+### Important Note on SUI Addresses
+
+The following SUI addresses are used in the system:
+
+- Random Object ID: `0x8` - Used for on-chain randomness
+- Clock Object ID: `0x6` - Used for time-based operations
+
 ### 1. Initialize Module (Admin Only)
 
 ```bash
@@ -71,11 +117,35 @@ sui client call \
     --package <PACKAGE_ID> \
     --module sui_raffler \
     --function initialize \
-    --args <ADMIN_ADDRESS> <FEE_COLLECTOR_ADDRESS> \
+    --args <ADMIN_ADDRESS> <CONTROLLER_ADDRESS> <FEE_COLLECTOR_ADDRESS> \
     --gas-budget 10000000
 ```
 
-### 2. Update Fee Collector (Admin Only)
+### 2. Admin Functions
+
+#### Update Admin
+
+```bash
+sui client call \
+    --package <PACKAGE_ID> \
+    --module sui_raffler \
+    --function update_admin \
+    --args <CONFIG_ID> <NEW_ADMIN_ADDRESS> \
+    --gas-budget 10000000
+```
+
+#### Update Controller
+
+```bash
+sui client call \
+    --package <PACKAGE_ID> \
+    --module sui_raffler \
+    --function update_controller \
+    --args <CONFIG_ID> <NEW_CONTROLLER_ADDRESS> \
+    --gas-budget 10000000
+```
+
+#### Update Fee Collector
 
 ```bash
 sui client call \
@@ -86,46 +156,95 @@ sui client call \
     --gas-budget 10000000
 ```
 
-### 3. Create Raffle
+#### Set Permissionless Mode
 
 ```bash
-# Get current timestamp in milliseconds
-CURRENT_TIME=$(date +%s%3N)
+sui client call \
+    --package <PACKAGE_ID> \
+    --module sui_raffler \
+    --function set_permissionless \
+    --args <CONFIG_ID> <true/false> \
+    --gas-budget 10000000
+```
 
-# Calculate end time (e.g., 1 day from now)
-END_TIME=$((CURRENT_TIME + 86400000))  # 86400000 ms = 1 day
+#### Global Pause/Unpause
 
+```bash
+# Pause
+sui client call \
+    --package <PACKAGE_ID> \
+    --module sui_raffler \
+    --function pause \
+    --args <CONFIG_ID> \
+    --gas-budget 10000000
+
+# Unpause
+sui client call \
+    --package <PACKAGE_ID> \
+    --module sui_raffler \
+    --function unpause \
+    --args <CONFIG_ID> \
+    --gas-budget 10000000
+```
+
+### 3. Controller Functions
+
+#### Pause/Unpause Individual Raffle
+
+```bash
+# Pause
+sui client call \
+    --package <PACKAGE_ID> \
+    --module sui_raffler \
+    --function pause_raffle \
+    --args <CONFIG_ID> <RAFFLE_ID> \
+    --gas-budget 10000000
+
+# Unpause
+sui client call \
+    --package <PACKAGE_ID> \
+    --module sui_raffler \
+    --function unpause_raffle \
+    --args <CONFIG_ID> <RAFFLE_ID> \
+    --gas-budget 10000000
+```
+
+### 4. Create Raffle
+
+```bash
 sui client call \
     --package <PACKAGE_ID> \
     --module sui_raffler \
     --function create_raffle \
-    --args <CONFIG_ID> $CURRENT_TIME $END_TIME 100000000 5 \
+    --args <CONFIG_ID> <NAME> <DESCRIPTION> <IMAGE> <START_TIME> <END_TIME> <TICKET_PRICE> <MAX_TICKETS_PER_PURCHASE> <ORGANIZER_ADDRESS> \
     --gas-budget 10000000
 ```
 
-### 4. Buy Tickets
+### 5. Buy Tickets
 
 ```bash
 sui client call \
     --package <PACKAGE_ID> \
     --module sui_raffler \
     --function buy_tickets \
-    --args <RAFFLE_ID> <PAYMENT_COIN_ID> 3 <CLOCK_ID> \
+    --args <RAFFLE_ID> <PAYMENT_COIN_ID> <NUMBER_OF_TICKETS> <CLOCK_ID> \
     --gas-budget 10000000
 ```
 
-### 5. Release Raffle (After End Time)
+### 6. Release Raffle (After End Time)
 
 ```bash
 sui client call \
     --package <PACKAGE_ID> \
     --module sui_raffler \
     --function release_raffle \
-    --args <RAFFLE_ID> <RANDOM_ID> <CLOCK_ID> \
+    --args <CONFIG_ID> <RAFFLE_ID> <RANDOM_ID> <CLOCK_ID> \
     --gas-budget 10000000
 ```
 
-### 6. Claim Prize
+### 7. Claim Functions
+
+#### Claim Prize
 
 ```bash
 sui client call \
@@ -136,24 +255,26 @@ sui client call \
     --gas-budget 10000000
 ```
 
-## Time Calculations
-
-Here are some common time calculations for setting raffle start and end times:
+#### Claim Organizer Share
 
 ```bash
-# Current time in milliseconds
-CURRENT_TIME=$(date +%s%3N)
+sui client call \
+    --package <PACKAGE_ID> \
+    --module sui_raffler \
+    --function claim_organizer_share \
+    --args <RAFFLE_ID> \
+    --gas-budget 10000000
+```
 
-# Add time periods
-ONE_MINUTE=$((60 * 1000))
-ONE_HOUR=$((60 * 60 * 1000))
-ONE_DAY=$((24 * 60 * 60 * 1000))
-ONE_WEEK=$((7 * 24 * 60 * 60 * 1000))
+#### Return Ticket (for raffles with less than 3 tickets)
 
-# Examples
-END_TIME_1H=$((CURRENT_TIME + ONE_HOUR))
-END_TIME_1D=$((CURRENT_TIME + ONE_DAY))
-END_TIME_1W=$((CURRENT_TIME + ONE_WEEK))
+```bash
+sui client call \
+    --package <PACKAGE_ID> \
+    --module sui_raffler \
+    --function return_ticket \
+    --args <RAFFLE_ID> <TICKET_ID> <CLOCK_ID> \
+    --gas-budget 10000000
 ```
 
 ## View Functions
@@ -169,12 +290,48 @@ sui client call \
     --gas-budget 10000000
 ```
 
-## Testing
-
-Run the test suite:
+### Get Winners
 
 ```bash
-sui move test
+sui client call \
+    --package <PACKAGE_ID> \
+    --module sui_raffler \
+    --function get_winners \
+    --args <RAFFLE_ID> \
+    --gas-budget 10000000
+```
+
+### Get Ticket Information
+
+```bash
+sui client call \
+    --package <PACKAGE_ID> \
+    --module sui_raffler \
+    --function get_ticket_info \
+    --args <TICKET_ID> \
+    --gas-budget 10000000
+```
+
+### Check Winning Ticket
+
+```bash
+sui client call \
+    --package <PACKAGE_ID> \
+    --module sui_raffler \
+    --function is_winning_ticket \
+    --args <RAFFLE_ID> <TICKET_ID> \
+    --gas-budget 10000000
+```
+
+### Get Raffle Statistics
+
+```bash
+sui client call \
+    --package <PACKAGE_ID> \
+    --module sui_raffler \
+    --function get_raffle_stats \
+    --args <RAFFLE_ID> <CLOCK_ID> \
+    --gas-budget 10000000
 ```
 
 ## Security Considerations
@@ -186,6 +343,11 @@ sui move test
 - Be aware that randomness is provided by Sui's on-chain randomness source
 - Only the admin can update the fee collector address
 - The fee collector address is set during module initialization and cannot be changed by raffle creators
+- The organizer address must be a valid address (not @0x0)
+- The organizer's share is automatically distributed after all winners claim their prizes
+- The contract can be paused globally or per raffle by admin/controller
+- Permissionless mode can be toggled by admin to control who can create raffles
+- Only admin or controller can release raffles and select winners
 
 ## Contributing
 
