@@ -25,12 +25,18 @@ interface Raffle {
   ticket_price: number;
   max_tickets_per_purchase: number;
   organizer: string;
+  fee_collector: string;
+  admin: string;
+  controller: string;
+  balance: number;
   tickets_sold: number;
   is_released: boolean;
   winners: { [key: number]: string };
-  balance: number;
-  winning_tickets: number[];
   prize_pool: number;
+  organizer_claimed: boolean;
+  protocol_claimed: boolean;
+  paused: boolean;
+  winning_tickets: number[];
 }
 
 interface Ticket {
@@ -361,6 +367,161 @@ export default function RaffleDetail() {
     }
   };
 
+  const handleClaimOrganizerShare = async () => {
+    if (!isConnected || !currentAccount || !raffle) return;
+
+    setIsPurchasing(true);
+    setPurchaseError(null);
+    setTransactionDigest(null);
+
+    try {
+      const tx = new Transaction();
+      tx.moveCall({
+        target: `${PACKAGE_ID}::${MODULE}::claim_organizer_share`,
+        arguments: [tx.object(raffle.id)],
+      });
+
+      const result = await signAndExecute({
+        transaction: tx,
+      });
+
+      setTransactionDigest(result.digest);
+      await queryClient.invalidateQueries({ queryKey: ["raffle", id] });
+    } catch (err) {
+      let errorMessage = "Failed to claim organizer share";
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+      setPurchaseError(errorMessage);
+    } finally {
+      setIsPurchasing(false);
+    }
+  };
+
+  const handleClaimProtocolFees = async () => {
+    if (!isConnected || !currentAccount || !raffle) return;
+
+    setIsPurchasing(true);
+    setPurchaseError(null);
+    setTransactionDigest(null);
+
+    try {
+      const tx = new Transaction();
+      tx.moveCall({
+        target: `${PACKAGE_ID}::${MODULE}::claim_protocol_fees`,
+        arguments: [tx.object(CONFIG_OBJECT_ID), tx.object(raffle.id)],
+      });
+
+      const result = await signAndExecute({
+        transaction: tx,
+      });
+
+      setTransactionDigest(result.digest);
+      await queryClient.invalidateQueries({ queryKey: ["raffle", id] });
+    } catch (err) {
+      let errorMessage = "Failed to claim protocol fees";
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+      setPurchaseError(errorMessage);
+    } finally {
+      setIsPurchasing(false);
+    }
+  };
+
+  const handleClaimFeePool = async () => {
+    if (!isConnected || !currentAccount || !raffle) return;
+
+    setIsPurchasing(true);
+    setPurchaseError(null);
+    setTransactionDigest(null);
+
+    try {
+      const tx = new Transaction();
+      tx.moveCall({
+        target: `${PACKAGE_ID}::${MODULE}::claim_fee_pool`,
+        arguments: [tx.object(raffle.id)],
+      });
+
+      const result = await signAndExecute({
+        transaction: tx,
+      });
+
+      setTransactionDigest(result.digest);
+      await queryClient.invalidateQueries({ queryKey: ["raffle", id] });
+    } catch (err) {
+      let errorMessage = "Failed to claim fee pool";
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+      setPurchaseError(errorMessage);
+    } finally {
+      setIsPurchasing(false);
+    }
+  };
+
+  const handlePauseRaffle = async () => {
+    if (!isConnected || !currentAccount || !raffle) return;
+
+    setIsReleasing(true);
+    setReleaseError(null);
+    setTransactionDigest(null);
+
+    try {
+      const tx = new Transaction();
+      tx.moveCall({
+        target: `${PACKAGE_ID}::${MODULE}::pause_raffle`,
+        arguments: [tx.object(raffle.id)],
+      });
+
+      const result = await signAndExecute({
+        transaction: tx,
+      });
+
+      setTransactionDigest(result.digest);
+      await queryClient.invalidateQueries({ queryKey: ["raffle", id] });
+    } catch (err) {
+      let errorMessage = "Failed to pause raffle";
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+      setReleaseError(errorMessage);
+    } finally {
+      setIsReleasing(false);
+    }
+  };
+
+  const handleUnpauseRaffle = async () => {
+    if (!isConnected || !currentAccount || !raffle) return;
+
+    setIsReleasing(true);
+    setReleaseError(null);
+    setTransactionDigest(null);
+
+    try {
+      const tx = new Transaction();
+      tx.moveCall({
+        target: `${PACKAGE_ID}::${MODULE}::unpause_raffle`,
+        arguments: [tx.object(raffle.id)],
+      });
+
+      const result = await signAndExecute({
+        transaction: tx,
+      });
+
+      setTransactionDigest(result.digest);
+      await queryClient.invalidateQueries({ queryKey: ["raffle", id] });
+    } catch (err) {
+      let errorMessage = "Failed to unpause raffle";
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+      setReleaseError(errorMessage);
+    } finally {
+      setIsReleasing(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-[200px]">
@@ -418,13 +579,57 @@ export default function RaffleDetail() {
               >
                 {raffle.is_released ? "Ended" : "Active"}
               </span>
-              {!raffle.is_released && Date.now() > raffle.end_time && (
+              {!raffle.is_released &&
+                Date.now() > raffle.end_time &&
+                (currentAccount === raffle.admin ||
+                  currentAccount === raffle.controller) && (
+                  <button
+                    onClick={handleReleaseRaffle}
+                    disabled={isReleasing}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isReleasing ? "Releasing..." : "Release Raffle"}
+                  </button>
+                )}
+              {raffle.is_released &&
+                !raffle.organizer_claimed &&
+                currentAccount === raffle.organizer && (
+                  <button
+                    onClick={handleClaimOrganizerShare}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    Claim Organizer Share
+                  </button>
+                )}
+              {raffle.is_released &&
+                !raffle.protocol_claimed &&
+                currentAccount === raffle.fee_collector && (
+                  <button
+                    onClick={handleClaimProtocolFees}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                  >
+                    Claim Protocol Fees
+                  </button>
+                )}
+              {raffle.is_released &&
+                !raffle.protocol_claimed &&
+                (currentAccount === raffle.admin ||
+                  currentAccount === raffle.controller) && (
+                  <button
+                    onClick={handleClaimFeePool}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                  >
+                    Claim Fee Pool
+                  </button>
+                )}
+              {currentAccount === raffle.admin && (
                 <button
-                  onClick={handleReleaseRaffle}
-                  disabled={isReleasing}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={
+                    raffle.paused ? handleUnpauseRaffle : handlePauseRaffle
+                  }
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
                 >
-                  {isReleasing ? "Releasing..." : "Release Raffle"}
+                  {raffle.paused ? "Unpause Raffle" : "Pause Raffle"}
                 </button>
               )}
               <ConnectButton />
