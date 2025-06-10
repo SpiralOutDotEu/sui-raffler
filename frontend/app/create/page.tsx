@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  useSuiClient,
-  useSignAndExecuteTransaction,
-  ConnectButton,
-} from "@mysten/dapp-kit";
+import { useSuiClient, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
 import { PACKAGE_ID, MODULE, CONFIG_OBJECT_ID } from "../../constants";
@@ -481,9 +477,6 @@ export default function CreateRaffle() {
                   Set up your raffle parameters below
                 </p>
               </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <ConnectButton />
             </div>
           </div>
         </div>
