@@ -266,7 +266,9 @@ export default function Home() {
             </div>
           </div>
           <div className="mt-8 pt-8 border-t border-gray-800 text-center text-sm">
-            <p>© 2024 SUI-Raffler. All rights reserved.</p>
+            <p>
+              © {new Date().getFullYear()} SUI-Raffler. All rights reserved.
+            </p>
           </div>
         </div>
       </footer>
