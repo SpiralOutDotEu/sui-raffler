@@ -48,7 +48,15 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <Providers>{children}</Providers>
+        {/* Testnet Warning Banner */}
+        <div className="fixed top-0 left-0 w-full bg-gradient-to-r from-indigo-100 via-purple-100 to-indigo-100 border-b border-indigo-200 text-indigo-700 text-center text-sm font-semibold py-1 px-2 shadow z-60">
+          ⚠️ This is the <span className="font-bold">testnet</span> version.
+          Everything might break or be reset at any time. ⚠️
+        </div>
+        <div className="pt-6">
+          {/* Adjust pt-6 if banner height changes */}
+          <Providers>{children}</Providers>
+        </div>
       </body>
     </html>
   );
