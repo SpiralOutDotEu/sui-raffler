@@ -569,7 +569,7 @@ export default function RaffleDetail() {
                   </div>
                   {/* Main content */}
                   <div className="relative z-10">
-                    {raffle.is_released  ? (
+                    {raffle.is_released ? (
                       <>
                         <div className="text-lg font-semibold text-gray-900 mb-1">
                           Winner took home
@@ -619,6 +619,11 @@ export default function RaffleDetail() {
                             ? raffle.prize_pool * 0.5
                             : raffle.balance * 0.5) / 1e9}{" "}
                           SUI
+                          {!raffle.is_released && (
+                            <span className="text-sm font-normal text-indigo-500 ml-2">
+                              (and growing!)
+                            </span>
+                          )}
                         </div>
                         <div className="text-base text-gray-700 mb-2">
                           with a ticket of{" "}
@@ -628,25 +633,29 @@ export default function RaffleDetail() {
                         </div>
                         <div className="flex items-center gap-2 mb-2">
                           <span className="text-base text-gray-500">
-                            max return:
+                            current return:
                           </span>
                           <span className="inline-block bg-green-100 text-green-700 px-4 py-1 rounded-full font-bold text-xl shadow-sm animate-pulse">
-                            {Math.round(
-                              ((raffle.is_released
+                            {(
+                              (raffle.is_released
                                 ? raffle.prize_pool * 0.5
-                                : raffle.balance * 0.5) /
-                                raffle.ticket_price) *
-                                100
-                            )}
+                                : raffle.balance * 0.5) / raffle.ticket_price
+                            ).toLocaleString(undefined, {
+                              maximumFractionDigits: 2,
+                            })}
                             x
                           </span>
                           <span className="text-base text-gray-500">
                             on your ticket
                           </span>
                         </div>
-                        <div className="text-sm text-green-700 mt-2 italic font-medium">
-                          Your ticket to the moon! Don&apos;t miss your chance
-                          🚀
+                        <div className="text-sm text-green-700 mt-2 italic font-medium flex items-center gap-2">
+                          <span>
+                            🎯 Prize pool increases with each ticket sold!
+                          </span>
+                          <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                            {raffle.tickets_sold} tickets sold
+                          </span>
                         </div>
                       </>
                     )}

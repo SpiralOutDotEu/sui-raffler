@@ -163,6 +163,48 @@ function ImageUpload({
     setIsDragging(false);
   }, []);
 
+  const uploadFile = async (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      setError("Please upload an image file");
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      setError("Image size must be less than 2MB");
+      return;
+    }
+
+    try {
+      setIsUploading(true);
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/v1/ipfs/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to upload image");
+      }
+
+      const result = await response.json();
+      onImageUpload(result.cid);
+
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to upload image");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const handleDrop = useCallback(
     async (e: React.DragEvent) => {
       e.preventDefault();
@@ -172,32 +214,7 @@ function ImageUpload({
       const file = e.dataTransfer.files[0];
       if (!file) return;
 
-      if (!file.type.startsWith("image/")) {
-        setError("Please upload an image file");
-        return;
-      }
-
-      if (file.size > 2 * 1024 * 1024) {
-        setError("Image size must be less than 2MB");
-        return;
-      }
-
-      try {
-        setIsUploading(true);
-        const result = await PinataService.uploadImage(file);
-        onImageUpload(result.cid);
-
-        // Create preview
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setPreview(reader.result as string);
-        };
-        reader.readAsDataURL(file);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to upload image");
-      } finally {
-        setIsUploading(false);
-      }
+      await uploadFile(file);
     },
     [onImageUpload]
   );
@@ -207,32 +224,7 @@ function ImageUpload({
       const file = e.target.files?.[0];
       if (!file) return;
 
-      if (!file.type.startsWith("image/")) {
-        setError("Please upload an image file");
-        return;
-      }
-
-      if (file.size > 2 * 1024 * 1024) {
-        setError("Image size must be less than 2MB");
-        return;
-      }
-
-      try {
-        setIsUploading(true);
-        const result = await PinataService.uploadImage(file);
-        onImageUpload(result.cid);
-
-        // Create preview
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setPreview(reader.result as string);
-        };
-        reader.readAsDataURL(file);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to upload image");
-      } finally {
-        setIsUploading(false);
-      }
+      await uploadFile(file);
     },
     [onImageUpload]
   );
