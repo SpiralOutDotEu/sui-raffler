@@ -607,9 +607,9 @@ export default function RaffleDetail() {
                       ticket.ticket_number
                     );
                     const winnerIndex = isWinner
-                      ? winners.winningTicketNumbers.indexOf(
+                      ? winners?.winningTicketNumbers.indexOf(
                           ticket.ticket_number
-                        )
+                        ) ?? -1
                       : -1;
                     const prizeAmount = isWinner
                       ? winnerIndex === 0
