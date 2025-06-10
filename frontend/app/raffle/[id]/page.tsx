@@ -4,7 +4,7 @@ import { useSuiClient, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import { useState } from "react";
-import { PACKAGE_ID, MODULE } from "../../../constants";
+import { PACKAGE_ID, MODULE, ORGANIZER_PERCENTAGE } from "../../../constants";
 import { Transaction } from "@mysten/sui/transactions";
 import { useWallet } from "../../context/WalletContext";
 
@@ -228,6 +228,26 @@ function getRelativeTime(target: number) {
   return isFuture ? "in a moment" : "just now";
 }
 
+// Add this helper function near the other helper functions
+function calculateQuickTicketOptions(maxTickets: number) {
+  const options = [1]; // First option is always 1
+
+  // Calculate 25% and 50% of max tickets, rounded down
+  const quarterTickets = Math.floor(maxTickets * 0.25);
+  const halfTickets = Math.floor(maxTickets * 0.5);
+
+  // Add 25% and 50% options if they're different from 1 and max
+  if (quarterTickets > 1) options.push(quarterTickets);
+  if (halfTickets > quarterTickets) options.push(halfTickets);
+
+  // Add max tickets if it's different from the last option
+  if (maxTickets !== options[options.length - 1]) {
+    options.push(maxTickets);
+  }
+
+  return options;
+}
+
 export default function RaffleDetail() {
   const { id } = useParams();
   const { data: raffle, isLoading, error } = useRaffle(id as string);
@@ -247,6 +267,11 @@ export default function RaffleDetail() {
   // Add console logs for debugging
   console.log("Raffle:", raffle);
   console.log("Winners:", winners);
+
+  // Add this inside the component, before the return statement
+  const quickTicketOptions = raffle
+    ? calculateQuickTicketOptions(raffle.max_tickets_per_purchase)
+    : [1];
 
   const handleBuyTickets = async () => {
     if (!isConnected || !currentAccount || !raffle) return;
@@ -348,6 +373,66 @@ export default function RaffleDetail() {
     }
   };
 
+  const handleClaimOrganizerShare = async () => {
+    if (!isConnected || !currentAccount || !raffle) return;
+
+    setIsPurchasing(true);
+    setPurchaseError(null);
+    setTransactionDigest(null);
+
+    try {
+      const tx = new Transaction();
+      tx.moveCall({
+        target: `${PACKAGE_ID}::${MODULE}::claim_organizer_share`,
+        arguments: [tx.object(raffle.id)],
+      });
+
+      const result = await signAndExecute({
+        transaction: tx,
+      });
+
+      setTransactionDigest(result.digest);
+      await queryClient.invalidateQueries({ queryKey: ["raffle", id] });
+
+      // Show success toast
+      const toast = document.createElement("div");
+      toast.className =
+        "fixed bottom-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2";
+      toast.innerHTML = `
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+        </svg>
+        <span>Successfully claimed organizer share!</span>
+        <a href="https://suiexplorer.com/txblock/${result.digest}?network=testnet" target="_blank" rel="noopener noreferrer" class="underline hover:text-green-100">
+          View on Explorer
+        </a>
+      `;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 5000);
+    } catch (err) {
+      let errorMessage = "Failed to claim organizer share";
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+      setPurchaseError(errorMessage);
+
+      // Show error toast
+      const toast = document.createElement("div");
+      toast.className =
+        "fixed bottom-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2";
+      toast.innerHTML = `
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+        <span>${errorMessage}</span>
+      `;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 5000);
+    } finally {
+      setIsPurchasing(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-[200px]">
@@ -407,15 +492,58 @@ export default function RaffleDetail() {
                   <h1 className="text-3xl font-bold text-gray-900">
                     {raffle.name || `Raffle #${raffle.id.slice(0, 8)}...`}
                   </h1>
-                  <span
-                    className={`px-4 py-2 rounded-full font-semibold shadow-sm ${
-                      raffle.is_released
-                        ? "bg-red-100 text-red-700"
-                        : "bg-green-100 text-green-700"
-                    }`}
-                  >
-                    {raffle.is_released ? "Ended" : "Active"}
-                  </span>
+                  <div className="flex items-center gap-4">
+                    {raffle.is_released &&
+                      !raffle.organizer_claimed &&
+                      currentAccount === raffle.organizer && (
+                        <button
+                          onClick={handleClaimOrganizerShare}
+                          disabled={isPurchasing}
+                          className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg font-medium hover:from-green-600 hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isPurchasing ? (
+                            <span className="flex items-center">
+                              <svg
+                                className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                              >
+                                <circle
+                                  className="opacity-25"
+                                  cx="12"
+                                  cy="12"
+                                  r="10"
+                                  stroke="currentColor"
+                                  strokeWidth="4"
+                                ></circle>
+                                <path
+                                  className="opacity-75"
+                                  fill="currentColor"
+                                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                ></path>
+                              </svg>
+                              Claiming...
+                            </span>
+                          ) : (
+                            `Claim ${
+                              (raffle.prize_pool * ORGANIZER_PERCENTAGE) /
+                              100 /
+                              1e9
+                            } SUI as organizer`
+                          )}
+                        </button>
+                      )}
+                    <span
+                      className={`px-4 py-2 rounded-full font-semibold shadow-sm ${
+                        raffle.is_released
+                          ? "bg-red-100 text-red-700"
+                          : "bg-green-100 text-green-700"
+                      }`}
+                    >
+                      {raffle.is_released ? "Ended" : "Active"}
+                    </span>
+                  </div>
                 </div>
                 {raffle.description && (
                   <p className="text-gray-600 text-lg mt-2">
@@ -983,6 +1111,27 @@ export default function RaffleDetail() {
                       onChange={(e) => setTicketAmount(Number(e.target.value))}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-lg bg-gray-50"
                     />
+                    <div className="mt-3">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Quick select:
+                      </label>
+                      <div className="grid grid-cols-4 gap-2">
+                        {quickTicketOptions.map((amount) => (
+                          <button
+                            key={amount}
+                            type="button"
+                            onClick={() => setTicketAmount(amount)}
+                            className={`w-full px-4 py-1.5 text-sm rounded-full transition-colors ${
+                              ticketAmount === amount
+                                ? "bg-indigo-100 text-indigo-700 font-medium"
+                                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                            }`}
+                          >
+                            {amount}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                   <div className="space-y-4">
                     <div className="flex justify-between items-center bg-gray-50 rounded-lg p-4">
