@@ -12,6 +12,9 @@ interface RaffleEvent {
   start_time: number;
   end_time: number;
   ticket_price: number;
+  name: string;
+  description: string;
+  image: string;
 }
 
 interface RaffleFields {
@@ -19,6 +22,18 @@ interface RaffleFields {
   is_released: boolean;
   balance: number;
   winners: { [key: number]: string } | undefined;
+  prize_pool: number;
+  image: string;
+}
+
+// Add new interface for raffle with image URL
+interface RaffleWithImage extends Omit<RaffleEvent, "image"> {
+  imageUrl: string;
+  tickets_sold: number;
+  is_released: boolean;
+  balance: number;
+  winners: { [key: number]: string } | undefined;
+  prize_pool: number;
 }
 
 // Helper function to format relative time
@@ -114,16 +129,35 @@ function useRaffles() {
             if (raffleObject.data?.content?.dataType === "moveObject") {
               const fields = raffleObject.data.content
                 .fields as unknown as RaffleFields;
+
+              // Get image URL from IPFS
+              let imageUrl = "";
+              try {
+                const response = await fetch(
+                  `/api/v1/ipfs/retrieve?cid=${fields.image}`
+                );
+                if (response.ok) {
+                  const data = await response.json();
+                  imageUrl = data.url;
+                }
+              } catch (error) {
+                console.error("Error fetching image URL:", error);
+              }
+
               return {
                 id: raffleData.raffle_id,
                 organizer: raffleData.organizer,
                 start_time: raffleData.start_time,
                 end_time: raffleData.end_time,
                 ticket_price: raffleData.ticket_price,
+                name: fields.name,
+                description: fields.description,
+                imageUrl,
                 tickets_sold: fields.tickets_sold,
                 is_released: fields.is_released,
                 balance: fields.balance,
                 winners: fields.winners,
+                prize_pool: fields.prize_pool,
               };
             }
             return null;
@@ -305,10 +339,24 @@ export default function Explore() {
                 href={`/raffle/${raffle.id}`}
                 className="block"
               >
-                <div className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-200 h-full border border-gray-100">
-                  {/* Status Badge */}
-                  <div className="p-6 border-b border-gray-100">
-                    <div className="flex justify-between items-center mb-4">
+                <div className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-200 h-full border border-gray-100 overflow-hidden">
+                  {/* Image Section */}
+                  <div className="relative h-48 bg-gray-100">
+                    {raffle.imageUrl ? (
+                      <img
+                        src={raffle.imageUrl}
+                        alt={raffle.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                        <span className="text-gray-400">
+                          No image available
+                        </span>
+                      </div>
+                    )}
+                    {/* Status Badge */}
+                    <div className="absolute top-4 right-4">
                       <span
                         className={`px-3 py-1 rounded-full text-sm font-semibold ${
                           isActive
@@ -324,52 +372,71 @@ export default function Explore() {
                           ? "Upcoming"
                           : "Ended"}
                       </span>
+                    </div>
+                  </div>
+
+                  {/* Content Section */}
+                  <div className="p-6">
+                    <div className="flex justify-between items-start mb-4">
+                      <h2 className="text-xl font-bold text-gray-900 line-clamp-1">
+                        {raffle.name}
+                      </h2>
                       <span className="text-sm text-gray-500">
                         #{raffle.id.slice(0, 8)}...
                       </span>
                     </div>
-                    <h2 className="text-xl font-bold text-gray-900 mb-2">
-                      Prize Pool:{" "}
-                      {raffle.is_released
-                        ? ((raffle.prize_pool || 0) / 1e9).toFixed(2)
-                        : ((raffle.balance || 0) / 1e9).toFixed(2)}{" "}
-                      SUI
-                    </h2>
-                    <p className="text-gray-600">
-                      Ticket Price: {(raffle.ticket_price / 1e9).toFixed(2)} SUI
+
+                    <p className="text-gray-600 mb-4 line-clamp-2">
+                      {raffle.description}
                     </p>
-                  </div>
 
-                  {/* Stats Grid */}
-                  <div className="p-6 grid grid-cols-2 gap-4">
-                    <div className="bg-gray-50 rounded-xl p-4">
-                      <p className="text-sm text-gray-600">Tickets Sold</p>
-                      <p className="text-lg font-semibold text-gray-900">
-                        {raffle.tickets_sold}
-                      </p>
-                    </div>
-                    <div className="bg-gray-50 rounded-xl p-4">
-                      <p className="text-sm text-gray-600">Time Left</p>
-                      <p className="text-lg font-semibold text-gray-900">
-                        {getRelativeTime(raffle.end_time)}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Time Info */}
-                  <div className="p-6 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-b-2xl">
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Start Time</span>
-                        <span className="text-gray-900">
-                          {formatTimeForDisplay(raffle.start_time)}
-                        </span>
+                    <div className="space-y-4">
+                      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-4">
+                        <h3 className="text-lg font-bold text-gray-900 mb-2">
+                          Prize Pool:{" "}
+                          {raffle.is_released
+                            ? ((raffle.prize_pool || 0) / 1e9).toFixed(2)
+                            : ((raffle.balance || 0) / 1e9).toFixed(2)}{" "}
+                          SUI
+                        </h3>
+                        <p className="text-gray-600">
+                          Ticket Price: {(raffle.ticket_price / 1e9).toFixed(2)}{" "}
+                          SUI
+                        </p>
                       </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">End Time</span>
-                        <span className="text-gray-900">
-                          {formatTimeForDisplay(raffle.end_time)}
-                        </span>
+
+                      {/* Stats Grid */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-gray-50 rounded-xl p-4">
+                          <p className="text-sm text-gray-600">Tickets Sold</p>
+                          <p className="text-lg font-semibold text-gray-900">
+                            {raffle.tickets_sold}
+                          </p>
+                        </div>
+                        <div className="bg-gray-50 rounded-xl p-4">
+                          <p className="text-sm text-gray-600">Time Left</p>
+                          <p className="text-lg font-semibold text-gray-900">
+                            {getRelativeTime(raffle.end_time)}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Time Info */}
+                      <div className="bg-gray-50 rounded-xl p-4">
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600">Start Time</span>
+                            <span className="text-gray-900">
+                              {formatTimeForDisplay(raffle.start_time)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600">End Time</span>
+                            <span className="text-gray-900">
+                              {formatTimeForDisplay(raffle.end_time)}
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>

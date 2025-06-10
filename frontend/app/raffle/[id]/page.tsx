@@ -1,20 +1,10 @@
 "use client";
 
-import {
-  useSuiClient,
-  useSignAndExecuteTransaction,
-  ConnectButton,
-} from "@mysten/dapp-kit";
+import { useSuiClient, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import { useState } from "react";
-import {
-  PACKAGE_ID,
-  MODULE,
-  RANDOM_OBJECT_ID,
-  CLOCK_OBJECT_ID,
-  CONFIG_OBJECT_ID,
-} from "../../../constants";
+import { PACKAGE_ID, MODULE } from "../../../constants";
 import { Transaction } from "@mysten/sui/transactions";
 import { useWallet } from "../../context/WalletContext";
 
@@ -37,6 +27,9 @@ interface Raffle {
   protocol_claimed: boolean;
   paused: boolean;
   winning_tickets: number[];
+  name: string;
+  description: string;
+  image: string;
 }
 
 interface Ticket {
@@ -49,6 +42,11 @@ interface Ticket {
 interface TicketFields {
   raffle_id: string;
   ticket_number: string;
+}
+
+function truncateAddress(address: string): string {
+  if (!address) return "";
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
 function useRaffle(id: string) {
@@ -66,9 +64,25 @@ function useRaffle(id: string) {
 
       if (response.data?.content?.dataType === "moveObject") {
         const fields = response.data.content.fields as unknown as Raffle;
+
+        // Get image URL from IPFS
+        let imageUrl = "";
+        try {
+          const imageResponse = await fetch(
+            `/api/v1/ipfs/retrieve?cid=${fields.image}`
+          );
+          if (imageResponse.ok) {
+            const data = await imageResponse.json();
+            imageUrl = data.url;
+          }
+        } catch (error) {
+          console.error("Error fetching image URL:", error);
+        }
+
         return {
           ...fields,
           id,
+          image: imageUrl,
         };
       }
       throw new Error("Raffle not found");
@@ -224,8 +238,6 @@ export default function RaffleDetail() {
   const [transactionDigest, setTransactionDigest] = useState<string | null>(
     null
   );
-  const [isReleasing, setIsReleasing] = useState(false);
-  const [releaseError, setReleaseError] = useState<string | null>(null);
   const { address: currentAccount, isConnected } = useWallet();
   const { mutateAsync: signAndExecute } = useSignAndExecuteTransaction();
   const queryClient = useQueryClient();
@@ -336,198 +348,6 @@ export default function RaffleDetail() {
     }
   };
 
-  const handleReleaseRaffle = async () => {
-    if (!isConnected || !currentAccount || !raffle) return;
-
-    setIsReleasing(true);
-    setReleaseError(null);
-    setTransactionDigest(null);
-
-    try {
-      const tx = new Transaction();
-      tx.moveCall({
-        target: `${PACKAGE_ID}::${MODULE}::release_raffle`,
-        arguments: [
-          tx.object(CONFIG_OBJECT_ID),
-          tx.object(raffle.id),
-          tx.object(RANDOM_OBJECT_ID),
-          tx.object(CLOCK_OBJECT_ID),
-        ],
-      });
-
-      const result = await signAndExecute({
-        transaction: tx,
-      });
-
-      setTransactionDigest(result.digest);
-      await queryClient.invalidateQueries({ queryKey: ["raffle", id] });
-      await queryClient.invalidateQueries({ queryKey: ["winners", id] });
-    } catch (err) {
-      let errorMessage = "Failed to release raffle";
-      if (err instanceof Error) {
-        errorMessage = err.message;
-      }
-      setReleaseError(errorMessage);
-    } finally {
-      setIsReleasing(false);
-    }
-  };
-
-  const handleClaimOrganizerShare = async () => {
-    if (!isConnected || !currentAccount || !raffle) return;
-
-    setIsPurchasing(true);
-    setPurchaseError(null);
-    setTransactionDigest(null);
-
-    try {
-      const tx = new Transaction();
-      tx.moveCall({
-        target: `${PACKAGE_ID}::${MODULE}::claim_organizer_share`,
-        arguments: [tx.object(raffle.id)],
-      });
-
-      const result = await signAndExecute({
-        transaction: tx,
-      });
-
-      setTransactionDigest(result.digest);
-      await queryClient.invalidateQueries({ queryKey: ["raffle", id] });
-    } catch (err) {
-      let errorMessage = "Failed to claim organizer share";
-      if (err instanceof Error) {
-        errorMessage = err.message;
-      }
-      setPurchaseError(errorMessage);
-    } finally {
-      setIsPurchasing(false);
-    }
-  };
-
-  const handleClaimProtocolFees = async () => {
-    if (!isConnected || !currentAccount || !raffle) return;
-
-    setIsPurchasing(true);
-    setPurchaseError(null);
-    setTransactionDigest(null);
-
-    try {
-      const tx = new Transaction();
-      tx.moveCall({
-        target: `${PACKAGE_ID}::${MODULE}::claim_protocol_fees`,
-        arguments: [tx.object(CONFIG_OBJECT_ID), tx.object(raffle.id)],
-      });
-
-      const result = await signAndExecute({
-        transaction: tx,
-      });
-
-      setTransactionDigest(result.digest);
-      await queryClient.invalidateQueries({ queryKey: ["raffle", id] });
-    } catch (err) {
-      let errorMessage = "Failed to claim protocol fees";
-      if (err instanceof Error) {
-        errorMessage = err.message;
-      }
-      setPurchaseError(errorMessage);
-    } finally {
-      setIsPurchasing(false);
-    }
-  };
-
-  const handleClaimFeePool = async () => {
-    if (!isConnected || !currentAccount || !raffle) return;
-
-    setIsPurchasing(true);
-    setPurchaseError(null);
-    setTransactionDigest(null);
-
-    try {
-      const tx = new Transaction();
-      tx.moveCall({
-        target: `${PACKAGE_ID}::${MODULE}::claim_fee_pool`,
-        arguments: [tx.object(raffle.id)],
-      });
-
-      const result = await signAndExecute({
-        transaction: tx,
-      });
-
-      setTransactionDigest(result.digest);
-      await queryClient.invalidateQueries({ queryKey: ["raffle", id] });
-    } catch (err) {
-      let errorMessage = "Failed to claim fee pool";
-      if (err instanceof Error) {
-        errorMessage = err.message;
-      }
-      setPurchaseError(errorMessage);
-    } finally {
-      setIsPurchasing(false);
-    }
-  };
-
-  const handlePauseRaffle = async () => {
-    if (!isConnected || !currentAccount || !raffle) return;
-
-    setIsReleasing(true);
-    setReleaseError(null);
-    setTransactionDigest(null);
-
-    try {
-      const tx = new Transaction();
-      tx.moveCall({
-        target: `${PACKAGE_ID}::${MODULE}::pause_raffle`,
-        arguments: [tx.object(raffle.id)],
-      });
-
-      const result = await signAndExecute({
-        transaction: tx,
-      });
-
-      setTransactionDigest(result.digest);
-      await queryClient.invalidateQueries({ queryKey: ["raffle", id] });
-    } catch (err) {
-      let errorMessage = "Failed to pause raffle";
-      if (err instanceof Error) {
-        errorMessage = err.message;
-      }
-      setReleaseError(errorMessage);
-    } finally {
-      setIsReleasing(false);
-    }
-  };
-
-  const handleUnpauseRaffle = async () => {
-    if (!isConnected || !currentAccount || !raffle) return;
-
-    setIsReleasing(true);
-    setReleaseError(null);
-    setTransactionDigest(null);
-
-    try {
-      const tx = new Transaction();
-      tx.moveCall({
-        target: `${PACKAGE_ID}::${MODULE}::unpause_raffle`,
-        arguments: [tx.object(raffle.id)],
-      });
-
-      const result = await signAndExecute({
-        transaction: tx,
-      });
-
-      setTransactionDigest(result.digest);
-      await queryClient.invalidateQueries({ queryKey: ["raffle", id] });
-    } catch (err) {
-      let errorMessage = "Failed to unpause raffle";
-      if (err instanceof Error) {
-        errorMessage = err.message;
-      }
-      setReleaseError(errorMessage);
-    } finally {
-      setIsReleasing(false);
-    }
-  };
-
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-[200px]">
@@ -561,119 +381,280 @@ export default function RaffleDetail() {
       <div className="max-w-7xl mx-auto">
         {/* Header Section */}
         <div className="bg-white rounded-2xl shadow-lg p-8 mb-8 border border-gray-100">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold shadow-lg">
-                🎟️
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">
-                  Raffle #{raffle.id.slice(0, 8)}...
-                </h1>
-                <p className="text-gray-500 mt-1">
-                  Created by {raffle.organizer.slice(0, 8)}...
-                </p>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Left Panel - Image */}
+            <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-2xl p-6 flex items-center justify-center">
+              <div className="aspect-square w-full max-w-md rounded-2xl overflow-hidden bg-white shadow-lg">
+                {raffle.image ? (
+                  <img
+                    src={raffle.image}
+                    alt={raffle.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600">
+                    <span className="text-6xl">🎟️</span>
+                  </div>
+                )}
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <span
-                className={`px-4 py-2 rounded-full font-semibold shadow-sm ${
-                  raffle.is_released
-                    ? "bg-red-100 text-red-700"
-                    : "bg-green-100 text-green-700"
-                }`}
-              >
-                {raffle.is_released ? "Ended" : "Active"}
-              </span>
-              {!raffle.is_released &&
-                Date.now() > raffle.end_time &&
-                (currentAccount === raffle.admin ||
-                  currentAccount === raffle.controller) && (
-                  <button
-                    onClick={handleReleaseRaffle}
-                    disabled={isReleasing}
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+
+            {/* Right Panel - Data */}
+            <div className="flex flex-col h-full">
+              {/* 1. Title, Description, Status */}
+              <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-2xl p-6 mb-6">
+                <div className="flex items-center justify-between">
+                  <h1 className="text-3xl font-bold text-gray-900">
+                    {raffle.name || `Raffle #${raffle.id.slice(0, 8)}...`}
+                  </h1>
+                  <span
+                    className={`px-4 py-2 rounded-full font-semibold shadow-sm ${
+                      raffle.is_released
+                        ? "bg-red-100 text-red-700"
+                        : "bg-green-100 text-green-700"
+                    }`}
                   >
-                    {isReleasing ? "Releasing..." : "Release Raffle"}
-                  </button>
+                    {raffle.is_released ? "Ended" : "Active"}
+                  </span>
+                </div>
+                {raffle.description && (
+                  <p className="text-gray-600 text-lg mt-2">
+                    {raffle.description}
+                  </p>
                 )}
-              {raffle.is_released &&
-                !raffle.organizer_claimed &&
-                currentAccount === raffle.organizer && (
-                  <button
-                    onClick={handleClaimOrganizerShare}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                  >
-                    Claim Organizer Share
-                  </button>
-                )}
-              {raffle.is_released &&
-                !raffle.protocol_claimed &&
-                currentAccount === raffle.fee_collector && (
-                  <button
-                    onClick={handleClaimProtocolFees}
-                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-                  >
-                    Claim Protocol Fees
-                  </button>
-                )}
-              {raffle.is_released &&
-                !raffle.protocol_claimed &&
-                (currentAccount === raffle.admin ||
-                  currentAccount === raffle.controller) && (
-                  <button
-                    onClick={handleClaimFeePool}
-                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-                  >
-                    Claim Fee Pool
-                  </button>
-                )}
-              {currentAccount === raffle.admin && (
-                <button
-                  onClick={
-                    raffle.paused ? handleUnpauseRaffle : handlePauseRaffle
-                  }
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                >
-                  {raffle.paused ? "Unpause Raffle" : "Pause Raffle"}
-                </button>
-              )}
-              <ConnectButton />
+              </div>
+
+              {/* 2. Middle: Two Columns (Time & Address) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                {/* Time Details */}
+                <div className="bg-white/70 rounded-xl p-4 border border-purple-100">
+                  <div>
+                    <p className="text-purple-600 text-sm font-medium">
+                      Start Time
+                    </p>
+                    <p className="text-lg font-semibold text-purple-900">
+                      {new Date(Number(raffle.start_time)).toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="mt-2">
+                    <p className="text-purple-600 text-sm font-medium">
+                      End Time
+                    </p>
+                    <p className="text-lg font-semibold text-purple-900">
+                      {new Date(Number(raffle.end_time)).toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="mt-4 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg p-4">
+                    <p className="text-purple-600 text-sm font-medium">
+                      Time Remaining
+                    </p>
+                    <p className="text-2xl font-bold text-purple-900">
+                      {getRelativeTime(Number(raffle.end_time))}
+                    </p>
+                  </div>
+                </div>
+                {/* Address Details */}
+                <div className="bg-white/70 rounded-xl p-4 border border-indigo-100 flex flex-col gap-4 justify-center">
+                  <div>
+                    <span className="text-indigo-600 text-sm font-medium">
+                      Created by:
+                    </span>
+                    <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg shadow-sm mt-1">
+                      <span className="font-mono text-gray-700">
+                        {truncateAddress(raffle.organizer)}
+                      </span>
+                      <button
+                        onClick={() =>
+                          navigator.clipboard.writeText(raffle.organizer)
+                        }
+                        className="text-gray-400 hover:text-gray-600 transition-colors"
+                        title="Copy address"
+                      >
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
+                          />
+                        </svg>
+                      </button>
+                      <a
+                        href={`https://suiexplorer.com/address/${raffle.organizer}?network=testnet`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-gray-400 hover:text-gray-600 transition-colors"
+                        title="View in Explorer"
+                      >
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                          />
+                        </svg>
+                      </a>
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-indigo-600 text-sm font-medium">
+                      Raffle ID:
+                    </span>
+                    <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg shadow-sm mt-1">
+                      <span className="font-mono text-gray-700">
+                        {truncateAddress(raffle.id)}
+                      </span>
+                      <button
+                        onClick={() => navigator.clipboard.writeText(raffle.id)}
+                        className="text-gray-400 hover:text-gray-600 transition-colors"
+                        title="Copy address"
+                      >
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
+                          />
+                        </svg>
+                      </button>
+                      <a
+                        href={`https://suiexplorer.com/object/${raffle.id}?network=testnet`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-gray-400 hover:text-gray-600 transition-colors"
+                        title="View in Explorer"
+                      >
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                          />
+                        </svg>
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Max Return Panel - Full Width */}
+              <div className="w-full">
+                <div className="relative bg-gradient-to-br from-white via-green-50 to-white border-l-4 border-green-400 rounded-xl p-6 shadow-lg w-full overflow-hidden">
+                  {/* Decorative floating icon */}
+                  <div className="absolute -top-4 -left-4 bg-green-100 rounded-full w-16 h-16 flex items-center justify-center shadow-md opacity-80 pointer-events-none">
+                    <span className="text-3xl">🚀</span>
+                  </div>
+                  {/* Main content */}
+                  <div className="relative z-10">
+                    {raffle.is_released  ? (
+                      <>
+                        <div className="text-lg font-semibold text-gray-900 mb-1">
+                          Winner took home
+                        </div>
+                        <div className="text-4xl font-extrabold text-indigo-700 mb-2 leading-tight">
+                          {(raffle.prize_pool * 0.5) / 1e9} SUI
+                        </div>
+                        <div className="text-base text-gray-700 mb-2">
+                          with a ticket of{" "}
+                          <span className="font-semibold">
+                            {raffle.ticket_price / 1e9} SUI
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-base text-gray-500">gain:</span>
+                          <span className="inline-block bg-green-100 text-green-700 px-4 py-1 rounded-full font-bold text-xl shadow-sm animate-pulse">
+                            {(
+                              (raffle.prize_pool * 0.5) /
+                              raffle.ticket_price
+                            ).toLocaleString(undefined, {
+                              maximumFractionDigits: 2,
+                            })}
+                            x
+                          </span>
+                          <span className="text-base text-gray-500">
+                            on their ticket
+                          </span>
+                        </div>
+                        <div className="text-sm text-green-700 mt-2 italic font-medium">
+                          This raffle has ended, but you can explore more
+                          opportunities!
+                        </div>
+                        <a
+                          href="/explore"
+                          className="mt-4 inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-2 rounded-lg shadow transition-colors"
+                        >
+                          Explore More Raffles
+                        </a>
+                      </>
+                    ) : (
+                      <>
+                        <div className="text-lg font-semibold text-gray-900 mb-1">
+                          Win up to
+                        </div>
+                        <div className="text-4xl font-extrabold text-indigo-700 mb-2 leading-tight">
+                          {(raffle.is_released
+                            ? raffle.prize_pool * 0.5
+                            : raffle.balance * 0.5) / 1e9}{" "}
+                          SUI
+                        </div>
+                        <div className="text-base text-gray-700 mb-2">
+                          with a ticket of{" "}
+                          <span className="font-semibold">
+                            {raffle.ticket_price / 1e9} SUI
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-base text-gray-500">
+                            max return:
+                          </span>
+                          <span className="inline-block bg-green-100 text-green-700 px-4 py-1 rounded-full font-bold text-xl shadow-sm animate-pulse">
+                            {Math.round(
+                              ((raffle.is_released
+                                ? raffle.prize_pool * 0.5
+                                : raffle.balance * 0.5) /
+                                raffle.ticket_price) *
+                                100
+                            )}
+                            x
+                          </span>
+                          <span className="text-base text-gray-500">
+                            on your ticket
+                          </span>
+                        </div>
+                        <div className="text-sm text-green-700 mt-2 italic font-medium">
+                          Your ticket to the moon! Don&apos;t miss your chance
+                          🚀
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-          {releaseError && (
-            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-600">{releaseError}</p>
-            </div>
-          )}
-          {transactionDigest && raffle.is_released && (
-            <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-              <p className="text-green-600 font-medium mb-2">
-                🎉 Raffle released successfully!
-              </p>
-              <a
-                href={`https://suiexplorer.com/txblock/${transactionDigest}?network=testnet`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-indigo-600 hover:text-indigo-800 underline inline-flex items-center"
-              >
-                View on Sui Explorer
-                <svg
-                  className="w-4 h-4 ml-1"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                  />
-                </svg>
-              </a>
-            </div>
-          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -847,40 +828,6 @@ export default function RaffleDetail() {
                       ? raffle.prize_pool / 1e9
                       : raffle.balance / 1e9}{" "}
                     SUI
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Time Info Card */}
-            <div className="bg-white rounded-2xl shadow-lg p-8 border border-gray-100">
-              <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                <span className="text-purple-500">⏰</span>
-                Time Information
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-purple-50 rounded-xl p-6">
-                  <p className="text-purple-600 text-sm font-medium">
-                    Start Time
-                  </p>
-                  <p className="text-lg font-semibold text-purple-900">
-                    {new Date(Number(raffle.start_time)).toLocaleString()}
-                  </p>
-                </div>
-                <div className="bg-purple-50 rounded-xl p-6">
-                  <p className="text-purple-600 text-sm font-medium">
-                    End Time
-                  </p>
-                  <p className="text-lg font-semibold text-purple-900">
-                    {new Date(Number(raffle.end_time)).toLocaleString()}
-                  </p>
-                </div>
-                <div className="md:col-span-2 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl p-6">
-                  <p className="text-purple-600 text-sm font-medium">
-                    Time Remaining
-                  </p>
-                  <p className="text-2xl font-bold text-purple-900">
-                    {getRelativeTime(Number(raffle.end_time))}
                   </p>
                 </div>
               </div>

@@ -6,7 +6,7 @@ import {
   ConnectButton,
 } from "@mysten/dapp-kit";
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { PACKAGE_ID, MODULE, CONFIG_OBJECT_ID } from "../../constants";
 import { Transaction } from "@mysten/sui/transactions";
 import { useWallet } from "../context/WalletContext";
@@ -14,6 +14,7 @@ import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import { format, parse } from "date-fns";
+import { PinataService } from "../services/pinata";
 
 // Helper function to format relative time
 function formatRelativeTime(target: number, currentTime: number) {
@@ -141,6 +142,179 @@ function validateEndTime(
   return null;
 }
 
+// Image Upload Component
+function ImageUpload({
+  onImageUpload,
+}: {
+  onImageUpload: (cid: string) => void;
+}) {
+  const [isDragging, setIsDragging] = useState(false);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback(
+    async (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragging(false);
+      setError(null);
+
+      const file = e.dataTransfer.files[0];
+      if (!file) return;
+
+      if (!file.type.startsWith("image/")) {
+        setError("Please upload an image file");
+        return;
+      }
+
+      if (file.size > 2 * 1024 * 1024) {
+        setError("Image size must be less than 2MB");
+        return;
+      }
+
+      try {
+        setIsUploading(true);
+        const result = await PinataService.uploadImage(file);
+        onImageUpload(result.cid);
+
+        // Create preview
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setPreview(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to upload image");
+      } finally {
+        setIsUploading(false);
+      }
+    },
+    [onImageUpload]
+  );
+
+  const handleFileSelect = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      if (!file.type.startsWith("image/")) {
+        setError("Please upload an image file");
+        return;
+      }
+
+      if (file.size > 2 * 1024 * 1024) {
+        setError("Image size must be less than 2MB");
+        return;
+      }
+
+      try {
+        setIsUploading(true);
+        const result = await PinataService.uploadImage(file);
+        onImageUpload(result.cid);
+
+        // Create preview
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setPreview(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to upload image");
+      } finally {
+        setIsUploading(false);
+      }
+    },
+    [onImageUpload]
+  );
+
+  return (
+    <div className="space-y-4">
+      <div
+        className={`relative border-2 border-dashed rounded-lg p-6 text-center ${
+          isDragging ? "border-indigo-500 bg-indigo-50" : "border-gray-300"
+        } transition-colors`}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        <input
+          type="file"
+          accept="image/*"
+          onChange={handleFileSelect}
+          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+        />
+        {isUploading ? (
+          <div className="flex flex-col items-center justify-center space-y-2">
+            <svg
+              className="animate-spin h-8 w-8 text-indigo-500"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              ></circle>
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              ></path>
+            </svg>
+            <p className="text-indigo-600">Uploading...</p>
+          </div>
+        ) : preview ? (
+          <div className="space-y-2">
+            <img
+              src={preview}
+              alt="Preview"
+              className="max-h-48 mx-auto rounded-lg"
+            />
+            <p className="text-sm text-gray-500">
+              Click or drag to change image
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <svg
+              className="mx-auto h-12 w-12 text-gray-400"
+              stroke="currentColor"
+              fill="none"
+              viewBox="0 0 48 48"
+            >
+              <path
+                d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            <p className="text-sm text-gray-500">
+              Drag and drop an image here, or click to select
+            </p>
+            <p className="text-xs text-gray-400">PNG, JPG, GIF up to 2MB</p>
+          </div>
+        )}
+      </div>
+      {error && <p className="text-sm text-red-600">{error}</p>}
+    </div>
+  );
+}
+
 export default function CreateRaffle() {
   const router = useRouter();
   const { address: currentAccount, isConnected } = useWallet();
@@ -156,6 +330,9 @@ export default function CreateRaffle() {
 
   // Form state
   const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+    imageCid: "",
     startTime: "",
     endTime: "",
     ticketPrice: "",
@@ -219,6 +396,20 @@ export default function CreateRaffle() {
     e.preventDefault();
     if (!isConnected || !currentAccount) return;
 
+    // Validate required fields
+    if (!formData.name.trim()) {
+      setError("Please enter a raffle name");
+      return;
+    }
+    if (!formData.description.trim()) {
+      setError("Please enter a raffle description");
+      return;
+    }
+    if (!formData.imageCid) {
+      setError("Please upload a raffle image");
+      return;
+    }
+
     setIsCreating(true);
     setError(null);
     setTransactionDigest(null);
@@ -248,6 +439,9 @@ export default function CreateRaffle() {
         target: `${PACKAGE_ID}::${MODULE}::create_raffle`,
         arguments: [
           tx.object(CONFIG_OBJECT_ID),
+          tx.pure.string(formData.name),
+          tx.pure.string(formData.description),
+          tx.pure.string(formData.imageCid),
           tx.pure.u64(startTime),
           tx.pure.u64(endTime),
           tx.pure.u64(ticketPrice),
@@ -305,6 +499,67 @@ export default function CreateRaffle() {
         {/* Form Section */}
         <div className="bg-white rounded-2xl shadow-lg p-8 border border-gray-100">
           <form onSubmit={handleSubmit} className="space-y-8">
+            {/* General Information Section */}
+            <div className="space-y-6">
+              <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <span className="text-green-500">📝</span>
+                General Information
+              </h2>
+
+              <div className="space-y-4">
+                <div>
+                  <label
+                    htmlFor="name"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    Raffle Name
+                  </label>
+                  <input
+                    type="text"
+                    id="name"
+                    required
+                    value={formData.name}
+                    onChange={(e) =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
+                    className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                    placeholder="Enter raffle name"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="description"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    Description
+                  </label>
+                  <textarea
+                    id="description"
+                    required
+                    value={formData.description}
+                    onChange={(e) =>
+                      setFormData({ ...formData, description: e.target.value })
+                    }
+                    rows={4}
+                    className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                    placeholder="Describe your raffle..."
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Raffle Image
+                  </label>
+                  <ImageUpload
+                    onImageUpload={(cid) =>
+                      setFormData({ ...formData, imageCid: cid })
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+
             {/* Current Blockchain Time */}
             <div className="bg-blue-50 rounded-xl p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
@@ -328,7 +583,9 @@ export default function CreateRaffle() {
 
               {/* Start Time Section */}
               <div className="bg-purple-50 rounded-xl p-6">
-                <h3 className="text-lg font-semibold text-purple-800 mb-4">Start Time</h3>
+                <h3 className="text-lg font-semibold text-purple-800 mb-4">
+                  Start Time
+                </h3>
                 <div className="flex justify-between items-center mb-4">
                   <div className="flex gap-2 flex-wrap">
                     {quickStartOptions.map((option) => (
@@ -346,12 +603,20 @@ export default function CreateRaffle() {
                 <LocalizationProvider dateAdapter={AdapterDateFns}>
                   <DateTimePicker
                     label="Select Start Time"
-                    value={formData.startTime ? new Date(isoStringToBlockchainTime(formData.startTime)) : null}
+                    value={
+                      formData.startTime
+                        ? new Date(
+                            isoStringToBlockchainTime(formData.startTime)
+                          )
+                        : null
+                    }
                     onChange={(newValue) => {
                       if (newValue) {
                         setFormData({
                           ...formData,
-                          startTime: blockchainTimeToISOString(newValue.getTime()),
+                          startTime: blockchainTimeToISOString(
+                            newValue.getTime()
+                          ),
                         });
                       }
                     }}
@@ -371,14 +636,20 @@ export default function CreateRaffle() {
                       isoStringToBlockchainTime(formData.startTime),
                       currentBlockchainTime
                     )}{" "}
-                    ({formatTimeForDisplay(isoStringToBlockchainTime(formData.startTime))})
+                    (
+                    {formatTimeForDisplay(
+                      isoStringToBlockchainTime(formData.startTime)
+                    )}
+                    )
                   </p>
                 )}
               </div>
 
               {/* End Time Section */}
               <div className="bg-purple-50 rounded-xl p-6">
-                <h3 className="text-lg font-semibold text-purple-800 mb-4">End Time</h3>
+                <h3 className="text-lg font-semibold text-purple-800 mb-4">
+                  End Time
+                </h3>
                 <div className="flex justify-between items-center mb-4">
                   <div className="flex gap-2 flex-wrap">
                     {quickDurationOptions.map((option) => (
@@ -396,18 +667,28 @@ export default function CreateRaffle() {
                 <LocalizationProvider dateAdapter={AdapterDateFns}>
                   <DateTimePicker
                     label="Select End Time"
-                    value={formData.endTime ? new Date(isoStringToBlockchainTime(formData.endTime)) : null}
+                    value={
+                      formData.endTime
+                        ? new Date(isoStringToBlockchainTime(formData.endTime))
+                        : null
+                    }
                     onChange={(newValue) => {
                       if (newValue) {
                         const newEndTime = newValue.getTime();
-                        const startTime = formData.startTime ? isoStringToBlockchainTime(formData.startTime) : currentBlockchainTime;
-                        const error = validateEndTime(startTime, newEndTime, currentBlockchainTime);
-                        
+                        const startTime = formData.startTime
+                          ? isoStringToBlockchainTime(formData.startTime)
+                          : currentBlockchainTime;
+                        const error = validateEndTime(
+                          startTime,
+                          newEndTime,
+                          currentBlockchainTime
+                        );
+
                         if (error) {
                           setError(error);
                           return;
                         }
-                        
+
                         setFormData({
                           ...formData,
                           endTime: blockchainTimeToISOString(newEndTime),
@@ -415,14 +696,23 @@ export default function CreateRaffle() {
                         setError(null);
                       }
                     }}
-                    minDateTime={formData.startTime ? new Date(isoStringToBlockchainTime(formData.startTime)) : new Date(currentBlockchainTime)}
+                    minDateTime={
+                      formData.startTime
+                        ? new Date(
+                            isoStringToBlockchainTime(formData.startTime)
+                          )
+                        : new Date(currentBlockchainTime)
+                    }
                     slotProps={{
                       textField: {
                         fullWidth: true,
                         required: true,
                         className: "bg-white",
                         error: !!error && error.includes("End time"),
-                        helperText: error && error.includes("End time") ? error : undefined,
+                        helperText:
+                          error && error.includes("End time")
+                            ? error
+                            : undefined,
                       },
                     }}
                   />
@@ -434,7 +724,11 @@ export default function CreateRaffle() {
                       isoStringToBlockchainTime(formData.startTime),
                       isoStringToBlockchainTime(formData.endTime)
                     )}{" "}
-                    (Ends at {formatTimeForDisplay(isoStringToBlockchainTime(formData.endTime))})
+                    (Ends at{" "}
+                    {formatTimeForDisplay(
+                      isoStringToBlockchainTime(formData.endTime)
+                    )}
+                    )
                   </p>
                 )}
               </div>
