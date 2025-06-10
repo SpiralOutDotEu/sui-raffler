@@ -25,6 +25,7 @@ module sui_raffler::sui_raffler {
     use sui::random::{Self, Random};
     use sui::clock::{Self, Clock};
     use sui::event;
+    use std::string::{Self, String};
 
     // === Constants ===
     // Prize distribution percentages (must sum to 100)
@@ -67,6 +68,9 @@ module sui_raffler::sui_raffler {
     /// This is the main object that tracks the raffle state
     public struct Raffle has key {
         id: UID,
+        name: String,           // Name of the raffle
+        description: String,    // Description of the raffle
+        image: String,         // Image URL or reference
         start_time: u64,         // Unix timestamp in milliseconds when raffle starts
         end_time: u64,           // Unix timestamp in milliseconds when raffle ends
         ticket_price: u64,       // Price per ticket in SUI
@@ -234,6 +238,9 @@ module sui_raffler::sui_raffler {
     /// Anyone can create a raffle by specifying the parameters
     public entry fun create_raffle(
         config: &Config,
+        name: String,
+        description: String,
+        image: String,
         start_time: u64,
         end_time: u64,
         ticket_price: u64,
@@ -257,6 +264,9 @@ module sui_raffler::sui_raffler {
         });
         transfer::share_object(Raffle {
             id: raffle_uid,
+            name,
+            description,
+            image,
             start_time,
             end_time,
             ticket_price,
@@ -466,6 +476,9 @@ module sui_raffler::sui_raffler {
 
     /// Get detailed raffle information
     public fun get_raffle_info(raffle: &Raffle): (
+        String, // name
+        String, // description
+        String, // image
         u64, // start_time
         u64, // end_time
         u64, // ticket_price
@@ -484,6 +497,9 @@ module sui_raffler::sui_raffler {
     ) {
         let total_balance = if (raffle.is_released) { raffle.prize_pool } else { balance::value(&raffle.balance) };
         (
+            raffle.name,
+            raffle.description,
+            raffle.image,
             raffle.start_time,
             raffle.end_time,
             raffle.ticket_price,

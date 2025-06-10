@@ -124,7 +124,18 @@ fun test_pause_raffle_unauthorized() {
 
     // Create a raffle
     ts.next_tx(organizer);
-    sui_raffler::create_raffle(&config, 0, 1000, 100, 5, organizer, ts.ctx());
+    sui_raffler::create_raffle(
+        &config,
+        string::utf8(b"Test Raffle"),
+        string::utf8(b"Test Description"),
+        string::utf8(b"https://example.com/image.jpg"),
+        0,
+        1000,
+        100,
+        5,
+        organizer,
+        ts.ctx()
+    );
     ts.next_tx(organizer);
     let mut raffle = ts.take_shared<sui_raffler::Raffle>();
 
@@ -168,7 +179,18 @@ fun test_release_raffle_unauthorized() {
 
     // Create a raffle
     ts.next_tx(organizer);
-    sui_raffler::create_raffle(&config, 0, 1000, 100, 5, organizer, ts.ctx());
+    sui_raffler::create_raffle(
+        &config,
+        string::utf8(b"Test Raffle"),
+        string::utf8(b"Test Description"),
+        string::utf8(b"https://example.com/image.jpg"),
+        0,
+        1000,
+        100,
+        5,
+        organizer,
+        ts.ctx()
+    );
     ts.next_tx(organizer);
     let mut raffle = ts.take_shared<sui_raffler::Raffle>();
 
@@ -219,7 +241,18 @@ fun test_claim_organizer_share_unauthorized() {
 
     // Create a raffle
     ts.next_tx(organizer);
-    sui_raffler::create_raffle(&config, 0, 1000, 100, 5, organizer, ts.ctx());
+    sui_raffler::create_raffle(
+        &config,
+        string::utf8(b"Test Raffle"),
+        string::utf8(b"Test Description"),
+        string::utf8(b"https://example.com/image.jpg"),
+        0,
+        1000,
+        100,
+        5,
+        organizer,
+        ts.ctx()
+    );
     ts.next_tx(organizer);
     let mut raffle = ts.take_shared<sui_raffler::Raffle>();
 
@@ -278,7 +311,18 @@ fun test_claim_protocol_fees_unauthorized() {
 
     // Create a raffle
     ts.next_tx(organizer);
-    sui_raffler::create_raffle(&config, 0, 1000, 100, 5, organizer, ts.ctx());
+    sui_raffler::create_raffle(
+        &config,
+        string::utf8(b"Test Raffle"),
+        string::utf8(b"Test Description"),
+        string::utf8(b"https://example.com/image.jpg"),
+        0,
+        1000,
+        100,
+        5,
+        organizer,
+        ts.ctx()
+    );
     ts.next_tx(organizer);
     let mut raffle = ts.take_shared<sui_raffler::Raffle>();
 
@@ -337,7 +381,18 @@ fun test_claim_prize_unauthorized() {
 
     // Create a raffle
     ts.next_tx(organizer);
-    sui_raffler::create_raffle(&config, 0, 1000, 100, 5, organizer, ts.ctx());
+    sui_raffler::create_raffle(
+        &config,
+        string::utf8(b"Test Raffle"),
+        string::utf8(b"Test Description"),
+        string::utf8(b"https://example.com/image.jpg"),
+        0,
+        1000,
+        100,
+        5,
+        organizer,
+        ts.ctx()
+    );
     ts.next_tx(organizer);
     let mut raffle = ts.take_shared<sui_raffler::Raffle>();
 
@@ -398,7 +453,18 @@ fun test_buy_tickets_when_paused() {
 
     // Create a raffle
     ts.next_tx(organizer);
-    sui_raffler::create_raffle(&config, 0, 1000, 100, 5, organizer, ts.ctx());
+    sui_raffler::create_raffle(
+        &config,
+        string::utf8(b"Test Raffle"),
+        string::utf8(b"Test Description"),
+        string::utf8(b"https://example.com/image.jpg"),
+        0,
+        1000,
+        100,
+        5,
+        organizer,
+        ts.ctx()
+    );
     ts.next_tx(organizer);
     let mut raffle = ts.take_shared<sui_raffler::Raffle>();
 
@@ -440,7 +506,18 @@ fun test_buy_tickets_when_contract_paused() {
 
     // Create a raffle (should fail)
     ts.next_tx(organizer);
-    sui_raffler::create_raffle(&config, 0, 1000, 100, 5, organizer, ts.ctx());
+    sui_raffler::create_raffle(
+        &config,
+        string::utf8(b"Test Raffle"),
+        string::utf8(b"Test Description"),
+        string::utf8(b"https://example.com/image.jpg"),
+        0,
+        1000,
+        100,
+        5,
+        organizer,
+        ts.ctx()
+    );
 
     ts::return_shared(config);
     ts.end();
@@ -467,7 +544,18 @@ fun test_create_raffle_not_permissionless() {
 
     // Try to create raffle as non-admin
     ts.next_tx(non_admin);
-    sui_raffler::create_raffle(&config, 0, 1000, 100, 5, organizer, ts.ctx());
+    sui_raffler::create_raffle(
+        &config,
+        string::utf8(b"Test Raffle"),
+        string::utf8(b"Test Description"),
+        string::utf8(b"https://example.com/image.jpg"),
+        0,
+        1000,
+        100,
+        5,
+        organizer,
+        ts.ctx()
+    );
 
     ts::return_shared(config);
     ts.end();
@@ -490,7 +578,18 @@ fun test_buy_tickets_before_start() {
 
     // Create a raffle with future start time
     ts.next_tx(organizer);
-    sui_raffler::create_raffle(&config, 1000, 2000, 100, 5, organizer, ts.ctx());
+    sui_raffler::create_raffle(
+        &config,
+        string::utf8(b"Test Raffle"),
+        string::utf8(b"Test Description"),
+        string::utf8(b"https://example.com/image.jpg"),
+        1000,
+        2000,
+        100,
+        5,
+        organizer,
+        ts.ctx()
+    );
     ts.next_tx(organizer);
     let mut raffle = ts.take_shared<sui_raffler::Raffle>();
 
@@ -524,7 +623,18 @@ fun test_buy_tickets_after_end() {
 
     // Create a raffle
     ts.next_tx(organizer);
-    sui_raffler::create_raffle(&config, 0, 1000, 100, 5, organizer, ts.ctx());
+    sui_raffler::create_raffle(
+        &config,
+        string::utf8(b"Test Raffle"),
+        string::utf8(b"Test Description"),
+        string::utf8(b"https://example.com/image.jpg"),
+        0,
+        1000,
+        100,
+        5,
+        organizer,
+        ts.ctx()
+    );
     ts.next_tx(organizer);
     let mut raffle = ts.take_shared<sui_raffler::Raffle>();
 
@@ -572,7 +682,18 @@ fun test_release_raffle_before_end() {
 
     // Create a raffle
     ts.next_tx(organizer);
-    sui_raffler::create_raffle(&config, 0, 1000, 100, 5, organizer, ts.ctx());
+    sui_raffler::create_raffle(
+        &config,
+        string::utf8(b"Test Raffle"),
+        string::utf8(b"Test Description"),
+        string::utf8(b"https://example.com/image.jpg"),
+        0,
+        1000,
+        100,
+        5,
+        organizer,
+        ts.ctx()
+    );
     ts.next_tx(organizer);
     let mut raffle = ts.take_shared<sui_raffler::Raffle>();
 
@@ -619,7 +740,18 @@ fun test_release_raffle_twice() {
 
     // Create a raffle
     ts.next_tx(organizer);
-    sui_raffler::create_raffle(&config, 0, 1000, 100, 5, organizer, ts.ctx());
+    sui_raffler::create_raffle(
+        &config,
+        string::utf8(b"Test Raffle"),
+        string::utf8(b"Test Description"),
+        string::utf8(b"https://example.com/image.jpg"),
+        0,
+        1000,
+        100,
+        5,
+        organizer,
+        ts.ctx()
+    );
     ts.next_tx(organizer);
     let mut raffle = ts.take_shared<sui_raffler::Raffle>();
 
@@ -677,7 +809,18 @@ fun test_claim_organizer_share_twice() {
 
     // Create a raffle
     ts.next_tx(organizer);
-    sui_raffler::create_raffle(&config, 0, 1000, 100, 5, organizer, ts.ctx());
+    sui_raffler::create_raffle(
+        &config,
+        string::utf8(b"Test Raffle"),
+        string::utf8(b"Test Description"),
+        string::utf8(b"https://example.com/image.jpg"),
+        0,
+        1000,
+        100,
+        5,
+        organizer,
+        ts.ctx()
+    );
     ts.next_tx(organizer);
     let mut raffle = ts.take_shared<sui_raffler::Raffle>();
 
@@ -739,7 +882,18 @@ fun test_claim_protocol_fees_twice() {
 
     // Create a raffle
     ts.next_tx(organizer);
-    sui_raffler::create_raffle(&config, 0, 1000, 100, 5, organizer, ts.ctx());
+    sui_raffler::create_raffle(
+        &config,
+        string::utf8(b"Test Raffle"),
+        string::utf8(b"Test Description"),
+        string::utf8(b"https://example.com/image.jpg"),
+        0,
+        1000,
+        100,
+        5,
+        organizer,
+        ts.ctx()
+    );
     ts.next_tx(organizer);
     let mut raffle = ts.take_shared<sui_raffler::Raffle>();
 
@@ -802,7 +956,18 @@ fun test_log_winning_tickets() {
 
     // Create a raffle
     ts.next_tx(organizer);
-    sui_raffler::create_raffle(&config, 0, 1000, 100, 5, organizer, ts.ctx());
+    sui_raffler::create_raffle(
+        &config,
+        string::utf8(b"Test Raffle"),
+        string::utf8(b"Test Description"),
+        string::utf8(b"https://example.com/image.jpg"),
+        0,
+        1000,
+        100,
+        5,
+        organizer,
+        ts.ctx()
+    );
     ts.next_tx(organizer);
     let mut raffle = ts.take_shared<sui_raffler::Raffle>();
 
@@ -883,7 +1048,18 @@ fun test_prize_claiming() {
 
     // Create a raffle
     ts.next_tx(organizer);
-    sui_raffler::create_raffle(&config, 0, 1000, 100, 5, organizer, ts.ctx());
+    sui_raffler::create_raffle(
+        &config,
+        string::utf8(b"Test Raffle"),
+        string::utf8(b"Test Description"),
+        string::utf8(b"https://example.com/image.jpg"),
+        0,
+        1000,
+        100,
+        5,
+        organizer,
+        ts.ctx()
+    );
     ts.next_tx(organizer);
     let mut raffle = ts.take_shared<sui_raffler::Raffle>();
 

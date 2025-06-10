@@ -59,7 +59,18 @@ fun test_raffle_flow() {
     ts.next_tx(creator);
     mint(creator, 1000, &mut ts);
     ts.next_tx(creator);
-    sui_raffler::create_raffle(&config, start_time, end_time, ticket_price, max_tickets, organizer, ts.ctx());
+    sui_raffler::create_raffle(
+        &config,
+        string::utf8(b"Test Raffle"),
+        string::utf8(b"Test Description"),
+        string::utf8(b"https://example.com/image.jpg"),
+        start_time,
+        end_time,
+        ticket_price,
+        max_tickets,
+        organizer,
+        ts.ctx()
+    );
     ts.next_tx(creator);
     let mut raffle = ts.take_shared<sui_raffler::Raffle>();
     assert!(sui_raffler::get_tickets_sold(&raffle) == 0, 1);
@@ -73,8 +84,11 @@ fun test_raffle_flow() {
     assert!(sui_raffler::get_tickets_sold(&raffle) == 3, 1);
 
     // Test view functions before release
-    let (start_time, end_time, price, max_tix, org, fee_col, balance, sold, released, total, first, second, third, org_share, fee) = 
+    let (name, description, image, start_time, end_time, price, max_tix, org, fee_col, balance, sold, released, total, first, second, third, org_share, fee) = 
         sui_raffler::get_raffle_info(&raffle);
+    assert!(name == string::utf8(b"Test Raffle"), 1);
+    assert!(description == string::utf8(b"Test Description"), 1);
+    assert!(image == string::utf8(b"https://example.com/image.jpg"), 1);
     assert!(start_time == 0, 1);
     assert!(end_time == 1000, 1);
     assert!(price == 100, 1);
@@ -147,11 +161,11 @@ fun test_raffle_flow() {
     vector::destroy_empty(buyer_tickets);
 
     // Test organizer's share
-    let (_, _, _, _, _, _, _, _, _, _, _, _, _, org_share, _) = sui_raffler::get_raffle_info(&raffle);
+    let (_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, org_share, _, _) = sui_raffler::get_raffle_info(&raffle);
     assert!(org_share == 30, 1); // 10% of 300 = 30
 
     // Test fee collector's share
-    let (_, _, _, _, _, _, _, _, _, _, _, _, _, _, fee) = sui_raffler::get_raffle_info(&raffle);
+    let (_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, fee) = sui_raffler::get_raffle_info(&raffle);
     assert!(fee == 15, 1); // 5% of 300 = 15
     
     // Clean up
@@ -232,7 +246,18 @@ fun test_invalid_organizer() {
 
     // Try to create raffle with invalid organizer address
     ts.next_tx(creator);
-    sui_raffler::create_raffle(&config, 0, 1000, 100, 5, invalid_organizer, ts.ctx());
+    sui_raffler::create_raffle(
+        &config,
+        string::utf8(b"Test Raffle"),
+        string::utf8(b"Test Description"),
+        string::utf8(b"https://example.com/image.jpg"),
+        0,
+        1000,
+        100,
+        5,
+        invalid_organizer,
+        ts.ctx()
+    );
 
     // Return objects and end scenario
     ts::return_shared(config);
@@ -279,7 +304,18 @@ fun test_happy_path_raffle() {
     ts.next_tx(creator);
     mint(creator, 1000, &mut ts);
     ts.next_tx(creator);
-    sui_raffler::create_raffle(&config, start_time, end_time, ticket_price, max_tickets, organizer, ts.ctx());
+    sui_raffler::create_raffle(
+        &config,
+        string::utf8(b"Test Raffle"),
+        string::utf8(b"Test Description"),
+        string::utf8(b"https://example.com/image.jpg"),
+        start_time,
+        end_time,
+        ticket_price,
+        max_tickets,
+        organizer,
+        ts.ctx()
+    );
     ts.next_tx(creator);
     let mut raffle = ts.take_shared<sui_raffler::Raffle>();
     assert!(sui_raffler::get_tickets_sold(&raffle) == 0, 1);
@@ -292,7 +328,7 @@ fun test_happy_path_raffle() {
     sui_raffler::buy_tickets(&mut raffle, coin1, 3, &clock, ts.ctx());
     
     // Verify state after first purchase
-    let (_, _, _, _, _, _, balance, sold, _, total, _, _, _, _, _) = sui_raffler::get_raffle_info(&raffle);
+    let (_, _, _, _, _, _, _, _, _, balance, sold, _, total, first, second, third, org_share, fee) = sui_raffler::get_raffle_info(&raffle);
     debug::print(&string::utf8(b"=== AFTER FIRST PURCHASE ==="));
     debug::print(&string::utf8(b"Balance: "));
     debug::print(&balance);
@@ -311,7 +347,7 @@ fun test_happy_path_raffle() {
     sui_raffler::buy_tickets(&mut raffle, coin2, 2, &clock, ts.ctx());
     
     // Verify state after second purchase
-    let (_, _, _, _, _, _, balance, sold, _, total, _, _, _, _, _) = sui_raffler::get_raffle_info(&raffle);
+    let (_, _, _, _, _, _, _, _, _, balance, sold, _, total, first, second, third, org_share, fee) = sui_raffler::get_raffle_info(&raffle);
     debug::print(&string::utf8(b"=== AFTER SECOND PURCHASE ==="));
     debug::print(&string::utf8(b"Balance: "));
     debug::print(&balance);
@@ -330,7 +366,7 @@ fun test_happy_path_raffle() {
     sui_raffler::buy_tickets(&mut raffle, coin3, 4, &clock, ts.ctx());
     
     // Verify state after third purchase
-    let (_, _, _, _, _, _, balance, sold, _, total, first, second, third, org_share, fee) = sui_raffler::get_raffle_info(&raffle);
+    let (_, _, _, _, _, _, _, _, _, balance, sold, _, total, first, second, third, org_share, fee) = sui_raffler::get_raffle_info(&raffle);
     debug::print(&string::utf8(b"=== AFTER THIRD PURCHASE ==="));
     debug::print(&string::utf8(b"Balance: "));
     debug::print(&balance);
@@ -375,7 +411,7 @@ fun test_happy_path_raffle() {
     assert!(ticket1 != ticket2 && ticket2 != ticket3 && ticket1 != ticket3, 1);
 
     // Print values after release to confirm they are fixed
-    let (_, _, _, _, _, _, balance, sold, _, total, first, second, third, org_share, fee) = sui_raffler::get_raffle_info(&raffle);
+    let (_, _, _, _, _, _, _, _, _, balance, sold, _, total, first, second, third, org_share, fee) = sui_raffler::get_raffle_info(&raffle);
     debug::print(&string::utf8(b"=== AFTER RELEASE ==="));
     debug::print(&string::utf8(b"Balance: "));
     debug::print(&balance);
@@ -482,7 +518,7 @@ fun test_happy_path_raffle() {
     vector::destroy_empty(buyer3_tickets);
 
     // Verify final state
-    let (_, _, _, _, _, _, _, _, _, total, first, second, third, org_share, fee) = sui_raffler::get_raffle_info(&raffle);
+    let (_, _, _, _, _, _, _, _, _, final_balance, _, _, _, _, _, _, _, _) = sui_raffler::get_raffle_info(&raffle);
     debug::print(&string::utf8(b"=== FINAL STATE ==="));
     debug::print(&string::utf8(b"Total prize pool: "));
     debug::print(&total);
@@ -522,7 +558,9 @@ fun test_happy_path_raffle() {
     transfer::public_transfer(fee_coin, fee_collector);
 
     // Verify final balance is 0 after all claims
-    let (_, _, _, _, _, _, final_balance, _, _, _, _, _, _, _, _) = sui_raffler::get_raffle_info(&raffle);
+    let (_, _, _, _, _, _, _, _, _, final_balance, _, _, _, _, _, _, _, _) = sui_raffler::get_raffle_info(&raffle);
+    debug::print(&string::utf8(b"Final balance: "));
+    debug::print(&final_balance);
     assert!(final_balance == 0, 1);
 
     // Clean up
