@@ -8,7 +8,13 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import { useState } from "react";
-import { PACKAGE_ID, MODULE } from "../../../constants";
+import {
+  PACKAGE_ID,
+  MODULE,
+  RANDOM_OBJECT_ID,
+  CLOCK_OBJECT_ID,
+  CONFIG_OBJECT_ID,
+} from "../../../constants";
 import { Transaction } from "@mysten/sui/transactions";
 import { useWallet } from "../../context/WalletContext";
 
@@ -23,6 +29,8 @@ interface Raffle {
   is_released: boolean;
   winners: { [key: number]: string };
   balance: number;
+  winning_tickets: number[];
+  prize_pool: number;
 }
 
 interface Ticket {
@@ -113,7 +121,10 @@ function useUserTickets(raffleId: string, userAddress: string | undefined) {
         if (raffleFields.is_released) {
           const totalBalance = Number(raffleFields.balance);
           for (const ticket of tickets) {
-            if (raffleFields.winners[ticket.ticket_number]) {
+            if (
+              raffleFields.winners &&
+              raffleFields.winners[ticket.ticket_number]
+            ) {
               ticket.is_winner = true;
               // Calculate prize amount based on position
               const winnerKeys = Object.keys(raffleFields.winners);
@@ -142,32 +153,21 @@ function useRaffleWinners(raffleId: string) {
     queryKey: ["winners", raffleId],
     queryFn: async () => {
       try {
-        const tx = new Transaction();
-        tx.moveCall({
-          target: `${PACKAGE_ID}::${MODULE}::get_winners`,
-          arguments: [tx.object(raffleId)],
+        const response = await suiClient.getObject({
+          id: raffleId,
+          options: {
+            showContent: true,
+          },
         });
 
-        const response = await suiClient.devInspectTransactionBlock({
-          sender: "0x0",
-          transactionBlock: tx.serialize(),
-        });
-
-        if (response.results?.[0]?.returnValues) {
-          const [hasWinners, winningTicketNumbers] =
-            response.results[0].returnValues;
-
-          // Convert the return values to the correct types
-          const hasWinnersBool =
-            (hasWinners[0] as unknown as string) === "true";
-          const winningTicketNumbersArr = (
-            winningTicketNumbers as unknown as string[]
-          ).map((num) => Number(num));
-
-          return {
-            hasWinners: hasWinnersBool,
-            winningTicketNumbers: winningTicketNumbersArr,
-          };
+        if (response.data?.content?.dataType === "moveObject") {
+          const fields = response.data.content.fields as unknown as Raffle;
+          if (fields.is_released) {
+            return {
+              hasWinners: true,
+              winningTicketNumbers: fields.winning_tickets,
+            };
+          }
         }
       } catch (error) {
         console.error("Error fetching winners:", error);
@@ -211,15 +211,15 @@ function getRelativeTime(target: number) {
 export default function RaffleDetail() {
   const { id } = useParams();
   const { data: raffle, isLoading, error } = useRaffle(id as string);
-  const { data: winners, isLoading: isLoadingWinners } = useRaffleWinners(
-    id as string
-  );
+  const { data: winners } = useRaffleWinners(id as string);
   const [ticketAmount, setTicketAmount] = useState<number>(1);
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
   const [transactionDigest, setTransactionDigest] = useState<string | null>(
     null
   );
+  const [isReleasing, setIsReleasing] = useState(false);
+  const [releaseError, setReleaseError] = useState<string | null>(null);
   const { address: currentAccount, isConnected } = useWallet();
   const { mutateAsync: signAndExecute } = useSignAndExecuteTransaction();
   const queryClient = useQueryClient();
@@ -324,6 +324,43 @@ export default function RaffleDetail() {
     }
   };
 
+  const handleReleaseRaffle = async () => {
+    if (!isConnected || !currentAccount || !raffle) return;
+
+    setIsReleasing(true);
+    setReleaseError(null);
+    setTransactionDigest(null);
+
+    try {
+      const tx = new Transaction();
+      tx.moveCall({
+        target: `${PACKAGE_ID}::${MODULE}::release_raffle`,
+        arguments: [
+          tx.object(CONFIG_OBJECT_ID),
+          tx.object(raffle.id),
+          tx.object(RANDOM_OBJECT_ID),
+          tx.object(CLOCK_OBJECT_ID),
+        ],
+      });
+
+      const result = await signAndExecute({
+        transaction: tx,
+      });
+
+      setTransactionDigest(result.digest);
+      await queryClient.invalidateQueries({ queryKey: ["raffle", id] });
+      await queryClient.invalidateQueries({ queryKey: ["winners", id] });
+    } catch (err) {
+      let errorMessage = "Failed to release raffle";
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+      setReleaseError(errorMessage);
+    } finally {
+      setIsReleasing(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-[200px]">
@@ -381,81 +418,52 @@ export default function RaffleDetail() {
               >
                 {raffle.is_released ? "Ended" : "Active"}
               </span>
+              {!raffle.is_released && Date.now() > raffle.end_time && (
+                <button
+                  onClick={handleReleaseRaffle}
+                  disabled={isReleasing}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isReleasing ? "Releasing..." : "Release Raffle"}
+                </button>
+              )}
               <ConnectButton />
             </div>
           </div>
+          {releaseError && (
+            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-600">{releaseError}</p>
+            </div>
+          )}
+          {transactionDigest && (
+            <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+              <p className="text-green-600 font-medium mb-2">
+                🎉 Raffle released successfully!
+              </p>
+              <a
+                href={`https://suiexplorer.com/txblock/${transactionDigest}?network=testnet`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-indigo-600 hover:text-indigo-800 underline inline-flex items-center"
+              >
+                View on Sui Explorer
+                <svg
+                  className="w-4 h-4 ml-1"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                  />
+                </svg>
+              </a>
+            </div>
+          )}
         </div>
-
-        {raffle.is_released && (
-          <div className="bg-white rounded-2xl shadow-lg p-8 border border-gray-100">
-            <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-              <span className="text-yellow-500">🏆</span>
-              Winners
-            </h2>
-            {isLoadingWinners ? (
-              <div className="flex justify-center items-center min-h-[200px]">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-600"></div>
-              </div>
-            ) : winners?.hasWinners ? (
-              <div className="space-y-4">
-                {winners.winningTicketNumbers.map(
-                  (ticketNumber: number, index: number) => {
-                    const isMyTicket = userTickets.some(
-                      (t) => t.ticket_number === ticketNumber
-                    );
-                    const prizeAmount =
-                      index === 0
-                        ? (raffle.balance * 0.5) / 1e9
-                        : index === 1
-                        ? (raffle.balance * 0.25) / 1e9
-                        : (raffle.balance * 0.1) / 1e9;
-
-                    return (
-                      <div
-                        key={ticketNumber}
-                        className="bg-gradient-to-r from-yellow-50 to-amber-50 rounded-xl p-6"
-                      >
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <p className="text-yellow-800 font-semibold flex items-center gap-2">
-                              <span className="text-2xl">
-                                {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
-                              </span>
-                              Ticket #{ticketNumber}
-                            </p>
-                            <p className="text-sm text-yellow-600">
-                              Prize: {prizeAmount} SUI
-                            </p>
-                          </div>
-                          {isMyTicket && (
-                            <button
-                              onClick={() =>
-                                handleClaimPrize(
-                                  userTickets.find(
-                                    (t) => t.ticket_number === ticketNumber
-                                  )?.id || ""
-                                )
-                              }
-                              className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors"
-                            >
-                              Claim Prize
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  }
-                )}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <p className="text-gray-600">
-                  No winners have been selected yet.
-                </p>
-              </div>
-            )}
-          </div>
-        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
@@ -468,47 +476,112 @@ export default function RaffleDetail() {
                   Prize Pool Distribution
                 </h2>
               </div>
-              <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-100">
-                <p className="text-blue-700 text-sm">
-                  💡 The prize pool grows with each ticket purchase until the
-                  raffle ends. Current minimum prizes shown below.
-                </p>
-              </div>
+              {raffle.is_released ? (
+                <div className="mb-4 p-4 bg-green-50 rounded-lg border border-green-100">
+                  <p className="text-green-700 text-sm flex items-center gap-2">
+                    <span className="text-xl">🎉</span>
+                    The raffle has concluded! Here are the winners and their
+                    prizes.
+                  </p>
+                </div>
+              ) : (
+                <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-100">
+                  <p className="text-blue-700 text-sm">
+                    💡 The prize pool grows with each ticket purchase until the
+                    raffle ends. Current minimum prizes shown below.
+                  </p>
+                </div>
+              )}
               <div className="space-y-4">
                 <div className="bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-xl p-6">
-                  <div className="flex justify-between items-center">
+                  <div className="grid grid-cols-3 gap-4 items-center">
                     <div>
                       <p className="text-yellow-800 font-semibold flex items-center gap-2">
                         <span className="text-2xl">🥇</span> 1st Place
                       </p>
                     </div>
-                    <p className="text-2xl font-bold text-yellow-800">
-                      {(raffle.balance * 0.5) / 1e9} SUI
-                    </p>
+                    {raffle.is_released &&
+                    winners?.winningTicketNumbers?.[0] ? (
+                      <div className="text-center">
+                        <p className="text-sm text-yellow-600 mb-1">
+                          Winning Ticket
+                        </p>
+                        <p className="text-xl font-bold text-yellow-800">
+                          #{winners.winningTicketNumbers[0]}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="text-center">
+                        <p className="text-sm text-yellow-600">
+                          Prize Pool: 50%
+                        </p>
+                      </div>
+                    )}
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-yellow-800">
+                        {(raffle.prize_pool * 0.5) / 1e9} SUI
+                      </p>
+                    </div>
                   </div>
                 </div>
                 <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-6">
-                  <div className="flex justify-between items-center">
+                  <div className="grid grid-cols-3 gap-4 items-center">
                     <div>
                       <p className="text-gray-800 font-semibold flex items-center gap-2">
                         <span className="text-2xl">🥈</span> 2nd Place
                       </p>
                     </div>
-                    <p className="text-2xl font-bold text-gray-800">
-                      {(raffle.balance * 0.25) / 1e9} SUI
-                    </p>
+                    {raffle.is_released &&
+                    winners?.winningTicketNumbers?.[1] ? (
+                      <div className="text-center">
+                        <p className="text-sm text-gray-600 mb-1">
+                          Winning Ticket
+                        </p>
+                        <p className="text-xl font-bold text-gray-800">
+                          #{winners.winningTicketNumbers[1]}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="text-center">
+                        <p className="text-sm text-gray-600">Prize Pool: 25%</p>
+                      </div>
+                    )}
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-gray-800">
+                        {(raffle.prize_pool * 0.25) / 1e9} SUI
+                      </p>
+                    </div>
                   </div>
                 </div>
                 <div className="bg-gradient-to-r from-amber-50 to-amber-100 rounded-xl p-6">
-                  <div className="flex justify-between items-center">
+                  <div className="grid grid-cols-3 gap-4 items-center">
                     <div>
                       <p className="text-amber-800 font-semibold flex items-center gap-2">
                         <span className="text-2xl">🥉</span> 3rd Place
                       </p>
                     </div>
-                    <p className="text-2xl font-bold text-amber-800">
-                      {(raffle.balance * 0.1) / 1e9} SUI
-                    </p>
+                    {raffle.is_released &&
+                    winners?.winningTicketNumbers?.[2] ? (
+                      <div className="text-center">
+                        <p className="text-sm text-amber-600 mb-1">
+                          Winning Ticket
+                        </p>
+                        <p className="text-xl font-bold text-amber-800">
+                          #{winners.winningTicketNumbers[2]}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="text-center">
+                        <p className="text-sm text-amber-600">
+                          Prize Pool: 10%
+                        </p>
+                      </div>
+                    )}
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-amber-800">
+                        {(raffle.prize_pool * 0.1) / 1e9} SUI
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -550,7 +623,7 @@ export default function RaffleDetail() {
                     Total Prize Pool
                   </p>
                   <p className="text-2xl font-bold text-indigo-900">
-                    {raffle.balance / 1e9} SUI
+                    {raffle.prize_pool / 1e9} SUI
                   </p>
                 </div>
               </div>
@@ -603,20 +676,23 @@ export default function RaffleDetail() {
               ) : userTickets.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {userTickets.map((ticket) => {
-                    const isWinner = winners?.winningTicketNumbers?.includes(
-                      ticket.ticket_number
+                    // Ensure both sides are strings for comparison
+                    const winningTicketStrings =
+                      winners?.winningTicketNumbers?.map(String) ?? [];
+                    const isWinner = winningTicketStrings.includes(
+                      String(ticket.ticket_number)
                     );
                     const winnerIndex = isWinner
-                      ? winners?.winningTicketNumbers.indexOf(
-                          ticket.ticket_number
-                        ) ?? -1
+                      ? winningTicketStrings.findIndex(
+                          (n) => String(ticket.ticket_number) === n
+                        )
                       : -1;
                     const prizeAmount = isWinner
                       ? winnerIndex === 0
-                        ? (raffle.balance * 0.5) / 1e9
+                        ? (raffle.prize_pool * 0.5) / 1e9
                         : winnerIndex === 1
-                        ? (raffle.balance * 0.25) / 1e9
-                        : (raffle.balance * 0.1) / 1e9
+                        ? (raffle.prize_pool * 0.25) / 1e9
+                        : (raffle.prize_pool * 0.1) / 1e9
                       : 0;
 
                     return (
