@@ -7,8 +7,32 @@ import type { Metadata } from "next";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "SUI-Raffler",
-  description: "Create and participate in raffles on the SUI blockchain",
+  title: {
+    template: "Sui Raffler  | %s",
+    default: "Sui Raffler - Decentralized Raffle Platform",
+  },
+  description:
+    "A decentralized raffle platform built on Sui blockchain. Create and participate in exciting raffles with transparent prize distribution.",
+  openGraph: {
+    title: "Sui Raffler - Decentralized Raffle Platform",
+    description:
+      "A decentralized raffle platform built on Sui blockchain. Create and participate in exciting raffles with transparent prize distribution.",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Sui Raffler",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Sui Raffler - Decentralized Raffle Platform",
+    description:
+      "A decentralized raffle platform built on Sui blockchain. Create and participate in exciting raffles with transparent prize distribution.",
+    images: ["/og-image.png"],
+  },
   icons: {
     icon: [
       { url: "/favicon/favicon.ico" },
