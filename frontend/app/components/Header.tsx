@@ -119,11 +119,18 @@ export default function Header() {
 
       {/* How It Works Modal */}
       {isHowItWorksOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-8 relative">
+        <div
+          className="fixed inset-0 backdrop-blur-sm bg-white/30 z-50 flex items-center justify-center p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setIsHowItWorksOpen(false);
+            }
+          }}
+        >
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-8 relative shadow-xl">
             <button
               onClick={() => setIsHowItWorksOpen(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
             >
               <svg
                 className="h-6 w-6"
@@ -184,7 +191,9 @@ export default function Header() {
                   </h3>
                   <p className="text-gray-600">
                     Once the raffle ends, winners are automatically selected
-                    using blockchain-based randomness.
+                    using Sui&apos;s on-chain randomness. The selection is
+                    performed by smart contracts, ensuring complete transparency
+                    and fairness. No human intervention is possible!
                   </p>
                 </div>
               </div>
@@ -198,8 +207,16 @@ export default function Header() {
                     Claim Prizes
                   </h3>
                   <p className="text-gray-600">
-                    If you win, you can claim your prize directly through the
-                    platform. Prizes are distributed automatically to winners.
+                    Winners can claim their prizes directly through smart
+                    contracts. The prize distribution is automatic and
+                    transparent:
+                    <ul className="list-disc list-inside mt-2 space-y-1 text-sm">
+                      <li>1st Place: 50% of the prize pool</li>
+                      <li>2nd Place: 25% of the prize pool</li>
+                      <li>3rd Place: 10% of the prize pool</li>
+                      <li>Organizer: 10% of the prize pool</li>
+                      <li>Protocol Fee: 5% of the prize pool</li>
+                    </ul>
                   </p>
                 </div>
               </div>
