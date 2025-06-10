@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ConnectButton } from "@mysten/dapp-kit";
+import Image from "next/image";
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -17,10 +18,16 @@ export default function Header() {
             {/* Logo and Brand */}
             <div className="flex items-center">
               <Link href="/" className="flex items-center space-x-2">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-lg font-bold shadow-lg">
-                  🎲
+                <div className="w-12 h-12 rounded-lg overflow-hidden flex items-center justify-center shadow-lg bg-white">
+                  <Image
+                    src="/SUI-Raffler_logo.png"
+                    alt="SUI-Raffler Logo"
+                    width={48}
+                    height={48}
+                    priority
+                  />
                 </div>
-                <span className="text-xl font-bold bg-gradient-to-r from-indigo-500 to-purple-600 text-transparent bg-clip-text">
+                <span className="text-4xl font-extrabold bg-gradient-to-r from-indigo-500 to-purple-600 text-transparent bg-clip-text">
                   SUI-Raffler
                 </span>
               </Link>

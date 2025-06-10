@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 
 export default function Home() {
   return (
@@ -9,6 +10,15 @@ export default function Home() {
       <div className="relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16 sm:pt-24 sm:pb-20">
           <div className="text-center">
+            <div className="flex justify-center mb-6">
+              <Image
+                src="/SUI-Raffler_logo.png"
+                alt="SUI-Raffler Logo"
+                width={96}
+                height={96}
+                priority
+              />
+            </div>
             <h1 className="text-4xl sm:text-6xl font-bold text-gray-900 mb-6">
               Create and Play{" "}
               <span className="bg-gradient-to-r from-indigo-500 to-purple-600 text-transparent bg-clip-text">
