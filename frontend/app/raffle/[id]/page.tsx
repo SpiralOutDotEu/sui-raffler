@@ -273,6 +273,12 @@ export default function RaffleDetail() {
 
       // Refresh raffle data
       await queryClient.invalidateQueries({ queryKey: ["raffle", id] });
+      // Refresh user tickets data
+      await queryClient.invalidateQueries({
+        queryKey: ["tickets", id, currentAccount],
+      });
+      // Refresh winners data
+      await queryClient.invalidateQueries({ queryKey: ["winners", id] });
     } catch (err) {
       let errorMessage = "Failed to purchase tickets";
 
@@ -640,7 +646,7 @@ export default function RaffleDetail() {
               <p className="text-red-600">{releaseError}</p>
             </div>
           )}
-          {transactionDigest && (
+          {transactionDigest && raffle.is_released && (
             <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
               <p className="text-green-600 font-medium mb-2">
                 🎉 Raffle released successfully!
@@ -724,7 +730,10 @@ export default function RaffleDetail() {
                     )}
                     <div className="text-right">
                       <p className="text-2xl font-bold text-yellow-800">
-                        {(raffle.prize_pool * 0.5) / 1e9} SUI
+                        {raffle.is_released
+                          ? (raffle.prize_pool * 0.5) / 1e9
+                          : (raffle.balance * 0.5) / 1e9}{" "}
+                        SUI
                       </p>
                     </div>
                   </div>
@@ -753,7 +762,10 @@ export default function RaffleDetail() {
                     )}
                     <div className="text-right">
                       <p className="text-2xl font-bold text-gray-800">
-                        {(raffle.prize_pool * 0.25) / 1e9} SUI
+                        {raffle.is_released
+                          ? (raffle.prize_pool * 0.25) / 1e9
+                          : (raffle.balance * 0.25) / 1e9}{" "}
+                        SUI
                       </p>
                     </div>
                   </div>
@@ -784,7 +796,10 @@ export default function RaffleDetail() {
                     )}
                     <div className="text-right">
                       <p className="text-2xl font-bold text-amber-800">
-                        {(raffle.prize_pool * 0.1) / 1e9} SUI
+                        {raffle.is_released
+                          ? (raffle.prize_pool * 0.1) / 1e9
+                          : (raffle.balance * 0.1) / 1e9}{" "}
+                        SUI
                       </p>
                     </div>
                   </div>
@@ -828,7 +843,10 @@ export default function RaffleDetail() {
                     Total Prize Pool
                   </p>
                   <p className="text-2xl font-bold text-indigo-900">
-                    {raffle.prize_pool / 1e9} SUI
+                    {raffle.is_released
+                      ? raffle.prize_pool / 1e9
+                      : raffle.balance / 1e9}{" "}
+                    SUI
                   </p>
                 </div>
               </div>
@@ -1066,10 +1084,10 @@ export default function RaffleDetail() {
                       <p className="text-red-600">{purchaseError}</p>
                     </div>
                   )}
-                  {transactionDigest && (
+                  {transactionDigest && raffle.is_released && (
                     <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
                       <p className="text-green-600 font-medium mb-2">
-                        🎉 Tickets purchased successfully!
+                        🎉 Raffle released successfully!
                       </p>
                       <a
                         href={`https://suiexplorer.com/txblock/${transactionDigest}?network=testnet`}

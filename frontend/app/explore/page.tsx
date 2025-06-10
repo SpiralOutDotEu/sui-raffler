@@ -329,7 +329,11 @@ export default function Explore() {
                       </span>
                     </div>
                     <h2 className="text-xl font-bold text-gray-900 mb-2">
-                      Prize Pool: {(raffle.balance / 1e9).toFixed(2)} SUI
+                      Prize Pool:{" "}
+                      {raffle.is_released
+                        ? ((raffle.prize_pool || 0) / 1e9).toFixed(2)
+                        : ((raffle.balance || 0) / 1e9).toFixed(2)}{" "}
+                      SUI
                     </h2>
                     <p className="text-gray-600">
                       Ticket Price: {(raffle.ticket_price / 1e9).toFixed(2)} SUI
