@@ -774,7 +774,7 @@ export default function RaffleDetail() {
                             x
                           </span>
                           <span className="text-base text-gray-500">
-                            on your ticket
+                            on the winning ticket
                           </span>
                         </div>
                         <div className="text-sm text-green-700 mt-2 italic font-medium flex items-center gap-2">
