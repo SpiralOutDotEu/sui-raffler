@@ -484,6 +484,12 @@ module sui_raffler::sui_raffler {
         transfer::public_transfer(fee, config.fee_collector);
     }
 
+    /// Check if a raffle is in return state (ended with less than 3 tickets)
+    public fun is_in_return_state(raffle: &Raffle, clock: &Clock): bool {
+        let current_time = clock::timestamp_ms(clock);
+        current_time > raffle.end_time && !raffle.is_released && raffle.tickets_sold < 3
+    }
+
     /// Return ticket and get refund when raffle has ended with less than 3 tickets
     public entry fun return_ticket(
         raffle: &mut Raffle,
@@ -491,13 +497,9 @@ module sui_raffler::sui_raffler {
         clock: &Clock,
         ctx: &mut TxContext
     ) {
-        // Check if raffle has ended
-        let current_time = clock::timestamp_ms(clock);
-        assert!(current_time > raffle.end_time, ERaffleNotEnded);
-        // Check if raffle is not released
-        assert!(!raffle.is_released, ERaffleAlreadyReleased);
-        // Check if less than 3 tickets were sold
-        assert!(raffle.tickets_sold < 3, ENotMinimumTickets);
+        // Check if raffle is in return state
+        assert!(is_in_return_state(raffle, clock), ERaffleNotEnded);
+        
         // Verify ticket belongs to this raffle
         assert!(ticket.raffle_id == object::id(raffle), EInvalidTicket);
         

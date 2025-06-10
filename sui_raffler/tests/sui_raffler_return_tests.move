@@ -1,5 +1,5 @@
 #[test_only]
-module sui_raffler::sui_raffler_special_tests;
+module sui_raffler::sui_raffler_return_tests;
 
 use sui_raffler::sui_raffler;
 use sui::test_scenario as ts;
@@ -7,7 +7,6 @@ use sui::clock;
 use sui::coin::{Self, Coin};
 use sui::random::{Self, Random};
 use sui::sui::SUI;
-use std::debug;
 use std::string;
 
 /// Helper function to mint SUI coins for testing
@@ -68,11 +67,14 @@ fun setup_raffle_with_two_tickets(
     ts.next_tx(creator);
     let mut raffle = ts.take_shared<sui_raffler::Raffle>();
 
+    // Create clock
+    let mut clock = clock::create_for_testing(ts.ctx());
+    clock.set_for_testing(start_time);
+
     // Buyer1 buys 1 ticket
     ts.next_tx(buyer1);
     mint(buyer1, ticket_price, &mut ts);
     let coin1: Coin<SUI> = ts.take_from_sender();
-    let mut clock = clock::create_for_testing(ts.ctx());
     sui_raffler::buy_tickets(&mut raffle, coin1, 1, &clock, ts.ctx());
 
     // Buyer2 buys 1 ticket
@@ -81,10 +83,56 @@ fun setup_raffle_with_two_tickets(
     let coin2: Coin<SUI> = ts.take_from_sender();
     sui_raffler::buy_tickets(&mut raffle, coin2, 1, &clock, ts.ctx());
 
-    // Set time past end time
-    clock.set_for_testing(end_time + 1);
-
     (ts, config, raffle, random_state, clock)
+}
+
+/// Test the is_in_return_state view function
+#[test]
+fun test_is_in_return_state() {
+    let admin = @0xAD;
+    let creator = @0xBEEF;
+    let organizer = @0x1234;
+    let buyer1 = @0xB0B;
+    let buyer2 = @0xB0B2;
+    let fee_collector = @0xFEE5;
+    let controller = @0x1235;
+    let start_time = 0;
+    let end_time = 1000;
+    let ticket_price = 100;
+    let max_tickets = 10;
+
+    let (mut ts, config, mut raffle, random_state, mut clock) = setup_raffle_with_two_tickets(
+        admin,
+        creator,
+        organizer,
+        buyer1,
+        buyer2,
+        fee_collector,
+        controller,
+        start_time,
+        end_time,
+        ticket_price,
+        max_tickets
+    );
+
+    // Set time to before end time
+    clock.set_for_testing(end_time - 1);
+    assert!(!sui_raffler::is_in_return_state(&raffle, &clock), 1);
+
+    // Set time to after end time
+    clock.set_for_testing(end_time + 1);
+    assert!(sui_raffler::is_in_return_state(&raffle, &clock), 1);
+
+    // Set time to further after end time
+    clock.set_for_testing(end_time + 1000);
+    assert!(sui_raffler::is_in_return_state(&raffle, &clock), 1);
+
+    // Clean up
+    clock.destroy_for_testing();
+    ts::return_shared(config);
+    ts::return_shared(raffle);
+    ts::return_shared(random_state);
+    ts.end();
 }
 
 /// Test that release_raffle aborts when less than 3 tickets are sold
@@ -103,7 +151,7 @@ fun test_release_raffle_insufficient_tickets() {
     let ticket_price = 100;
     let max_tickets = 10;
 
-    let (mut ts, config, mut raffle, random_state, clock) = setup_raffle_with_two_tickets(
+    let (mut ts, config, mut raffle, random_state, mut clock) = setup_raffle_with_two_tickets(
         admin,
         creator,
         organizer,
@@ -116,6 +164,9 @@ fun test_release_raffle_insufficient_tickets() {
         ticket_price,
         max_tickets
     );
+
+    // Set time past end time
+    clock.set_for_testing(end_time + 1);
 
     // Try to release raffle
     ts.next_tx(controller);
@@ -273,7 +324,7 @@ fun test_buy_tickets_after_end() {
     let ticket_price = 100;
     let max_tickets = 10;
 
-    let (mut ts, config, mut raffle, random_state, clock) = setup_raffle_with_two_tickets(
+    let (mut ts, config, mut raffle, random_state, mut clock) = setup_raffle_with_two_tickets(
         admin,
         creator,
         organizer,
@@ -286,6 +337,9 @@ fun test_buy_tickets_after_end() {
         ticket_price,
         max_tickets
     );
+
+    // Set time past end time
+    clock.set_for_testing(end_time + 1);
 
     // Try to buy ticket after end time
     ts.next_tx(buyer3);
@@ -316,7 +370,7 @@ fun test_return_tickets() {
     let ticket_price = 100;
     let max_tickets = 10;
 
-    let (mut ts, config, mut raffle, random_state, clock) = setup_raffle_with_two_tickets(
+    let (mut ts, config, mut raffle, random_state, mut clock) = setup_raffle_with_two_tickets(
         admin,
         creator,
         organizer,
@@ -329,6 +383,9 @@ fun test_return_tickets() {
         ticket_price,
         max_tickets
     );
+
+    // Set time past end time
+    clock.set_for_testing(end_time + 1);
 
     // Return ticket for buyer1
     ts.next_tx(buyer1);
