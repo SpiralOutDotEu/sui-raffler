@@ -384,6 +384,10 @@ module sui_raffler::sui_raffler {
         raffle.is_released = true;
         // Store the prize pool at release
         raffle.prize_pool = balance::value(&raffle.balance);
+
+        // Claim protocol fees immediately
+        claim_protocol_fees_internal(config, raffle, ctx);
+
         // Emit event
         event::emit(RaffleReleased {
             raffle_id: object::id(raffle),
@@ -391,6 +395,24 @@ module sui_raffler::sui_raffler {
             second_winner: second_winner,
             third_winner: third_winner,
         });
+    }
+
+    /// Internal function to claim protocol fees from the raffle
+    fun claim_protocol_fees_internal(
+        config: &Config,
+        raffle: &mut Raffle,
+        ctx: &mut TxContext
+    ) {
+        // Verify protocol fees haven't been claimed yet
+        assert!(!raffle.protocol_claimed, EAlreadyClaimed);
+
+        // Mark as claimed
+        raffle.protocol_claimed = true;
+
+        // Calculate and transfer protocol fees
+        let protocol_fee = (raffle.prize_pool * PROTOCOL_FEE_PERCENTAGE) / 100;
+        let fee = coin::from_balance(balance::split(&mut raffle.balance, protocol_fee), ctx);
+        transfer::public_transfer(fee, config.fee_collector);
     }
 
     /// Claim prize with a winning ticket
@@ -454,34 +476,6 @@ module sui_raffler::sui_raffler {
         let organizer_share = (raffle.prize_pool * ORGANIZER_PERCENTAGE) / 100;
         let organizer_prize = coin::from_balance(balance::split(&mut raffle.balance, organizer_share), ctx);
         transfer::public_transfer(organizer_prize, raffle.organizer);
-    }
-
-    /// Claim protocol fees from the raffle
-    /// Only the admin can claim protocol fees after all winners have claimed their prizes
-    public entry fun claim_protocol_fees(
-        config: &Config,
-        raffle: &mut Raffle,
-        ctx: &mut TxContext
-    ) {
-        // Verify caller is the admin
-        assert!(tx_context::sender(ctx) == config.admin, ENotAdmin);
-        
-        // Check if minimum tickets are sold
-        assert!(raffle.tickets_sold >= 3, ENotMinimumTickets);
-        
-        // Verify raffle is released
-        assert!(raffle.is_released, ERaffleNotEnded);
-        
-        // Verify protocol fees haven't been claimed yet
-        assert!(!raffle.protocol_claimed, EAlreadyClaimed);
-
-        // Mark as claimed
-        raffle.protocol_claimed = true;
-
-        // Calculate and transfer protocol fees
-        let protocol_fee = (raffle.prize_pool * PROTOCOL_FEE_PERCENTAGE) / 100;
-        let fee = coin::from_balance(balance::split(&mut raffle.balance, protocol_fee), ctx);
-        transfer::public_transfer(fee, config.fee_collector);
     }
 
     /// Check if a raffle is in return state (ended with less than 3 tickets)

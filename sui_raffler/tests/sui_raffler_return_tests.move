@@ -265,48 +265,6 @@ fun test_claim_organizer_share_insufficient_tickets() {
     ts.end();
 }
 
-/// Test that claim_protocol_fees aborts when less than 3 tickets are sold
-#[test]
-#[expected_failure(abort_code = sui_raffler::ENotMinimumTickets)]
-fun test_claim_protocol_fees_insufficient_tickets() {
-    let admin = @0xAD;
-    let creator = @0xBEEF;
-    let organizer = @0x1234;
-    let buyer1 = @0xB0B;
-    let buyer2 = @0xB0B2;
-    let fee_collector = @0xFEE5;
-    let controller = @0x1235;
-    let start_time = 0;
-    let end_time = 1000;
-    let ticket_price = 100;
-    let max_tickets = 10;
-
-    let (mut ts, config, mut raffle, random_state, clock) = setup_raffle_with_two_tickets(
-        admin,
-        creator,
-        organizer,
-        buyer1,
-        buyer2,
-        fee_collector,
-        controller,
-        start_time,
-        end_time,
-        ticket_price,
-        max_tickets
-    );
-
-    // Try to claim protocol fees
-    ts.next_tx(admin);
-    sui_raffler::claim_protocol_fees(&config, &mut raffle, ts.ctx());
-
-    // Clean up
-    clock.destroy_for_testing();
-    ts::return_shared(config);
-    ts::return_shared(raffle);
-    ts::return_shared(random_state);
-    ts.end();
-}
-
 /// Test that buy_tickets aborts when raffle has ended
 #[test]
 #[expected_failure(abort_code = sui_raffler::ERaffleNotActive)]
