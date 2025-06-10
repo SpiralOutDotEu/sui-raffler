@@ -966,113 +966,136 @@ export default function RaffleDetail() {
                 <span className="text-indigo-500">🎯</span>
                 Buy Tickets
               </h2>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleBuyTickets();
-                }}
-                className="space-y-6"
-              >
-                <div>
-                  <label
-                    htmlFor="ticketAmount"
-                    className="block text-sm font-medium text-gray-700 mb-2"
-                  >
-                    Number of Tickets
-                  </label>
-                  <input
-                    type="number"
-                    id="ticketAmount"
-                    min="1"
-                    max={raffle.max_tickets_per_purchase}
-                    value={ticketAmount}
-                    onChange={(e) => setTicketAmount(Number(e.target.value))}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-lg bg-gray-50"
-                  />
-                </div>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center bg-gray-50 rounded-lg p-4">
-                    <span className="text-gray-600">Price per ticket</span>
-                    <span className="font-medium text-gray-900">
-                      {raffle.ticket_price / 1e9} SUI
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center bg-indigo-50 rounded-lg p-4">
-                    <span className="text-indigo-600 font-medium">
-                      Total cost
-                    </span>
-                    <span className="text-xl font-bold text-indigo-900">
-                      {(raffle.ticket_price * ticketAmount) / 1e9} SUI
-                    </span>
-                  </div>
-                </div>
-                <button
-                  type="submit"
-                  disabled={isPurchasing || !isConnected || raffle.is_released}
-                  className="w-full px-6 py-4 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg font-semibold hover:from-indigo-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-lg shadow-lg"
-                >
-                  {isPurchasing ? (
-                    <span className="flex items-center justify-center">
-                      <svg
-                        className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        ></circle>
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        ></path>
-                      </svg>
-                      Purchasing...
-                    </span>
-                  ) : (
-                    "Buy Tickets"
-                  )}
-                </button>
-                {purchaseError && (
-                  <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-                    <p className="text-red-600">{purchaseError}</p>
-                  </div>
-                )}
-                {transactionDigest && (
-                  <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                    <p className="text-green-600 font-medium mb-2">
-                      🎉 Tickets purchased successfully!
+              {raffle.is_released ? (
+                <div className="text-center py-12">
+                  <div className="bg-gray-50 rounded-xl p-8 max-w-md mx-auto">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <span className="text-2xl">🎉</span>
+                    </div>
+                    <p className="text-gray-600 text-lg font-medium">
+                      This raffle has concluded. Check if you are among the
+                      winners to claim your prize, or find another amazing
+                      raffle to participate in!
                     </p>
                     <a
-                      href={`https://suiexplorer.com/txblock/${transactionDigest}?network=testnet`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-indigo-600 hover:text-indigo-800 underline inline-flex items-center"
+                      href="/explore"
+                      className="mt-4 inline-block px-6 py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
                     >
-                      View on Sui Explorer
-                      <svg
-                        className="w-4 h-4 ml-1"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                        />
-                      </svg>
+                      Explore Raffles
                     </a>
                   </div>
-                )}
-              </form>
+                </div>
+              ) : (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleBuyTickets();
+                  }}
+                  className="space-y-6"
+                >
+                  <div>
+                    <label
+                      htmlFor="ticketAmount"
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
+                      Number of Tickets
+                    </label>
+                    <input
+                      type="number"
+                      id="ticketAmount"
+                      min="1"
+                      max={raffle.max_tickets_per_purchase}
+                      value={ticketAmount}
+                      onChange={(e) => setTicketAmount(Number(e.target.value))}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-lg bg-gray-50"
+                    />
+                  </div>
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-gray-50 rounded-lg p-4">
+                      <span className="text-gray-600">Price per ticket</span>
+                      <span className="font-medium text-gray-900">
+                        {raffle.ticket_price / 1e9} SUI
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center bg-indigo-50 rounded-lg p-4">
+                      <span className="text-indigo-600 font-medium">
+                        Total cost
+                      </span>
+                      <span className="text-xl font-bold text-indigo-900">
+                        {(raffle.ticket_price * ticketAmount) / 1e9} SUI
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={
+                      isPurchasing || !isConnected || raffle.is_released
+                    }
+                    className="w-full px-6 py-4 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg font-semibold hover:from-indigo-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-lg shadow-lg"
+                  >
+                    {isPurchasing ? (
+                      <span className="flex items-center justify-center">
+                        <svg
+                          className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          ></path>
+                        </svg>
+                        Purchasing...
+                      </span>
+                    ) : (
+                      "Buy Tickets"
+                    )}
+                  </button>
+                  {purchaseError && (
+                    <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-red-600">{purchaseError}</p>
+                    </div>
+                  )}
+                  {transactionDigest && (
+                    <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <p className="text-green-600 font-medium mb-2">
+                        🎉 Tickets purchased successfully!
+                      </p>
+                      <a
+                        href={`https://suiexplorer.com/txblock/${transactionDigest}?network=testnet`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-indigo-600 hover:text-indigo-800 underline inline-flex items-center"
+                      >
+                        View on Sui Explorer
+                        <svg
+                          className="w-4 h-4 ml-1"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                          />
+                        </svg>
+                      </a>
+                    </div>
+                  )}
+                </form>
+              )}
             </div>
           </div>
         </div>
