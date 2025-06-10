@@ -25,7 +25,7 @@ module sui_raffler::sui_raffler {
     use sui::random::{Self, Random};
     use sui::clock::{Self, Clock};
     use sui::event;
-    use std::string::{Self, String};
+    use std::string::{String};
 
     // === Constants ===
     // Prize distribution percentages (must sum to 100)
