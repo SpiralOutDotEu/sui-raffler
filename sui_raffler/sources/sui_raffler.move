@@ -53,6 +53,7 @@ module sui_raffler::sui_raffler {
     const EPermissionDenied: u64 = 14;       // Not allowed in current permission mode
     const ERafflePaused: u64 = 15;           // Raffle is paused
     const ENotAuthorized: u64 = 17;          // Not authorized for this operation
+    const ENotMinimumTickets: u64 = 18;      // Not enough tickets sold for raffle release
 
     /// Module configuration that holds admin, controller, fee collector, pause, and permissionless info
     public struct Config has key {
@@ -363,6 +364,8 @@ module sui_raffler::sui_raffler {
         assert!(current_time > raffle.end_time, ERaffleNotEnded);
         // Check if raffle is already released
         assert!(!raffle.is_released, ERaffleAlreadyReleased);
+        // Check if minimum tickets are sold
+        assert!(raffle.tickets_sold >= 3, ENotMinimumTickets);
         // Generate unique random numbers for winners
         let mut random_generator = random::new_generator(random, ctx);
         let first_winner = random_generator.generate_u64() % raffle.tickets_sold + 1;
@@ -400,6 +403,9 @@ module sui_raffler::sui_raffler {
         // Verify ticket belongs to this raffle
         assert!(ticket.raffle_id == object::id(raffle), EInvalidTicket);
         
+        // Check if minimum tickets are sold
+        assert!(raffle.tickets_sold >= 3, ENotMinimumTickets);
+        
         // Verify ticket is a winner
         let ticket_number = ticket.ticket_number;
         assert!(vector::contains(&raffle.winning_tickets, &ticket_number), ENotWinner);
@@ -432,6 +438,9 @@ module sui_raffler::sui_raffler {
         // Verify caller is the organizer
         assert!(tx_context::sender(ctx) == raffle.organizer, ENotAdmin);
         
+        // Check if minimum tickets are sold
+        assert!(raffle.tickets_sold >= 3, ENotMinimumTickets);
+        
         // Verify raffle is released
         assert!(raffle.is_released, ERaffleNotEnded);
         
@@ -457,6 +466,9 @@ module sui_raffler::sui_raffler {
         // Verify caller is the admin
         assert!(tx_context::sender(ctx) == config.admin, ENotAdmin);
         
+        // Check if minimum tickets are sold
+        assert!(raffle.tickets_sold >= 3, ENotMinimumTickets);
+        
         // Verify raffle is released
         assert!(raffle.is_released, ERaffleNotEnded);
         
@@ -470,6 +482,35 @@ module sui_raffler::sui_raffler {
         let protocol_fee = (raffle.prize_pool * PROTOCOL_FEE_PERCENTAGE) / 100;
         let fee = coin::from_balance(balance::split(&mut raffle.balance, protocol_fee), ctx);
         transfer::public_transfer(fee, config.fee_collector);
+    }
+
+    /// Return ticket and get refund when raffle has ended with less than 3 tickets
+    public entry fun return_ticket(
+        raffle: &mut Raffle,
+        ticket: Ticket,
+        clock: &Clock,
+        ctx: &mut TxContext
+    ) {
+        // Check if raffle has ended
+        let current_time = clock::timestamp_ms(clock);
+        assert!(current_time > raffle.end_time, ERaffleNotEnded);
+        // Check if raffle is not released
+        assert!(!raffle.is_released, ERaffleAlreadyReleased);
+        // Check if less than 3 tickets were sold
+        assert!(raffle.tickets_sold < 3, ENotMinimumTickets);
+        // Verify ticket belongs to this raffle
+        assert!(ticket.raffle_id == object::id(raffle), EInvalidTicket);
+        
+        // Calculate refund amount
+        let refund_amount = raffle.ticket_price;
+        
+        // Transfer refund
+        let refund = coin::from_balance(balance::split(&mut raffle.balance, refund_amount), ctx);
+        transfer::public_transfer(refund, tx_context::sender(ctx));
+
+        // Burn the ticket
+        let Ticket { id, raffle_id: _, ticket_number: _ } = ticket;
+        object::delete(id);
     }
 
     // === View Functions ===

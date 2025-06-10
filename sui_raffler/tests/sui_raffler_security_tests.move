@@ -439,7 +439,7 @@ fun test_claim_prize_unauthorized() {
 /// Test that cannot buy tickets when raffle is paused
 #[test]
 #[expected_failure(abort_code = sui_raffler::ERafflePaused)]
-fun test_buy_tickets_when_paused() {
+fun test_cannot_buy_tickets_when_paused() {
     let admin = @0xAD;
     let controller = @0x1235;
     let fee_collector = @0xFEE5;
@@ -488,12 +488,11 @@ fun test_buy_tickets_when_paused() {
 /// Test that cannot buy tickets when contract is paused
 #[test]
 #[expected_failure(abort_code = sui_raffler::EPaused)]
-fun test_buy_tickets_when_contract_paused() {
+fun test_cannot_create_raffle_when_contract_paused() {
     let admin = @0xAD;
     let controller = @0x1235;
     let fee_collector = @0xFEE5;
     let organizer = @0x1234;
-    let buyer = @0xB0B;
 
     let mut ts = ts::begin(admin);
     sui_raffler::initialize(admin, controller, fee_collector, ts.ctx());
