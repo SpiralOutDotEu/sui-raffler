@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PinataService } from '@/app/services/pinata';
+import { PinataSDK } from 'pinata';
 import { cacheService } from '@/app/services/cache';
+
+const pinata = new PinataSDK({
+    pinataJwt: process.env.PINATA_JWT!,
+    pinataGateway: process.env.PINATA_GATEWAY || "gateway.pinata.cloud",
+});
 
 export async function GET(request: NextRequest) {
     try {
@@ -26,20 +31,15 @@ export async function GET(request: NextRequest) {
             });
         }
 
-        // If not in cache, get from Pinata
-        const imageUrl = await PinataService.getImageUrl(cid);
+        // Get the image data directly from Pinata
+        const response = await pinata.gateways.public.get(cid);
 
-        // Fetch the actual image data
-        const imageResponse = await fetch(imageUrl);
-        if (!imageResponse.ok) {
+        if (!response) {
             throw new Error('Failed to fetch image from IPFS');
         }
 
-        const imageBuffer = await imageResponse.arrayBuffer();
-        const imageData = Buffer.from(imageBuffer);
-
-        // Determine content type from the response or default to JPEG
-        const contentType = imageResponse.headers.get('Content-Type') || 'image/jpeg';
+        // Convert the response to a Buffer
+        const imageData = Buffer.from(response as unknown as Uint8Array);
 
         // Cache the image data
         cacheService.set(cid, imageData);
@@ -47,8 +47,8 @@ export async function GET(request: NextRequest) {
         // Return the image with appropriate content type
         return new NextResponse(imageData, {
             headers: {
-                'Content-Type': contentType,
-                'Cache-Control': 'public, max-age=31536000', // Cache for 1 year
+                'Content-Type': 'image/jpeg',
+                'Cache-Control': 'public, max-age=31536000',
             },
         });
     } catch (error: unknown) {
