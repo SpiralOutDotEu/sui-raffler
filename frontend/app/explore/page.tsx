@@ -145,7 +145,7 @@ function useRaffles() {
                 ticket_price: raffleData.ticket_price,
                 name: fields.name,
                 description: fields.description,
-                imageUrl,
+                image: imageUrl,
                 tickets_sold: fields.tickets_sold,
                 is_released: fields.is_released,
                 balance: fields.balance,
@@ -335,13 +335,14 @@ export default function Explore() {
                 <div className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-200 h-full border border-gray-100 overflow-hidden">
                   {/* Image Section */}
                   <div className="relative h-48 bg-gray-100">
-                    {raffle.imageUrl ? (
+                    {raffle.image ? (
                       <Image
-                        src={raffle.imageUrl}
+                        src={raffle.image}
                         alt={raffle.name}
                         width={300}
                         height={300}
                         className="w-full h-full object-cover rounded-t-lg"
+                        unoptimized
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center bg-gray-100">

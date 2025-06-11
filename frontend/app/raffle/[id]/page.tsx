@@ -520,6 +520,7 @@ export default function RaffleDetail() {
                     width={500}
                     height={500}
                     className="w-full h-auto rounded-lg"
+                    unoptimized
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600">
