@@ -117,8 +117,7 @@ sui client call \
     --package <PACKAGE_ID> \
     --module sui_raffler \
     --function initialize \
-    --args <ADMIN_ADDRESS> <CONTROLLER_ADDRESS> <FEE_COLLECTOR_ADDRESS> \
-    --gas-budget 10000000
+    --args <ADMIN_ADDRESS> <CONTROLLER_ADDRESS> <FEE_COLLECTOR_ADDRESS>
 ```
 
 ### 2. Admin Functions
@@ -130,8 +129,7 @@ sui client call \
     --package <PACKAGE_ID> \
     --module sui_raffler \
     --function update_admin \
-    --args <CONFIG_ID> <NEW_ADMIN_ADDRESS> \
-    --gas-budget 10000000
+    --args <CONFIG_ID> <NEW_ADMIN_ADDRESS>
 ```
 
 #### Update Controller
@@ -141,8 +139,7 @@ sui client call \
     --package <PACKAGE_ID> \
     --module sui_raffler \
     --function update_controller \
-    --args <CONFIG_ID> <NEW_CONTROLLER_ADDRESS> \
-    --gas-budget 10000000
+    --args <CONFIG_ID> <NEW_CONTROLLER_ADDRESS>
 ```
 
 #### Update Fee Collector
@@ -152,8 +149,7 @@ sui client call \
     --package <PACKAGE_ID> \
     --module sui_raffler \
     --function update_fee_collector \
-    --args <CONFIG_ID> <NEW_FEE_COLLECTOR_ADDRESS> \
-    --gas-budget 10000000
+    --args <CONFIG_ID> <NEW_FEE_COLLECTOR_ADDRESS>
 ```
 
 #### Set Permissionless Mode
@@ -163,8 +159,7 @@ sui client call \
     --package <PACKAGE_ID> \
     --module sui_raffler \
     --function set_permissionless \
-    --args <CONFIG_ID> <true/false> \
-    --gas-budget 10000000
+    --args <CONFIG_ID> <true/false>
 ```
 
 #### Global Pause/Unpause
@@ -175,16 +170,14 @@ sui client call \
     --package <PACKAGE_ID> \
     --module sui_raffler \
     --function pause \
-    --args <CONFIG_ID> \
-    --gas-budget 10000000
+    --args <CONFIG_ID>
 
 # Unpause
 sui client call \
     --package <PACKAGE_ID> \
     --module sui_raffler \
     --function unpause \
-    --args <CONFIG_ID> \
-    --gas-budget 10000000
+    --args <CONFIG_ID>
 ```
 
 ### 3. Controller Functions
@@ -197,16 +190,14 @@ sui client call \
     --package <PACKAGE_ID> \
     --module sui_raffler \
     --function pause_raffle \
-    --args <CONFIG_ID> <RAFFLE_ID> \
-    --gas-budget 10000000
+    --args <CONFIG_ID> <RAFFLE_ID>
 
 # Unpause
 sui client call \
     --package <PACKAGE_ID> \
     --module sui_raffler \
     --function unpause_raffle \
-    --args <CONFIG_ID> <RAFFLE_ID> \
-    --gas-budget 10000000
+    --args <CONFIG_ID> <RAFFLE_ID>
 ```
 
 ### 4. Create Raffle
@@ -216,8 +207,7 @@ sui client call \
     --package <PACKAGE_ID> \
     --module sui_raffler \
     --function create_raffle \
-    --args <CONFIG_ID> <NAME> <DESCRIPTION> <IMAGE> <START_TIME> <END_TIME> <TICKET_PRICE> <MAX_TICKETS_PER_PURCHASE> <ORGANIZER_ADDRESS> \
-    --gas-budget 10000000
+    --args <CONFIG_ID> <NAME> <DESCRIPTION> <IMAGE> <START_TIME> <END_TIME> <TICKET_PRICE> <MAX_TICKETS_PER_PURCHASE> <ORGANIZER_ADDRESS>
 ```
 
 ### 5. Buy Tickets
@@ -227,8 +217,7 @@ sui client call \
     --package <PACKAGE_ID> \
     --module sui_raffler \
     --function buy_tickets \
-    --args <RAFFLE_ID> <PAYMENT_COIN_ID> <NUMBER_OF_TICKETS> <CLOCK_ID> \
-    --gas-budget 10000000
+    --args <RAFFLE_ID> <PAYMENT_COIN_ID> <NUMBER_OF_TICKETS> <CLOCK_ID>
 ```
 
 ### 6. Release Raffle (After End Time)
@@ -238,8 +227,7 @@ sui client call \
     --package <PACKAGE_ID> \
     --module sui_raffler \
     --function release_raffle \
-    --args <CONFIG_ID> <RAFFLE_ID> <RANDOM_ID> <CLOCK_ID> \
-    --gas-budget 10000000
+    --args <CONFIG_ID> <RAFFLE_ID> <RANDOM_ID> <CLOCK_ID>
 ```
 
 ### 7. Claim Functions
@@ -251,8 +239,7 @@ sui client call \
     --package <PACKAGE_ID> \
     --module sui_raffler \
     --function claim_prize \
-    --args <RAFFLE_ID> <TICKET_ID> \
-    --gas-budget 10000000
+    --args <RAFFLE_ID> <TICKET_ID>
 ```
 
 #### Claim Organizer Share
@@ -262,8 +249,7 @@ sui client call \
     --package <PACKAGE_ID> \
     --module sui_raffler \
     --function claim_organizer_share \
-    --args <RAFFLE_ID> \
-    --gas-budget 10000000
+    --args <RAFFLE_ID>
 ```
 
 #### Return Ticket (for raffles with less than 3 tickets)
@@ -273,8 +259,7 @@ sui client call \
     --package <PACKAGE_ID> \
     --module sui_raffler \
     --function return_ticket \
-    --args <RAFFLE_ID> <TICKET_ID> <CLOCK_ID> \
-    --gas-budget 10000000
+    --args <RAFFLE_ID> <TICKET_ID> <CLOCK_ID>
 ```
 
 ## View Functions
@@ -286,8 +271,7 @@ sui client call \
     --package <PACKAGE_ID> \
     --module sui_raffler \
     --function get_raffle_info \
-    --args <RAFFLE_ID> \
-    --gas-budget 10000000
+    --args <RAFFLE_ID>
 ```
 
 ### Get Winners
@@ -297,8 +281,7 @@ sui client call \
     --package <PACKAGE_ID> \
     --module sui_raffler \
     --function get_winners \
-    --args <RAFFLE_ID> \
-    --gas-budget 10000000
+    --args <RAFFLE_ID>
 ```
 
 ### Get Ticket Information
@@ -308,8 +291,7 @@ sui client call \
     --package <PACKAGE_ID> \
     --module sui_raffler \
     --function get_ticket_info \
-    --args <TICKET_ID> \
-    --gas-budget 10000000
+    --args <TICKET_ID>
 ```
 
 ### Check Winning Ticket
@@ -319,8 +301,7 @@ sui client call \
     --package <PACKAGE_ID> \
     --module sui_raffler \
     --function is_winning_ticket \
-    --args <RAFFLE_ID> <TICKET_ID> \
-    --gas-budget 10000000
+    --args <RAFFLE_ID> <TICKET_ID>
 ```
 
 ### Get Raffle Statistics
@@ -330,8 +311,7 @@ sui client call \
     --package <PACKAGE_ID> \
     --module sui_raffler \
     --function get_raffle_stats \
-    --args <RAFFLE_ID> <CLOCK_ID> \
-    --gas-budget 10000000
+    --args <RAFFLE_ID> <CLOCK_ID>
 ```
 
 ## Security Considerations
@@ -347,7 +327,7 @@ sui client call \
 - The organizer's share can be claimed at the same time as of winners
 - The contract can be paused globally or per raffle by admin/controller
 - Permissionless mode can be toggled by admin to control who can create raffles
-- Only admin or controller can release raffles and select winners
+- Only admin or controller can trigger the raffle release (winners are selected by on-chain randomness)
 
 ## Contributing
 
