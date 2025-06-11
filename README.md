@@ -1,6 +1,6 @@
 # Sui Raffler
 
-> 🎉 **Create Your Own On-Chain SUI Raffle in Minutes!** 🎉
+> 🎉 **Create Your Own On-Chain SUI Raffle in Seconds!** 🎉
 >
 > No coding required to launch your own decentralized raffle on Sui blockchain. Create exciting raffles, let users participate, and watch as winners are automatically selected and rewarded. Join the future of fair and transparent raffles!
 
