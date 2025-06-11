@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PinataService } from '@/app/services/pinata';
+import { cacheService } from '@/app/services/cache';
 
 export async function GET(request: NextRequest) {
     try {
@@ -13,7 +14,16 @@ export async function GET(request: NextRequest) {
             );
         }
 
+        // Try to get from cache first
+        const cachedUrl = cacheService.get(cid);
+        if (cachedUrl) {
+            return NextResponse.json({ url: cachedUrl });
+        }
+
+        // If not in cache, get from Pinata and cache it
         const imageUrl = await PinataService.getImageUrl(cid);
+        cacheService.set(cid, imageUrl);
+
         return NextResponse.json({ url: imageUrl });
     } catch (error: unknown) {
         console.error('Retrieve error:', error);
