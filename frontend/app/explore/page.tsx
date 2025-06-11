@@ -130,8 +130,8 @@ function useRaffles() {
                   `/api/v1/ipfs/retrieve?cid=${fields.image}`
                 );
                 if (response.ok) {
-                  const data = await response.json();
-                  imageUrl = data.url;
+                  const blob = await response.blob();
+                  imageUrl = URL.createObjectURL(blob);
                 }
               } catch (error) {
                 console.error("Error fetching image URL:", error);

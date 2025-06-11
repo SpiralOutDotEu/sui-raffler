@@ -74,8 +74,8 @@ function useRaffle(id: string) {
             `/api/v1/ipfs/retrieve?cid=${fields.image}`
           );
           if (imageResponse.ok) {
-            const data = await imageResponse.json();
-            imageUrl = data.url;
+            const blob = await imageResponse.blob();
+            imageUrl = URL.createObjectURL(blob);
           }
         } catch (error) {
           console.error("Error fetching image URL:", error);
