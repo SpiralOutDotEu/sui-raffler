@@ -344,7 +344,7 @@ sui client call \
 - Only the admin can update the fee collector address
 - The fee collector address is set during module initialization and cannot be changed by raffle creators
 - The organizer address must be a valid address (not @0x0)
-- The organizer's share is automatically distributed after all winners claim their prizes
+- The organizer's share can be claimed at the same time as of winners
 - The contract can be paused globally or per raffle by admin/controller
 - Permissionless mode can be toggled by admin to control who can create raffles
 - Only admin or controller can release raffles and select winners
