@@ -7,6 +7,7 @@ import { useState } from "react";
 import { PACKAGE_ID, MODULE, ORGANIZER_PERCENTAGE } from "../../../constants";
 import { Transaction } from "@mysten/sui/transactions";
 import { useWallet } from "../../context/WalletContext";
+import { toast } from "react-hot-toast";
 
 interface Raffle {
   id: string;
@@ -433,6 +434,47 @@ export default function RaffleDetail() {
     }
   };
 
+  const handleReleaseRaffle = async () => {
+    if (!raffle) return;
+
+    try {
+      const response = await fetch(`/api/v1/release/${raffle.id}`, {
+        method: "POST",
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        const errorMessage =
+          data.details || data.error || "Failed to release raffle";
+        console.error("Release raffle error:", errorMessage);
+        toast.error(errorMessage);
+        return;
+      }
+
+      toast.success(
+        <div>
+          <p>Raffle released successfully!</p>
+          <a
+            href={`https://suiexplorer.com/txblock/${data.digest}?network=testnet`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-500 hover:text-blue-700 underline"
+          >
+            View transaction
+          </a>
+        </div>
+      );
+
+      // Refresh the page to show updated status
+      window.location.reload();
+    } catch (error) {
+      console.error("Failed to release raffle:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to release raffle"
+      );
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-[200px]">
@@ -534,15 +576,29 @@ export default function RaffleDetail() {
                           )}
                         </button>
                       )}
-                    <span
-                      className={`px-4 py-2 rounded-full font-semibold shadow-sm ${
-                        raffle.is_released
-                          ? "bg-red-100 text-red-700"
-                          : "bg-green-100 text-green-700"
-                      }`}
-                    >
-                      {raffle.is_released ? "Ended" : "Active"}
-                    </span>
+                    <div className="flex items-center gap-4">
+                      {raffle.is_released ? (
+                        <span className="px-4 py-2 rounded-full font-semibold shadow-sm bg-red-100 text-red-700">
+                          Ended
+                        </span>
+                      ) : (
+                        <>
+                          <span className="px-4 py-2 rounded-full font-semibold shadow-sm bg-green-100 text-green-700">
+                            Active
+                          </span>
+                          {!raffle.is_released &&
+                            Date.now() > Number(raffle.end_time) &&
+                            raffle.tickets_sold >= 3 && (
+                              <button
+                                onClick={handleReleaseRaffle}
+                                className="px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-lg font-medium hover:from-purple-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-all"
+                              >
+                                Release Raffle
+                              </button>
+                            )}
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
                 {raffle.description && (

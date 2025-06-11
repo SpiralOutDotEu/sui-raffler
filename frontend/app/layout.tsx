@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import Providers from "@/app/components/Providers";
 import type { Metadata } from "next";
+import { Toaster } from "react-hot-toast";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -84,6 +85,7 @@ export default function RootLayout({
           {/* Adjust pt-6 if banner height changes */}
           <Providers>{children}</Providers>
         </div>
+        <Toaster position="bottom-right" />
       </body>
     </html>
   );
