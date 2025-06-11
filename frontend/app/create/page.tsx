@@ -9,8 +9,7 @@ import { useWallet } from "../context/WalletContext";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
-import { format, parse } from "date-fns";
-import { PinataService } from "../services/pinata";
+import Image from "next/image";
 
 // Helper function to format relative time
 function formatRelativeTime(target: number, currentTime: number) {
@@ -149,6 +148,51 @@ function ImageUpload({
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
+  const uploadFile = useCallback(
+    async (file: File) => {
+      if (!file.type.startsWith("image/")) {
+        setError("Please upload an image file");
+        return;
+      }
+
+      if (file.size > 2 * 1024 * 1024) {
+        setError("Image size must be less than 2MB");
+        return;
+      }
+
+      try {
+        setIsUploading(true);
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const response = await fetch("/api/v1/ipfs/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || "Failed to upload image");
+        }
+
+        const result = await response.json();
+        onImageUpload(result.cid);
+
+        // Create preview
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setPreview(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to upload image");
+      } finally {
+        setIsUploading(false);
+      }
+    },
+    [onImageUpload]
+  );
+
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(true);
@@ -159,70 +203,28 @@ function ImageUpload({
     setIsDragging(false);
   }, []);
 
-  const uploadFile = async (file: File) => {
-    if (!file.type.startsWith("image/")) {
-      setError("Please upload an image file");
-      return;
-    }
+  const handleFileChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
 
-    if (file.size > 2 * 1024 * 1024) {
-      setError("Image size must be less than 2MB");
-      return;
-    }
-
-    try {
-      setIsUploading(true);
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const response = await fetch("/api/v1/ipfs/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to upload image");
-      }
-
-      const result = await response.json();
-      onImageUpload(result.cid);
-
-      // Create preview
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to upload image");
-    } finally {
-      setIsUploading(false);
-    }
-  };
+      uploadFile(file);
+    },
+    [uploadFile]
+  );
 
   const handleDrop = useCallback(
-    async (e: React.DragEvent) => {
-      e.preventDefault();
+    (event: React.DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
       setIsDragging(false);
       setError(null);
 
-      const file = e.dataTransfer.files[0];
+      const file = event.dataTransfer.files[0];
       if (!file) return;
 
-      await uploadFile(file);
+      uploadFile(file);
     },
-    [onImageUpload]
-  );
-
-  const handleFileSelect = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-
-      await uploadFile(file);
-    },
-    [onImageUpload]
+    [uploadFile]
   );
 
   return (
@@ -238,7 +240,7 @@ function ImageUpload({
         <input
           type="file"
           accept="image/*"
-          onChange={handleFileSelect}
+          onChange={handleFileChange}
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
         />
         {isUploading ? (
@@ -267,10 +269,12 @@ function ImageUpload({
           </div>
         ) : preview ? (
           <div className="space-y-2">
-            <img
+            <Image
               src={preview}
               alt="Preview"
-              className="max-h-48 mx-auto rounded-lg"
+              width={300}
+              height={300}
+              className="max-w-full h-auto"
             />
             <p className="text-sm text-gray-500">
               Click or drag to change image

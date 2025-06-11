@@ -16,11 +16,13 @@ interface ClockFields {
 // Initialize Sui client with testnet
 const client = new SuiClient({ url: getFullnodeUrl('testnet') });
 
-export async function POST(
-    request: Request,
-    { params }: { params: { raffleId: string } }
-) {
+export async function POST(request: Request) {
     try {
+        // Extract raffleId from the URL
+        const url = new URL(request.url);
+        const pathParts = url.pathname.split('/');
+        const raffleId = pathParts[pathParts.indexOf('release') + 1];
+
         // Get the private key from environment variable
         const privateKey = process.env.RELEASE_RAFFLE_PRIVATE_KEY;
         if (!privateKey) {
@@ -54,7 +56,6 @@ export async function POST(
         console.log('Sender address:', sender);
 
         // Get raffle object
-        const { raffleId } = await params;
         console.log('Fetching raffle with ID:', raffleId);
 
         const raffle = await client.getObject({

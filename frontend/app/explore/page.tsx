@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState, useMemo } from "react";
 import { PACKAGE_ID, MODULE } from "../../constants";
+import Image from "next/image";
 
 interface RaffleEvent {
   raffle_id: string;
@@ -24,16 +25,8 @@ interface RaffleFields {
   winners: { [key: number]: string } | undefined;
   prize_pool: number;
   image: string;
-}
-
-// Add new interface for raffle with image URL
-interface RaffleWithImage extends Omit<RaffleEvent, "image"> {
-  imageUrl: string;
-  tickets_sold: number;
-  is_released: boolean;
-  balance: number;
-  winners: { [key: number]: string } | undefined;
-  prize_pool: number;
+  name: string;
+  description: string;
 }
 
 // Helper function to format relative time
@@ -343,10 +336,12 @@ export default function Explore() {
                   {/* Image Section */}
                   <div className="relative h-48 bg-gray-100">
                     {raffle.imageUrl ? (
-                      <img
+                      <Image
                         src={raffle.imageUrl}
                         alt={raffle.name}
-                        className="w-full h-full object-cover"
+                        width={300}
+                        height={300}
+                        className="w-full h-full object-cover rounded-t-lg"
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center bg-gray-100">

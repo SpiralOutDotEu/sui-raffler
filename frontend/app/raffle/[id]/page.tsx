@@ -8,6 +8,7 @@ import { PACKAGE_ID, MODULE, ORGANIZER_PERCENTAGE } from "../../../constants";
 import { Transaction } from "@mysten/sui/transactions";
 import { useWallet } from "../../context/WalletContext";
 import { toast } from "react-hot-toast";
+import Image from "next/image";
 
 interface Raffle {
   id: string;
@@ -513,10 +514,12 @@ export default function RaffleDetail() {
             <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-2xl p-6 flex items-center justify-center">
               <div className="aspect-square w-full max-w-md rounded-2xl overflow-hidden bg-white shadow-lg">
                 {raffle.image ? (
-                  <img
+                  <Image
                     src={raffle.image}
                     alt={raffle.name}
-                    className="w-full h-full object-cover"
+                    width={500}
+                    height={500}
+                    className="w-full h-auto rounded-lg"
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600">
