@@ -7,6 +7,9 @@ import type { Metadata } from "next";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+  ),
   title: {
     template: "Sui Raffler  | %s",
     default: "Sui Raffler - Decentralized Raffle Platform",
