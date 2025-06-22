@@ -3,7 +3,7 @@
 import { useSuiClient, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PACKAGE_ID, MODULE, ORGANIZER_PERCENTAGE } from "../../../constants";
 import { Transaction } from "@mysten/sui/transactions";
 import { useWallet } from "../../context/WalletContext";
@@ -265,6 +265,35 @@ export default function RaffleDetail() {
   const queryClient = useQueryClient();
   const { data: userTickets = [], isLoading: isLoadingTickets } =
     useUserTickets(id as string, currentAccount);
+
+  // Update page title when raffle data loads
+  useEffect(() => {
+    if (raffle) {
+      const raffleName = raffle.name || `Raffle #${raffle.id.slice(0, 8)}...`;
+      document.title = `${raffleName} | Sui Raffler`;
+
+      // Update meta tags for social sharing
+      const updateMetaTag = (property: string, content: string) => {
+        let meta = document.querySelector(`meta[property="${property}"]`);
+        if (!meta) {
+          meta = document.createElement("meta");
+          meta.setAttribute("property", property);
+          document.head.appendChild(meta);
+        }
+        meta.setAttribute("content", content);
+      };
+
+      updateMetaTag("og:title", raffleName);
+      updateMetaTag(
+        "og:description",
+        raffle.description || "Join this exciting raffle on Sui Raffler!"
+      );
+      updateMetaTag("og:url", `https://suiraffler.xyz/raffle/${raffle.id}`);
+      if (raffle.image) {
+        updateMetaTag("og:image", raffle.image);
+      }
+    }
+  }, [raffle]);
 
   // Add console logs for debugging
   console.log("Raffle:", raffle);
