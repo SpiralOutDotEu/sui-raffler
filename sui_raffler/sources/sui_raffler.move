@@ -26,6 +26,10 @@ module sui_raffler::sui_raffler {
     use sui::clock::{Self, Clock};
     use sui::event;
     use std::string::{String};
+    use sui::types;
+
+    // OTW - One time witness
+    public struct SUI_RAFFLER has drop {}
 
     // === Constants ===
     // Prize distribution percentages (must sum to 100)
@@ -54,6 +58,7 @@ module sui_raffler::sui_raffler {
     const ERafflePaused: u64 = 15;           // Raffle is paused
     const ENotAuthorized: u64 = 17;          // Not authorized for this operation
     const ENotMinimumTickets: u64 = 18;      // Not enough tickets sold for raffle release
+    const ENotOneTimeWitness: u64 = 19;      // Not one time witness
 
     /// Module configuration that holds admin, controller, fee collector, pause, and permissionless info
     public struct Config has key {
@@ -133,7 +138,8 @@ module sui_raffler::sui_raffler {
 
     /// Initialize the module with admin, controller, and fee collector addresses
     /// This function can only be called once during module deployment
-    public entry fun initialize(admin: address, controller: address, fee_collector: address, ctx: &mut TxContext) {
+    fun initialize(otw: SUI_RAFFLER, admin: address, controller: address, fee_collector: address, ctx: &mut TxContext) {
+        assert!(types::is_one_time_witness(&otw), ENotOneTimeWitness);
         let config = Config {
             id: object::new(ctx),
             admin,
@@ -650,6 +656,12 @@ module sui_raffler::sui_raffler {
     public fun get_config_fee_collector(config: &Config): address {
         config.fee_collector
     }
+    
+    #[test_only]
+    public fun init_for_testing(admin: address, controller: address, fee_collector: address, ctx: &mut TxContext){
+        initialize(SUI_RAFFLER {}, admin, controller, fee_collector, ctx);
+    }
+
 }
 
 

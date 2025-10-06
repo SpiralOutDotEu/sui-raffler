@@ -27,7 +27,7 @@ fun test_update_admin_unauthorized() {
     let fee_collector = @0xFEE5;
 
     let mut ts = ts::begin(admin);
-    sui_raffler::initialize(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
     ts.next_tx(admin);
     let mut config = ts.take_shared<sui_raffler::Config>();
 
@@ -50,7 +50,7 @@ fun test_update_controller_unauthorized() {
     let fee_collector = @0xFEE5;
 
     let mut ts = ts::begin(admin);
-    sui_raffler::initialize(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
     ts.next_tx(admin);
     let mut config = ts.take_shared<sui_raffler::Config>();
 
@@ -73,7 +73,7 @@ fun test_update_fee_collector_unauthorized() {
     let fee_collector = @0xFEE5;
 
     let mut ts = ts::begin(admin);
-    sui_raffler::initialize(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
     ts.next_tx(admin);
     let mut config = ts.take_shared<sui_raffler::Config>();
 
@@ -95,7 +95,7 @@ fun test_pause_unauthorized() {
     let fee_collector = @0xFEE5;
 
     let mut ts = ts::begin(admin);
-    sui_raffler::initialize(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
     ts.next_tx(admin);
     let mut config = ts.take_shared<sui_raffler::Config>();
 
@@ -118,7 +118,7 @@ fun test_pause_raffle_unauthorized() {
     let organizer = @0x1234;
 
     let mut ts = ts::begin(admin);
-    sui_raffler::initialize(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
 
@@ -173,7 +173,7 @@ fun test_release_raffle_unauthorized() {
 
     // Initialize module configuration
     ts.next_tx(admin);
-    sui_raffler::initialize(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
 
@@ -235,7 +235,7 @@ fun test_claim_organizer_share_unauthorized() {
 
     // Initialize module configuration
     ts.next_tx(admin);
-    sui_raffler::initialize(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
 
@@ -306,7 +306,7 @@ fun test_claim_prize_unauthorized() {
 
     // Initialize module configuration
     ts.next_tx(admin);
-    sui_raffler::initialize(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
 
@@ -378,7 +378,7 @@ fun test_cannot_buy_tickets_when_paused() {
     let buyer = @0xB0B;
 
     let mut ts = ts::begin(admin);
-    sui_raffler::initialize(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
 
@@ -426,7 +426,7 @@ fun test_cannot_create_raffle_when_contract_paused() {
     let organizer = @0x1234;
 
     let mut ts = ts::begin(admin);
-    sui_raffler::initialize(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
     ts.next_tx(admin);
     let mut config = ts.take_shared<sui_raffler::Config>();
 
@@ -464,7 +464,7 @@ fun test_create_raffle_not_permissionless() {
     let organizer = @0x1234;
 
     let mut ts = ts::begin(admin);
-    sui_raffler::initialize(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
     ts.next_tx(admin);
     let mut config = ts.take_shared<sui_raffler::Config>();
 
@@ -502,7 +502,7 @@ fun test_buy_tickets_before_start() {
     let buyer = @0xB0B;
 
     let mut ts = ts::begin(admin);
-    sui_raffler::initialize(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
 
@@ -547,7 +547,7 @@ fun test_buy_tickets_after_end() {
     let buyer = @0xB0B;
 
     let mut ts = ts::begin(admin);
-    sui_raffler::initialize(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
 
@@ -606,7 +606,7 @@ fun test_release_raffle_before_end() {
 
     // Initialize module configuration
     ts.next_tx(admin);
-    sui_raffler::initialize(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
 
@@ -664,7 +664,7 @@ fun test_release_raffle_twice() {
 
     // Initialize module configuration
     ts.next_tx(admin);
-    sui_raffler::initialize(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
 
@@ -733,7 +733,7 @@ fun test_claim_organizer_share_twice() {
 
     // Initialize module configuration
     ts.next_tx(admin);
-    sui_raffler::initialize(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
 
@@ -808,7 +808,7 @@ fun test_log_winning_tickets() {
 
     // Initialize module configuration
     ts.next_tx(admin);
-    sui_raffler::initialize(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
 
@@ -900,7 +900,7 @@ fun test_prize_claiming() {
 
     // Initialize module configuration
     ts.next_tx(admin);
-    sui_raffler::initialize(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
 
