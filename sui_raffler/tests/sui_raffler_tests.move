@@ -9,6 +9,7 @@ use sui::random::{Self, Random};
 use sui::sui::SUI;
 use std::debug;
 use std::string;
+use sui_raffler::sui_raffler::ENotOneTimeWitness;
 
 /// Helper function to mint SUI coins for testing
 fun mint(addr: address, amount: u64, scenario: &mut ts::Scenario) {
@@ -50,7 +51,7 @@ fun test_raffle_flow() {
 
     // Initialize module configuration
     ts.next_tx(admin);
-    sui_raffler::initialize(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
     assert!(sui_raffler::get_config_fee_collector(&config) == fee_collector, 1);
@@ -187,7 +188,7 @@ fun test_fee_collector_update() {
     let mut ts = ts::begin(admin);
 
     // Initialize module configuration
-    sui_raffler::initialize(admin, controller, initial_fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(admin, controller, initial_fee_collector, ts.ctx());
     ts.next_tx(admin);
     let mut config = ts.take_shared<sui_raffler::Config>();
     assert!(sui_raffler::get_config_fee_collector(&config) == initial_fee_collector, 1);
@@ -214,7 +215,7 @@ fun test_fee_collector_update_unauthorized() {
     let mut ts = ts::begin(admin);
 
     // Initialize module configuration
-    sui_raffler::initialize(admin, controller, initial_fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(admin, controller, initial_fee_collector, ts.ctx());
     ts.next_tx(admin);
     let mut config = ts.take_shared<sui_raffler::Config>();
 
@@ -240,7 +241,7 @@ fun test_invalid_organizer() {
     let mut ts = ts::begin(admin);
 
     // Initialize module configuration
-    sui_raffler::initialize(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
 
@@ -295,7 +296,7 @@ fun test_happy_path_raffle() {
 
     // Initialize module configuration
     ts.next_tx(admin);
-    sui_raffler::initialize(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
     assert!(sui_raffler::get_config_fee_collector(&config) == fee_collector, 1);
@@ -591,7 +592,7 @@ fun test_protocol_fee_auto_collection() {
 
     // Initialize module configuration
     ts.next_tx(admin);
-    sui_raffler::initialize(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
 
@@ -654,3 +655,16 @@ fun test_protocol_fee_auto_collection() {
     ts::return_shared(random_state);
     ts.end();
 }
+
+
+#[test]
+fun test_init_for_testing() {
+    let admin = @0xAD;
+    let controller = @0x1235;
+    let fee_collector = @0xFEE5;
+    let mut ts = ts::begin(@0x0);
+    ts.next_tx(admin);
+    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
+    ts.end();
+}
+

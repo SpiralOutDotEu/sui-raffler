@@ -44,7 +44,7 @@ fun setup_raffle_with_two_tickets(
 
     // Initialize module configuration
     ts.next_tx(admin);
-    sui_raffler::initialize(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
 
