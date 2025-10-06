@@ -153,21 +153,21 @@ module sui_raffler::sui_raffler {
 
     /// Update the admin address
     /// Only the admin can call this function
-    public entry fun update_admin(config: &mut Config, new_admin: address, ctx: &mut TxContext) {
+    public fun update_admin(config: &mut Config, new_admin: address, ctx: &mut TxContext) {
         assert!(config.admin == tx_context::sender(ctx), ENotAdmin);
         config.admin = new_admin;
     }
 
     /// Update the controller address
     /// Only the admin can call this function
-    public entry fun update_controller(config: &mut Config, new_controller: address, ctx: &mut TxContext) {
+    public fun update_controller(config: &mut Config, new_controller: address, ctx: &mut TxContext) {
         assert!(config.admin == tx_context::sender(ctx), ENotAdmin);
         config.controller = new_controller;
     }
 
     /// Update the fee collector address
     /// Only the admin can call this function
-    public entry fun update_fee_collector(
+    public fun update_fee_collector(
         config: &mut Config,
         new_fee_collector: address,
         ctx: &mut TxContext
@@ -183,35 +183,35 @@ module sui_raffler::sui_raffler {
 
     /// Set permissionless mode (true = anyone can create raffles, false = only admin)
     /// Only the admin can call this function
-    public entry fun set_permissionless(config: &mut Config, value: bool, ctx: &mut TxContext) {
+    public fun set_permissionless(config: &mut Config, value: bool, ctx: &mut TxContext) {
         assert!(config.admin == tx_context::sender(ctx), ENotAdmin);
         config.permissionless = value;
     }
 
     /// Pause the contract globally
     /// Only the admin or controller can call this function
-    public entry fun pause(config: &mut Config, ctx: &mut TxContext) {
+    public fun pause(config: &mut Config, ctx: &mut TxContext) {
         assert!(is_admin_or_controller(config, tx_context::sender(ctx)), ENotAuthorized);
         config.paused = true;
     }
 
     /// Unpause the contract globally
     /// Only the admin or controller can call this function
-    public entry fun unpause(config: &mut Config, ctx: &mut TxContext) {
+    public fun unpause(config: &mut Config, ctx: &mut TxContext) {
         assert!(is_admin_or_controller(config, tx_context::sender(ctx)), ENotAuthorized);
         config.paused = false;
     }
 
     /// Pause a specific raffle
     /// Only the admin or controller can call this function
-    public entry fun pause_raffle(config: &Config, raffle: &mut Raffle, ctx: &mut TxContext) {
+    public fun pause_raffle(config: &Config, raffle: &mut Raffle, ctx: &mut TxContext) {
         assert!(is_admin_or_controller(config, tx_context::sender(ctx)), ENotAuthorized);
         raffle.paused = true;
     }
 
     /// Unpause a specific raffle
     /// Only the admin or controller can call this function
-    public entry fun unpause_raffle(config: &Config, raffle: &mut Raffle, ctx: &mut TxContext) {
+    public fun unpause_raffle(config: &Config, raffle: &mut Raffle, ctx: &mut TxContext) {
         assert!(is_admin_or_controller(config, tx_context::sender(ctx)), ENotAuthorized);
         raffle.paused = false;
     }
@@ -243,7 +243,7 @@ module sui_raffler::sui_raffler {
 
     /// Create a new raffle
     /// Anyone can create a raffle by specifying the parameters
-    public entry fun create_raffle(
+    public fun create_raffle(
         config: &Config,
         name: String,
         description: String,
@@ -293,7 +293,7 @@ module sui_raffler::sui_raffler {
 
     /// Buy tickets for a raffle
     /// Users can buy multiple tickets in a single transaction up to max_tickets_per_purchase
-    public entry fun buy_tickets(
+    public fun buy_tickets(
         raffle: &mut Raffle,
         payment: Coin<SUI>,
         amount: u64,
@@ -350,7 +350,7 @@ module sui_raffler::sui_raffler {
     /// Release the raffle and select winners
     /// Can only be called after the raffle end time
     #[allow(lint(public_random))]
-    public entry fun release_raffle(
+    public fun release_raffle(
         config: &Config,
         raffle: &mut Raffle,
         random: &Random,
@@ -423,7 +423,7 @@ module sui_raffler::sui_raffler {
 
     /// Claim prize with a winning ticket
     /// Winners can claim their prizes after the raffle is released
-    public entry fun claim_prize(
+    public fun claim_prize(
         raffle: &mut Raffle,
         ticket: Ticket,
         ctx: &mut TxContext
@@ -459,7 +459,7 @@ module sui_raffler::sui_raffler {
 
     /// Claim organizer's share of the raffle
     /// Only the organizer can claim their share after all winners have claimed their prizes
-    public entry fun claim_organizer_share(
+    public fun claim_organizer_share(
         raffle: &mut Raffle,
         ctx: &mut TxContext
     ) {
@@ -491,7 +491,7 @@ module sui_raffler::sui_raffler {
     }
 
     /// Return ticket and get refund when raffle has ended with less than 3 tickets
-    public entry fun return_ticket(
+    public fun return_ticket(
         raffle: &mut Raffle,
         ticket: Ticket,
         clock: &Clock,
