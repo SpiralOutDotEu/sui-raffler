@@ -582,6 +582,110 @@ fun test_buy_tickets_after_end() {
     ts.end();
 }
 
+/// Test that cannot buy more than max_tickets_per_address in a single transaction
+#[test]
+#[expected_failure(abort_code = sui_raffler::EInvalidTicketAmount)]
+fun test_buy_tickets_exceeds_per_purchase_limit() {
+    let admin = @0xAD;
+    let controller = @0x1235;
+    let fee_collector = @0xFEE5;
+    let organizer = @0x1234;
+    let buyer = @0xB0B;
+    let start_time = 0;
+    let end_time = 1000;
+    let ticket_price = 100;
+    let max_tickets_per_address = 3; // enforce small cap
+
+    let mut ts = ts::begin(admin);
+    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
+    ts.next_tx(admin);
+    let config = ts.take_shared<sui_raffler::Config>();
+
+    // Create a raffle with max_tickets_per_address = 3
+    ts.next_tx(organizer);
+    sui_raffler::create_raffle(
+        &config,
+        string::utf8(b"Test Raffle"),
+        string::utf8(b"Test Description"),
+        string::utf8(b"https://example.com/image.jpg"),
+        start_time,
+        end_time,
+        ticket_price,
+        max_tickets_per_address,
+        organizer,
+        ts.ctx()
+    );
+    ts.next_tx(organizer);
+    let mut raffle = ts.take_shared<sui_raffler::Raffle>();
+
+    // Try to buy 4 tickets (> 3 limit)
+    ts.next_tx(buyer);
+    mint(buyer, ticket_price * 4, &mut ts);
+    let coin: Coin<SUI> = ts.take_from_sender();
+    let clock = clock::create_for_testing(ts.ctx());
+    sui_raffler::buy_tickets(&mut raffle, coin, 4, &clock, ts.ctx());
+
+    clock.destroy_for_testing();
+    ts::return_shared(config);
+    ts::return_shared(raffle);
+    ts.end();
+}
+
+/// Test that two within-limit purchases cumulatively exceeding the limit will fail
+#[test]
+#[expected_failure(abort_code = sui_raffler::EExceedsPerUserLimit)]
+fun test_buy_tickets_two_txs_exceed_cumulative_limit() {
+    let admin = @0xAD;
+    let controller = @0x1235;
+    let fee_collector = @0xFEE5;
+    let organizer = @0x1234;
+    let buyer = @0xB0B;
+    let start_time = 0;
+    let end_time = 1000;
+    let ticket_price = 100;
+    let max_tickets_per_address = 3; // cap per user cumulatively
+
+    let mut ts = ts::begin(admin);
+    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
+    ts.next_tx(admin);
+    let config = ts.take_shared<sui_raffler::Config>();
+
+    // Create a raffle with per-purchase cap = 3 (now cumulative per-user cap)
+    ts.next_tx(organizer);
+    sui_raffler::create_raffle(
+        &config,
+        string::utf8(b"Test Raffle"),
+        string::utf8(b"Test Description"),
+        string::utf8(b"https://example.com/image.jpg"),
+        start_time,
+        end_time,
+        ticket_price,
+        max_tickets_per_address,
+        organizer,
+        ts.ctx()
+    );
+    ts.next_tx(organizer);
+    let mut raffle = ts.take_shared<sui_raffler::Raffle>();
+
+    // First purchase: 2 tickets (within 3)
+    ts.next_tx(buyer);
+    mint(buyer, ticket_price * 2, &mut ts);
+    let coin1: Coin<SUI> = ts.take_from_sender();
+    let clock = clock::create_for_testing(ts.ctx());
+    sui_raffler::buy_tickets(&mut raffle, coin1, 2, &clock, ts.ctx());
+
+    // Second purchase: 2 tickets (2 + 2 = 4 > 3) should fail
+    ts.next_tx(buyer);
+    mint(buyer, ticket_price * 2, &mut ts);
+    let coin2: Coin<SUI> = ts.take_from_sender();
+    sui_raffler::buy_tickets(&mut raffle, coin2, 2, &clock, ts.ctx());
+
+    clock.destroy_for_testing();
+    ts::return_shared(config);
+    ts::return_shared(raffle);
+    ts.end();
+}
+
 /// Test that cannot release raffle before end time
 #[test]
 #[expected_failure(abort_code = sui_raffler::ERaffleNotEnded)]
