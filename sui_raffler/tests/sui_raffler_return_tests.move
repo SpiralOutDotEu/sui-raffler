@@ -22,8 +22,6 @@ fun setup_raffle_with_two_tickets(
     organizer: address,
     buyer1: address,
     buyer2: address,
-    fee_collector: address,
-    controller: address,
     start_time: u64,
     end_time: u64,
     ticket_price: u64,
@@ -44,7 +42,7 @@ fun setup_raffle_with_two_tickets(
 
     // Initialize module configuration
     ts.next_tx(admin);
-    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
 
@@ -94,8 +92,6 @@ fun test_is_in_return_state() {
     let organizer = @0x1234;
     let buyer1 = @0xB0B;
     let buyer2 = @0xB0B2;
-    let fee_collector = @0xFEE5;
-    let controller = @0x1235;
     let start_time = 0;
     let end_time = 1000;
     let ticket_price = 100;
@@ -107,8 +103,6 @@ fun test_is_in_return_state() {
         organizer,
         buyer1,
         buyer2,
-        fee_collector,
-        controller,
         start_time,
         end_time,
         ticket_price,
@@ -144,8 +138,6 @@ fun test_release_raffle_insufficient_tickets() {
     let organizer = @0x1234;
     let buyer1 = @0xB0B;
     let buyer2 = @0xB0B2;
-    let fee_collector = @0xFEE5;
-    let controller = @0x1235;
     let start_time = 0;
     let end_time = 1000;
     let ticket_price = 100;
@@ -157,8 +149,6 @@ fun test_release_raffle_insufficient_tickets() {
         organizer,
         buyer1,
         buyer2,
-        fee_collector,
-        controller,
         start_time,
         end_time,
         ticket_price,
@@ -169,7 +159,7 @@ fun test_release_raffle_insufficient_tickets() {
     clock.set_for_testing(end_time + 1);
 
     // Try to release raffle
-    ts.next_tx(controller);
+    ts.next_tx(admin);
     sui_raffler::release_raffle(&config, &mut raffle, &random_state, &clock, ts.ctx());
 
     // Clean up
@@ -189,8 +179,6 @@ fun test_claim_prize_insufficient_tickets() {
     let organizer = @0x1234;
     let buyer1 = @0xB0B;
     let buyer2 = @0xB0B2;
-    let fee_collector = @0xFEE5;
-    let controller = @0x1235;
     let start_time = 0;
     let end_time = 1000;
     let ticket_price = 100;
@@ -202,8 +190,6 @@ fun test_claim_prize_insufficient_tickets() {
         organizer,
         buyer1,
         buyer2,
-        fee_collector,
-        controller,
         start_time,
         end_time,
         ticket_price,
@@ -232,8 +218,6 @@ fun test_claim_organizer_share_insufficient_tickets() {
     let organizer = @0x1234;
     let buyer1 = @0xB0B;
     let buyer2 = @0xB0B2;
-    let fee_collector = @0xFEE5;
-    let controller = @0x1235;
     let start_time = 0;
     let end_time = 1000;
     let ticket_price = 100;
@@ -245,8 +229,6 @@ fun test_claim_organizer_share_insufficient_tickets() {
         organizer,
         buyer1,
         buyer2,
-        fee_collector,
-        controller,
         start_time,
         end_time,
         ticket_price,
@@ -275,8 +257,6 @@ fun test_buy_tickets_after_end() {
     let buyer1 = @0xB0B;
     let buyer2 = @0xB0B2;
     let buyer3 = @0xB0B3;
-    let fee_collector = @0xFEE5;
-    let controller = @0x1235;
     let start_time = 0;
     let end_time = 1000;
     let ticket_price = 100;
@@ -288,8 +268,6 @@ fun test_buy_tickets_after_end() {
         organizer,
         buyer1,
         buyer2,
-        fee_collector,
-        controller,
         start_time,
         end_time,
         ticket_price,
@@ -321,8 +299,6 @@ fun test_return_tickets() {
     let organizer = @0x1234;
     let buyer1 = @0xB0B;
     let buyer2 = @0xB0B2;
-    let fee_collector = @0xFEE5;
-    let controller = @0x1235;
     let start_time = 0;
     let end_time = 1000;
     let ticket_price = 100;
@@ -334,8 +310,6 @@ fun test_return_tickets() {
         organizer,
         buyer1,
         buyer2,
-        fee_collector,
-        controller,
         start_time,
         end_time,
         ticket_price,

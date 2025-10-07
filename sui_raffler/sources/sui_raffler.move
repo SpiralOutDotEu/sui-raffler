@@ -141,13 +141,13 @@ module sui_raffler::sui_raffler {
 
     /// Initialize the module with admin, controller, and fee collector addresses
     /// This function can only be called once during module deployment
-    fun initialize(otw: SUI_RAFFLER, admin: address, controller: address, fee_collector: address, ctx: &mut TxContext) {
+    fun init(otw: SUI_RAFFLER, ctx: &mut TxContext) {
         assert!(types::is_one_time_witness(&otw), ENotOneTimeWitness);
         let config = Config {
             id: object::new(ctx),
-            admin,
-            controller,
-            fee_collector,
+            admin: ctx.sender(),
+            controller: ctx.sender(),
+            fee_collector: ctx.sender(),
             paused: false,
             permissionless: true,
         };
@@ -684,8 +684,8 @@ module sui_raffler::sui_raffler {
     }
     
     #[test_only]
-    public fun init_for_testing(admin: address, controller: address, fee_collector: address, ctx: &mut TxContext){
-        initialize(SUI_RAFFLER {}, admin, controller, fee_collector, ctx);
+    public fun init_for_testing(ctx: &mut TxContext){
+        init(SUI_RAFFLER {},  ctx);
     }
 
 }
