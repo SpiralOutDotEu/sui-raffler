@@ -28,7 +28,6 @@ module sui_raffler::sui_raffler {
     use std::string::{String};
     use sui::types;
     use sui::table::{Self, Table};
-    use sui::test_scenario::ctx;
 
     // OTW - One time witness
     public struct SUI_RAFFLER has drop {}
