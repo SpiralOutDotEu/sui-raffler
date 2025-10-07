@@ -23,11 +23,9 @@ fun test_update_admin_unauthorized() {
     let admin = @0xAD;
     let non_admin = @0xBEEF;
     let new_admin = @0xAD2;
-    let controller = @0x1235;
-    let fee_collector = @0xFEE5;
 
     let mut ts = ts::begin(admin);
-    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let mut config = ts.take_shared<sui_raffler::Config>();
 
@@ -46,11 +44,9 @@ fun test_update_controller_unauthorized() {
     let admin = @0xAD;
     let non_admin = @0xBEEF;
     let new_controller = @0x1236;
-    let controller = @0x1235;
-    let fee_collector = @0xFEE5;
 
     let mut ts = ts::begin(admin);
-    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let mut config = ts.take_shared<sui_raffler::Config>();
 
@@ -69,11 +65,9 @@ fun test_update_fee_collector_unauthorized() {
     let admin = @0xAD;
     let non_admin = @0xBEEF;
     let new_fee_collector = @0xFEE6;
-    let controller = @0x1235;
-    let fee_collector = @0xFEE5;
 
     let mut ts = ts::begin(admin);
-    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let mut config = ts.take_shared<sui_raffler::Config>();
 
@@ -91,11 +85,9 @@ fun test_update_fee_collector_unauthorized() {
 fun test_pause_unauthorized() {
     let admin = @0xAD;
     let non_admin = @0xBEEF;
-    let controller = @0x1235;
-    let fee_collector = @0xFEE5;
 
     let mut ts = ts::begin(admin);
-    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let mut config = ts.take_shared<sui_raffler::Config>();
 
@@ -113,12 +105,10 @@ fun test_pause_unauthorized() {
 fun test_pause_raffle_unauthorized() {
     let admin = @0xAD;
     let non_admin = @0xBEEF;
-    let controller = @0x1235;
-    let fee_collector = @0xFEE5;
     let organizer = @0x1234;
 
     let mut ts = ts::begin(admin);
-    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
 
@@ -154,8 +144,6 @@ fun test_pause_raffle_unauthorized() {
 fun test_release_raffle_unauthorized() {
     let admin = @0xAD;
     let non_admin = @0xBEEF;
-    let controller = @0x1235;
-    let fee_collector = @0xFEE5;
     let organizer = @0x1234;
 
     // Start with system address for random setup
@@ -173,7 +161,7 @@ fun test_release_raffle_unauthorized() {
 
     // Initialize module configuration
     ts.next_tx(admin);
-    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
 
@@ -215,8 +203,6 @@ fun test_release_raffle_unauthorized() {
 fun test_claim_organizer_share_unauthorized() {
     let admin = @0xAD;
     let non_organizer = @0xBEEF;
-    let controller = @0x1235;
-    let fee_collector = @0xFEE5;
     let organizer = @0x1234;
     let buyer = @0xB0B;
 
@@ -235,7 +221,7 @@ fun test_claim_organizer_share_unauthorized() {
 
     // Initialize module configuration
     ts.next_tx(admin);
-    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
 
@@ -264,7 +250,7 @@ fun test_claim_organizer_share_unauthorized() {
     sui_raffler::buy_tickets(&mut raffle, coin, 3, &clock, ts.ctx());
 
     // Create clock and set time after end time
-    ts.next_tx(controller);
+    ts.next_tx(admin);
     clock.set_for_testing(1001);
     sui_raffler::release_raffle(&config, &mut raffle, &random_state, &clock, ts.ctx());
 
@@ -285,8 +271,6 @@ fun test_claim_organizer_share_unauthorized() {
 #[expected_failure(abort_code = sui_raffler::ENotWinner)]
 fun test_claim_prize_unauthorized() {
     let admin = @0xAD;
-    let controller = @0x1235;
-    let fee_collector = @0xFEE5;
     let organizer = @0x1234;
     let buyer1 = @0xB0B;
     let buyer2 = @0xB0B2;
@@ -306,7 +290,7 @@ fun test_claim_prize_unauthorized() {
 
     // Initialize module configuration
     ts.next_tx(admin);
-    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
 
@@ -341,7 +325,7 @@ fun test_claim_prize_unauthorized() {
     sui_raffler::buy_tickets(&mut raffle, coin2, 2, &clock, ts.ctx());
 
     // Release raffle after end time
-    ts.next_tx(controller);
+    ts.next_tx(admin);
     clock.set_for_testing(1001);
     sui_raffler::release_raffle(&config, &mut raffle, &random_state, &clock, ts.ctx());
 
@@ -372,13 +356,11 @@ fun test_claim_prize_unauthorized() {
 #[expected_failure(abort_code = sui_raffler::ERafflePaused)]
 fun test_cannot_buy_tickets_when_paused() {
     let admin = @0xAD;
-    let controller = @0x1235;
-    let fee_collector = @0xFEE5;
     let organizer = @0x1234;
     let buyer = @0xB0B;
 
     let mut ts = ts::begin(admin);
-    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
 
@@ -421,12 +403,10 @@ fun test_cannot_buy_tickets_when_paused() {
 #[expected_failure(abort_code = sui_raffler::EPaused)]
 fun test_cannot_create_raffle_when_contract_paused() {
     let admin = @0xAD;
-    let controller = @0x1235;
-    let fee_collector = @0xFEE5;
     let organizer = @0x1234;
 
     let mut ts = ts::begin(admin);
-    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let mut config = ts.take_shared<sui_raffler::Config>();
 
@@ -459,12 +439,10 @@ fun test_cannot_create_raffle_when_contract_paused() {
 fun test_create_raffle_not_permissionless() {
     let admin = @0xAD;
     let non_admin = @0xBEEF;
-    let controller = @0x1235;
-    let fee_collector = @0xFEE5;
     let organizer = @0x1234;
 
     let mut ts = ts::begin(admin);
-    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let mut config = ts.take_shared<sui_raffler::Config>();
 
@@ -496,13 +474,11 @@ fun test_create_raffle_not_permissionless() {
 #[expected_failure(abort_code = sui_raffler::ERaffleNotActive)]
 fun test_buy_tickets_before_start() {
     let admin = @0xAD;
-    let controller = @0x1235;
-    let fee_collector = @0xFEE5;
     let organizer = @0x1234;
     let buyer = @0xB0B;
 
     let mut ts = ts::begin(admin);
-    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
 
@@ -541,13 +517,11 @@ fun test_buy_tickets_before_start() {
 #[expected_failure(abort_code = sui_raffler::ERaffleNotActive)]
 fun test_buy_tickets_after_end() {
     let admin = @0xAD;
-    let controller = @0x1235;
-    let fee_collector = @0xFEE5;
     let organizer = @0x1234;
     let buyer = @0xB0B;
 
     let mut ts = ts::begin(admin);
-    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
 
@@ -587,8 +561,6 @@ fun test_buy_tickets_after_end() {
 #[expected_failure(abort_code = sui_raffler::EInvalidTicketAmount)]
 fun test_buy_tickets_exceeds_per_purchase_limit() {
     let admin = @0xAD;
-    let controller = @0x1235;
-    let fee_collector = @0xFEE5;
     let organizer = @0x1234;
     let buyer = @0xB0B;
     let start_time = 0;
@@ -597,7 +569,7 @@ fun test_buy_tickets_exceeds_per_purchase_limit() {
     let max_tickets_per_address = 3; // enforce small cap
 
     let mut ts = ts::begin(admin);
-    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
 
@@ -636,8 +608,6 @@ fun test_buy_tickets_exceeds_per_purchase_limit() {
 #[expected_failure(abort_code = sui_raffler::EExceedsPerUserLimit)]
 fun test_buy_tickets_two_txs_exceed_cumulative_limit() {
     let admin = @0xAD;
-    let controller = @0x1235;
-    let fee_collector = @0xFEE5;
     let organizer = @0x1234;
     let buyer = @0xB0B;
     let start_time = 0;
@@ -646,7 +616,7 @@ fun test_buy_tickets_two_txs_exceed_cumulative_limit() {
     let max_tickets_per_address = 3; // cap per user cumulatively
 
     let mut ts = ts::begin(admin);
-    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
 
@@ -691,8 +661,6 @@ fun test_buy_tickets_two_txs_exceed_cumulative_limit() {
 #[expected_failure(abort_code = sui_raffler::ERaffleNotEnded)]
 fun test_release_raffle_before_end() {
     let admin = @0xAD;
-    let controller = @0x1235;
-    let fee_collector = @0xFEE5;
     let organizer = @0x1234;
 
     // Start with system address for random setup
@@ -710,7 +678,7 @@ fun test_release_raffle_before_end() {
 
     // Initialize module configuration
     ts.next_tx(admin);
-    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
 
@@ -732,7 +700,7 @@ fun test_release_raffle_before_end() {
     let mut raffle = ts.take_shared<sui_raffler::Raffle>();
 
     // Try to release raffle before end time
-    ts.next_tx(controller);
+    ts.next_tx(admin);
     let clock = clock::create_for_testing(ts.ctx());
     sui_raffler::release_raffle(&config, &mut raffle, &random_state, &clock, ts.ctx());
 
@@ -748,8 +716,6 @@ fun test_release_raffle_before_end() {
 #[expected_failure(abort_code = sui_raffler::ERaffleAlreadyReleased)]
 fun test_release_raffle_twice() {
     let admin = @0xAD;
-    let controller = @0x1235;
-    let fee_collector = @0xFEE5;
     let organizer = @0x1234;
     let buyer = @0xB0B;
 
@@ -768,7 +734,7 @@ fun test_release_raffle_twice() {
 
     // Initialize module configuration
     ts.next_tx(admin);
-    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
 
@@ -797,12 +763,12 @@ fun test_release_raffle_twice() {
     sui_raffler::buy_tickets(&mut raffle, coin, 3, &clock, ts.ctx());
 
     // Release raffle after end time
-    ts.next_tx(controller);
+    ts.next_tx(admin);
     clock.set_for_testing(1001);
     sui_raffler::release_raffle(&config, &mut raffle, &random_state, &clock, ts.ctx());
 
     // Try to release raffle again
-    ts.next_tx(controller);
+    ts.next_tx(admin);
     sui_raffler::release_raffle(&config, &mut raffle, &random_state, &clock, ts.ctx());
 
     clock.destroy_for_testing();
@@ -817,8 +783,6 @@ fun test_release_raffle_twice() {
 #[expected_failure(abort_code = sui_raffler::EAlreadyClaimed)]
 fun test_claim_organizer_share_twice() {
     let admin = @0xAD;
-    let controller = @0x1235;
-    let fee_collector = @0xFEE5;
     let organizer = @0x1234;
     let buyer = @0xB0B;
 
@@ -837,7 +801,7 @@ fun test_claim_organizer_share_twice() {
 
     // Initialize module configuration
     ts.next_tx(admin);
-    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
 
@@ -866,7 +830,7 @@ fun test_claim_organizer_share_twice() {
     sui_raffler::buy_tickets(&mut raffle, coin, 3, &clock, ts.ctx());
 
     // Release raffle after end time
-    ts.next_tx(controller);
+    ts.next_tx(admin);
     clock.set_for_testing(1001);
     sui_raffler::release_raffle(&config, &mut raffle, &random_state, &clock, ts.ctx());
 
@@ -890,8 +854,6 @@ fun test_claim_organizer_share_twice() {
 #[test]
 fun test_log_winning_tickets() {
     let admin = @0xAD;
-    let controller = @0x1235;
-    let fee_collector = @0xFEE5;
     let organizer = @0x1234;
     let buyer1 = @0xB0B;
     let buyer2 = @0xB0B2;
@@ -912,7 +874,7 @@ fun test_log_winning_tickets() {
 
     // Initialize module configuration
     ts.next_tx(admin);
-    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
 
@@ -953,7 +915,7 @@ fun test_log_winning_tickets() {
     sui_raffler::buy_tickets(&mut raffle, coin3, 2, &clock, ts.ctx());
 
     // Release raffle after end time
-    ts.next_tx(controller);
+    ts.next_tx(admin);
     clock.set_for_testing(1001);
     sui_raffler::release_raffle(&config, &mut raffle, &random_state, &clock, ts.ctx());
 
@@ -982,8 +944,6 @@ fun test_log_winning_tickets() {
 #[test]
 fun test_prize_claiming() {
     let admin = @0xAD;
-    let controller = @0x1235;
-    let fee_collector = @0xFEE5;
     let organizer = @0x1234;
     let buyer1 = @0xB0B;
     let buyer2 = @0xB0B2;
@@ -1004,7 +964,7 @@ fun test_prize_claiming() {
 
     // Initialize module configuration
     ts.next_tx(admin);
-    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
 
@@ -1045,7 +1005,7 @@ fun test_prize_claiming() {
     sui_raffler::buy_tickets(&mut raffle, coin3, 2, &clock, ts.ctx());
 
     // Release raffle after end time
-    ts.next_tx(controller);
+    ts.next_tx(admin);
     clock.set_for_testing(1001);
     sui_raffler::release_raffle(&config, &mut raffle, &random_state, &clock, ts.ctx());
 

@@ -29,8 +29,6 @@ fun test_raffle_flow() {
     let creator = @0xBEEF;
     let organizer = @0x1234;
     let buyer = @0xB0B;
-    let fee_collector = @0xFEE5;
-    let controller = @0x1235;
     let start_time = 0;
     let end_time = 1000;
     let ticket_price = 100;
@@ -51,10 +49,10 @@ fun test_raffle_flow() {
 
     // Initialize module configuration
     ts.next_tx(admin);
-    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
-    assert!(sui_raffler::get_config_fee_collector(&config) == fee_collector, 1);
+    assert!(sui_raffler::get_config_fee_collector(&config) == admin, 1);
 
     // Create raffle
     ts.next_tx(creator);
@@ -95,7 +93,7 @@ fun test_raffle_flow() {
     assert!(price == 100, 1);
     assert!(max_tix == 5, 1);
     assert!(org == organizer, 1);
-    assert!(fee_col == fee_collector, 1);
+    assert!(fee_col == admin, 1);
     assert!(balance == 300, 1);
     assert!(sold == 3, 1);
     assert!(!released, 1);
@@ -117,8 +115,8 @@ fun test_raffle_flow() {
     assert!(!has_winners, 1);
     assert!(vector::is_empty(&winners), 1);
 
-    // Controller releases raffle after end_time
-    ts.next_tx(controller);
+    // Admin releases raffle after end_time
+    ts.next_tx(admin);
     clock.set_for_testing(end_time + 1);
     sui_raffler::release_raffle(&config, &mut raffle, &random_state, &clock, ts.ctx());
     assert!(sui_raffler::is_released(&raffle), 1);
@@ -184,8 +182,6 @@ fun test_get_address_purchase_info() {
     let creator = @0xBEEF;
     let organizer = @0x1234;
     let buyer = @0xB0B;
-    let fee_collector = @0xFEE5;
-    let controller = @0x1235;
     let start_time = 0;
     let end_time = 1000;
     let ticket_price = 100;
@@ -206,7 +202,7 @@ fun test_get_address_purchase_info() {
 
     // Initialize module configuration
     ts.next_tx(admin);
-    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
 
@@ -268,17 +264,15 @@ fun test_get_address_purchase_info() {
 #[test]
 fun test_fee_collector_update() {
     let admin = @0xAD;
-    let initial_fee_collector = @0xFEE5;
     let new_fee_collector = @0xFEE6;
-    let controller = @0x1235;
 
     let mut ts = ts::begin(admin);
 
     // Initialize module configuration
-    sui_raffler::init_for_testing(admin, controller, initial_fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let mut config = ts.take_shared<sui_raffler::Config>();
-    assert!(sui_raffler::get_config_fee_collector(&config) == initial_fee_collector, 1);
+    assert!(sui_raffler::get_config_fee_collector(&config) == admin, 1);
 
     // Update fee collector as admin
     sui_raffler::update_fee_collector(&mut config, new_fee_collector, ts.ctx());
@@ -295,14 +289,12 @@ fun test_fee_collector_update() {
 fun test_fee_collector_update_unauthorized() {
     let admin = @0xAD;
     let non_admin = @0xBEEF;
-    let initial_fee_collector = @0xFEE5;
     let new_fee_collector = @0xFEE6;
-    let controller = @0x1235;
 
     let mut ts = ts::begin(admin);
 
     // Initialize module configuration
-    sui_raffler::init_for_testing(admin, controller, initial_fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let mut config = ts.take_shared<sui_raffler::Config>();
 
@@ -321,14 +313,12 @@ fun test_fee_collector_update_unauthorized() {
 fun test_invalid_organizer() {
     let admin = @0xAD;
     let creator = @0xBEEF;
-    let fee_collector = @0xFEE5;
-    let controller = @0x1235;
     let invalid_organizer = @0x0;
 
     let mut ts = ts::begin(admin);
 
     // Initialize module configuration
-    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
 
@@ -361,8 +351,6 @@ fun test_happy_path_raffle() {
     let buyer1 = @0xB0B;
     let buyer2 = @0xB0B2;
     let buyer3 = @0xB0B3;
-    let fee_collector = @0xFEE5;
-    let controller = @0x1235;
     let start_time = 0;
     let end_time = 1000;
     let ticket_price = 100;
@@ -383,10 +371,10 @@ fun test_happy_path_raffle() {
 
     // Initialize module configuration
     ts.next_tx(admin);
-    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
-    assert!(sui_raffler::get_config_fee_collector(&config) == fee_collector, 1);
+    assert!(sui_raffler::get_config_fee_collector(&config) == admin, 1);
 
     // Create raffle
     ts.next_tx(creator);
@@ -481,8 +469,8 @@ fun test_happy_path_raffle() {
     assert!(org_share == 90, 1); // 10% of 900
     assert!(fee == 45, 1); // 5% of 900
 
-    // Controller releases raffle after end_time
-    ts.next_tx(controller);
+    // Admin releases raffle after end_time
+    ts.next_tx(admin);
     clock.set_for_testing(end_time + 1);
     sui_raffler::release_raffle(&config, &mut raffle, &random_state, &clock, ts.ctx());
     
@@ -657,8 +645,6 @@ fun test_protocol_fee_auto_collection() {
     let creator = @0xBEEF;
     let organizer = @0x1234;
     let buyer = @0xB0B;
-    let fee_collector = @0xFEE5;
-    let controller = @0x1235;
     let start_time = 0;
     let end_time = 1000;
     let ticket_price = 100;
@@ -679,7 +665,7 @@ fun test_protocol_fee_auto_collection() {
 
     // Initialize module configuration
     ts.next_tx(admin);
-    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
+    sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
 
@@ -716,17 +702,17 @@ fun test_protocol_fee_auto_collection() {
     assert!(total == 500, 1);
     assert!(fee == 25, 1); // 5% of 500 = 25
 
-    // Controller releases raffle after end_time
-    ts.next_tx(controller);
+    // Admin releases raffle after end_time
+    ts.next_tx(admin);
     clock.set_for_testing(end_time + 1);
     sui_raffler::release_raffle(&config, &mut raffle, &random_state, &clock, ts.ctx());
 
     // Verify protocol fees were automatically collected
-    ts.next_tx(fee_collector);
+    ts.next_tx(admin);
     let fee_coin: Coin<SUI> = ts.take_from_sender();
     let fee_amount = coin::value(&fee_coin);
     assert!(fee_amount == 25, 1); // 5% of 500 = 25
-    transfer::public_transfer(fee_coin, fee_collector);
+    transfer::public_transfer(fee_coin, admin);
 
     // Verify raffle state after release
     let (_, _, _, _, _, _, _, _, _, balance, sold, _, total, _, _, _, _, fee) = sui_raffler::get_raffle_info(&raffle);
@@ -747,11 +733,8 @@ fun test_protocol_fee_auto_collection() {
 #[test]
 fun test_init_for_testing() {
     let admin = @0xAD;
-    let controller = @0x1235;
-    let fee_collector = @0xFEE5;
-    let mut ts = ts::begin(@0x0);
-    ts.next_tx(admin);
-    sui_raffler::init_for_testing(admin, controller, fee_collector, ts.ctx());
+    let mut ts = ts::begin(admin);
+    sui_raffler::init_for_testing(ts.ctx());
     ts.end();
 }
 
