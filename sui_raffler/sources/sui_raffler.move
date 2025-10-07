@@ -27,6 +27,7 @@ module sui_raffler::sui_raffler {
     use sui::event;
     use std::string::{String};
     use sui::types;
+    use sui::table::{Self, Table};
 
     // OTW - One time witness
     public struct SUI_RAFFLER has drop {}
@@ -59,6 +60,7 @@ module sui_raffler::sui_raffler {
     const ENotAuthorized: u64 = 17;          // Not authorized for this operation
     const ENotMinimumTickets: u64 = 18;      // Not enough tickets sold for raffle release
     const ENotOneTimeWitness: u64 = 19;      // Not one time witness
+    const EExceedsPerUserLimit: u64 = 20;    // Exceeds per-user cumulative ticket limit
 
     /// Module configuration that holds admin, controller, fee collector, pause, and permissionless info
     public struct Config has key {
@@ -80,7 +82,7 @@ module sui_raffler::sui_raffler {
         start_time: u64,         // Unix timestamp in milliseconds when raffle starts
         end_time: u64,           // Unix timestamp in milliseconds when raffle ends
         ticket_price: u64,       // Price per ticket in SUI
-        max_tickets_per_purchase: u64,  // Maximum tickets one can buy in a single transaction
+        max_tickets_per_address: u64,  // Maximum tickets one can buy in a single transaction
         organizer: address,      // Address that created the raffle
         fee_collector: address,  // Address that receives protocol fees
         balance: Balance<SUI>,   // Current balance of the raffle
@@ -91,6 +93,7 @@ module sui_raffler::sui_raffler {
         organizer_claimed: bool,  // Whether organizer has claimed their share
         protocol_claimed: bool,   // Whether protocol fees have been claimed
         paused: bool,            // Whether this specific raffle is paused
+        purchases_by_address: Table<address, u64>, // Cumulative tickets purchased per address
     }
 
     /// A ticket object that represents a raffle ticket
@@ -251,7 +254,7 @@ module sui_raffler::sui_raffler {
         start_time: u64,
         end_time: u64,
         ticket_price: u64,
-        max_tickets_per_purchase: u64,
+        max_tickets_per_address: u64,
         organizer: address,
         ctx: &mut TxContext
     ) {
@@ -259,7 +262,7 @@ module sui_raffler::sui_raffler {
         assert!(config.permissionless || tx_context::sender(ctx) == config.admin, EPermissionDenied);
         assert!(start_time < end_time, EInvalidDates);
         assert!(ticket_price > 0, EInvalidTicketPrice);
-        assert!(max_tickets_per_purchase > 0, EInvalidMaxTickets);
+        assert!(max_tickets_per_address > 0, EInvalidMaxTickets);
         assert!(!(organizer == @0x0), EInvalidOrganizer);
         let raffle_uid = object::new(ctx);
         event::emit(RaffleCreated {
@@ -277,7 +280,7 @@ module sui_raffler::sui_raffler {
             start_time,
             end_time,
             ticket_price,
-            max_tickets_per_purchase,
+            max_tickets_per_address,
             organizer,
             fee_collector: config.fee_collector,
             balance: balance::zero(),
@@ -288,11 +291,12 @@ module sui_raffler::sui_raffler {
             organizer_claimed: false,
             protocol_claimed: false,
             paused: false,
+            purchases_by_address: table::new<address, u64>(ctx),
         });
     }
 
     /// Buy tickets for a raffle
-    /// Users can buy multiple tickets in a single transaction up to max_tickets_per_purchase
+    /// Users can buy multiple tickets in a single transaction up to max_tickets_per_address
     public fun buy_tickets(
         raffle: &mut Raffle,
         payment: Coin<SUI>,
@@ -308,7 +312,14 @@ module sui_raffler::sui_raffler {
         assert!(!raffle.paused, ERafflePaused);
         
         // Validate amount
-        assert!(amount > 0 && amount <= raffle.max_tickets_per_purchase, EInvalidTicketAmount);
+        assert!(amount > 0 && amount <= raffle.max_tickets_per_address, EInvalidTicketAmount);
+        // Enforce cumulative per-user limit across transactions
+        let buyer = tx_context::sender(ctx);
+        if (!table::contains<address, u64>(&raffle.purchases_by_address, buyer)) {
+            table::add<address, u64>(&mut raffle.purchases_by_address, buyer, 0);
+        };
+        let purchased_ref = table::borrow_mut<address, u64>(&mut raffle.purchases_by_address, buyer);
+        assert!(*purchased_ref + amount <= raffle.max_tickets_per_address, EExceedsPerUserLimit);
         
         // Calculate total cost
         let total_cost = raffle.ticket_price * amount;
@@ -324,6 +335,8 @@ module sui_raffler::sui_raffler {
         
         // Update tickets sold
         raffle.tickets_sold = end_ticket;
+        // Update buyer cumulative counter
+        *purchased_ref = *purchased_ref + amount;
 
         // Create and transfer tickets
         let mut i = 0;
@@ -517,6 +530,19 @@ module sui_raffler::sui_raffler {
 
     // === View Functions ===
 
+    /// Get per-address purchase info: (purchased_so_far, remaining_allowed)
+    public fun get_address_purchase_info(raffle: &Raffle, addr: address): (
+        u64, // purchased_so_far
+        u64  // remaining_allowed
+    ) {
+        let purchased = if (table::contains<address, u64>(&raffle.purchases_by_address, addr)) {
+            *table::borrow<address, u64>(&raffle.purchases_by_address, addr)
+        } else { 0 };
+        let max_allowed = raffle.max_tickets_per_address;
+        let remaining = if (purchased >= max_allowed) { 0 } else { max_allowed - purchased };
+        (purchased, remaining)
+    }
+
     /// Get detailed raffle information
     public fun get_raffle_info(raffle: &Raffle): (
         String, // name
@@ -525,7 +551,7 @@ module sui_raffler::sui_raffler {
         u64, // start_time
         u64, // end_time
         u64, // ticket_price
-        u64, // max_tickets_per_purchase
+        u64, // max_tickets_per_address
         address, // organizer
         address, // fee_collector
         u64, // balance
@@ -546,7 +572,7 @@ module sui_raffler::sui_raffler {
             raffle.start_time,
             raffle.end_time,
             raffle.ticket_price,
-            raffle.max_tickets_per_purchase,
+            raffle.max_tickets_per_address,
             raffle.organizer,
             raffle.fee_collector,
             balance::value(&raffle.balance),
