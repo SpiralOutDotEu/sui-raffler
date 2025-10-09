@@ -1,234 +1,20 @@
 "use client";
 
-import { useSuiClient, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import { useState, useEffect } from "react";
-import { PACKAGE_ID, MODULE, ORGANIZER_PERCENTAGE } from "../../../constants";
-import { Transaction } from "@mysten/sui/transactions";
-import { useWallet } from "../../context/WalletContext";
-import { toast } from "react-hot-toast";
+import { ORGANIZER_PERCENTAGE } from "@/lib/constants";
+import { useWallet } from "@/lib/context/WalletContext";
+import { useRaffle } from "@/lib/hooks/useRaffle";
+import { useUserTickets } from "@/lib/hooks/useUserTickets";
+import { useRaffleWinners } from "@/lib/hooks/useRaffleWinners";
+import { useTransactions } from "@/lib/hooks/useTransactions";
+import { useNotifications } from "@/lib/hooks/useNotifications";
+import { useUserPurchaseInfo } from "@/lib/hooks/useUserPurchaseInfo";
+import { useRaffleReturnState } from "@/lib/hooks/useRaffleReturnState";
+import { getRelativeTime, truncateAddress } from "@/lib/utils/formatters";
+import { validateTicketAmount } from "@/lib/utils/validators";
 import Image from "next/image";
-
-interface Raffle {
-  id: string;
-  start_time: number;
-  end_time: number;
-  ticket_price: number;
-  max_tickets_per_purchase: number;
-  organizer: string;
-  fee_collector: string;
-  admin: string;
-  controller: string;
-  balance: number;
-  tickets_sold: number;
-  is_released: boolean;
-  winners: { [key: number]: string };
-  prize_pool: number;
-  organizer_claimed: boolean;
-  protocol_claimed: boolean;
-  paused: boolean;
-  winning_tickets: number[];
-  name: string;
-  description: string;
-  image: string;
-}
-
-interface Ticket {
-  id: string;
-  ticket_number: number;
-  is_winner?: boolean;
-  prize_amount?: number;
-}
-
-interface TicketFields {
-  raffle_id: string;
-  ticket_number: string;
-}
-
-function truncateAddress(address: string): string {
-  if (!address) return "";
-  return `${address.slice(0, 6)}...${address.slice(-4)}`;
-}
-
-function useRaffle(id: string) {
-  const suiClient = useSuiClient();
-
-  return useQuery({
-    queryKey: ["raffle", id],
-    queryFn: async () => {
-      const response = await suiClient.getObject({
-        id,
-        options: {
-          showContent: true,
-        },
-      });
-
-      if (response.data?.content?.dataType === "moveObject") {
-        const fields = response.data.content.fields as unknown as Raffle;
-
-        // Get image URL from IPFS
-        let imageUrl = "";
-        try {
-          const imageResponse = await fetch(
-            `/api/v1/ipfs/retrieve?cid=${fields.image}`
-          );
-          if (imageResponse.ok) {
-            const blob = await imageResponse.blob();
-            imageUrl = URL.createObjectURL(blob);
-          }
-        } catch (error) {
-          console.error("Error fetching image URL:", error);
-        }
-
-        return {
-          ...fields,
-          id,
-          image: imageUrl,
-        };
-      }
-      throw new Error("Raffle not found");
-    },
-  });
-}
-
-function useUserTickets(raffleId: string, userAddress: string | undefined) {
-  const suiClient = useSuiClient();
-
-  return useQuery({
-    queryKey: ["tickets", raffleId, userAddress],
-    queryFn: async () => {
-      if (!userAddress) return [];
-
-      // Query for all tickets owned by the user
-      const response = await suiClient.getOwnedObjects({
-        owner: userAddress,
-        filter: {
-          MatchAll: [
-            {
-              StructType: `${PACKAGE_ID}::${MODULE}::Ticket`,
-            },
-          ],
-        },
-        options: {
-          showContent: true,
-        },
-      });
-
-      // Filter tickets for this raffle and get their info
-      const tickets: Ticket[] = [];
-      for (const obj of response.data) {
-        if (obj.data?.content?.dataType === "moveObject") {
-          const fields = obj.data.content.fields as unknown as TicketFields;
-          if (fields.raffle_id === raffleId) {
-            tickets.push({
-              id: obj.data.objectId,
-              ticket_number: Number(fields.ticket_number),
-            });
-          }
-        }
-      }
-
-      // If raffle is released, check which tickets are winners
-      const raffleResponse = await suiClient.getObject({
-        id: raffleId,
-        options: {
-          showContent: true,
-        },
-      });
-
-      if (raffleResponse.data?.content?.dataType === "moveObject") {
-        const raffleFields = raffleResponse.data.content
-          .fields as unknown as Raffle;
-        if (raffleFields.is_released) {
-          const totalBalance = Number(raffleFields.balance);
-          for (const ticket of tickets) {
-            if (
-              raffleFields.winners &&
-              raffleFields.winners[ticket.ticket_number]
-            ) {
-              ticket.is_winner = true;
-              // Calculate prize amount based on position
-              const winnerKeys = Object.keys(raffleFields.winners);
-              if (ticket.ticket_number === Number(winnerKeys[0])) {
-                ticket.prize_amount = (totalBalance * 50) / 100; // First prize: 50%
-              } else if (ticket.ticket_number === Number(winnerKeys[1])) {
-                ticket.prize_amount = (totalBalance * 25) / 100; // Second prize: 25%
-              } else {
-                ticket.prize_amount = (totalBalance * 10) / 100; // Third prize: 10%
-              }
-            }
-          }
-        }
-      }
-
-      return tickets;
-    },
-    enabled: !!userAddress,
-  });
-}
-
-function useRaffleWinners(raffleId: string) {
-  const suiClient = useSuiClient();
-
-  return useQuery({
-    queryKey: ["winners", raffleId],
-    queryFn: async () => {
-      try {
-        const response = await suiClient.getObject({
-          id: raffleId,
-          options: {
-            showContent: true,
-          },
-        });
-
-        if (response.data?.content?.dataType === "moveObject") {
-          const fields = response.data.content.fields as unknown as Raffle;
-          if (fields.is_released) {
-            return {
-              hasWinners: true,
-              winningTicketNumbers: fields.winning_tickets,
-            };
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching winners:", error);
-      }
-
-      return {
-        hasWinners: false,
-        winningTicketNumbers: [],
-      };
-    },
-    enabled: !!raffleId,
-  });
-}
-
-// Add a helper function for relative time
-function getRelativeTime(target: number) {
-  const now = Date.now();
-  const diff = target - now;
-  const absDiff = Math.abs(diff);
-  const isFuture = diff > 0;
-
-  const units = [
-    { label: "year", ms: 1000 * 60 * 60 * 24 * 365 },
-    { label: "month", ms: 1000 * 60 * 60 * 24 * 30 },
-    { label: "day", ms: 1000 * 60 * 60 * 24 },
-    { label: "hour", ms: 1000 * 60 * 60 },
-    { label: "minute", ms: 1000 * 60 },
-    { label: "second", ms: 1000 },
-  ];
-  for (const unit of units) {
-    const value = Math.floor(absDiff / unit.ms);
-    if (value > 0) {
-      return isFuture
-        ? `in ${value} ${unit.label}${value > 1 ? "s" : ""}`
-        : `${value} ${unit.label}${value > 1 ? "s" : ""} ago`;
-    }
-  }
-  return isFuture ? "in a moment" : "just now";
-}
 
 // Add this helper function near the other helper functions
 function calculateQuickTicketOptions(maxTickets: number) {
@@ -254,14 +40,36 @@ export default function RaffleDetail() {
   const { id } = useParams();
   const { data: raffle, isLoading, error } = useRaffle(id as string);
   const { data: winners } = useRaffleWinners(id as string);
+  const { data: userPurchaseInfo, isLoading: purchaseInfoLoading } =
+    useUserPurchaseInfo(id as string);
+  const { data: isInReturnState } = useRaffleReturnState(id as string);
+
+  // Fallback check for return state based on raffle data
+  const isInReturnStateFallback =
+    raffle &&
+    Date.now() > Number(raffle.end_time) &&
+    !raffle.is_released &&
+    raffle.tickets_sold < 3;
   const [ticketAmount, setTicketAmount] = useState<number>(1);
+
+  // Update ticket amount if it exceeds remaining allowance
+  useEffect(() => {
+    if (userPurchaseInfo && ticketAmount > userPurchaseInfo.remaining_allowed) {
+      setTicketAmount(Math.max(1, userPurchaseInfo.remaining_allowed));
+    }
+  }, [userPurchaseInfo, ticketAmount]);
   const [isPurchasing, setIsPurchasing] = useState(false);
+  const [isReleasing, setIsReleasing] = useState(false);
+  const [isClaimingOrganizerShare, setIsClaimingOrganizerShare] =
+    useState(false);
+  const [organizerClaimed, setOrganizerClaimed] = useState(false);
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
   const [transactionDigest, setTransactionDigest] = useState<string | null>(
     null
   );
   const { address: currentAccount, isConnected } = useWallet();
-  const { mutateAsync: signAndExecute } = useSignAndExecuteTransaction();
+  const transactions = useTransactions();
+  const { handleError, handleSuccess } = useNotifications();
   const queryClient = useQueryClient();
   const { data: userTickets = [], isLoading: isLoadingTickets } =
     useUserTickets(id as string, currentAccount);
@@ -295,75 +103,92 @@ export default function RaffleDetail() {
     }
   }, [raffle]);
 
-  // Add console logs for debugging
-  console.log("Raffle:", raffle);
-  console.log("Winners:", winners);
-
   // Add this inside the component, before the return statement
-  const quickTicketOptions = raffle
-    ? calculateQuickTicketOptions(raffle.max_tickets_per_purchase)
-    : [1];
+  const quickTicketOptions =
+    raffle && userPurchaseInfo
+      ? calculateQuickTicketOptions(
+          Math.min(
+            raffle.max_tickets_per_address,
+            userPurchaseInfo.remaining_allowed
+          )
+        )
+      : [1];
 
   const handleBuyTickets = async () => {
     if (!isConnected || !currentAccount || !raffle) return;
+
+    // Validate ticket amount
+    const validationError = validateTicketAmount(
+      ticketAmount,
+      raffle.max_tickets_per_address,
+      userPurchaseInfo?.purchased_so_far || 0
+    );
+    if (validationError) {
+      setPurchaseError(validationError);
+      return;
+    }
 
     setIsPurchasing(true);
     setPurchaseError(null);
     setTransactionDigest(null);
 
     try {
-      const tx = new Transaction();
+      const result = await transactions.buyTickets(
+        raffle.id,
+        ticketAmount,
+        raffle.ticket_price
+      );
 
-      // Calculate total cost in MIST (1 SUI = 1e9 MIST)
-      const totalCost = BigInt(raffle.ticket_price) * BigInt(ticketAmount);
-
-      // Split a coin with the exact amount needed
-      const [payment] = tx.splitCoins(tx.gas, [tx.pure.u64(totalCost)]);
-
-      // Add the buy_tickets call with all required arguments
-      tx.moveCall({
-        target: `${PACKAGE_ID}::${MODULE}::buy_tickets`,
-        arguments: [
-          tx.object(raffle.id),
-          payment, // Use the split coin as payment
-          tx.pure.u64(ticketAmount),
-          tx.object("0x6"), // Clock object ID
-        ],
-      });
-
-      // Execute the transaction
-      const result = await signAndExecute({
-        transaction: tx,
-      });
-
-      // Store the transaction digest for the success message
+      console.log("Buy tickets result:", result);
       setTransactionDigest(result.digest);
+      handleSuccess("Tickets purchased successfully!");
 
-      // Refresh raffle data
+      // Refresh all affected data after buying tickets
+      // Add a small delay to ensure blockchain has processed the transaction
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Invalidate raffle data
       await queryClient.invalidateQueries({ queryKey: ["raffle", id] });
-      // Refresh user tickets data
+
+      // Invalidate user-specific data
       await queryClient.invalidateQueries({
         queryKey: ["tickets", id, currentAccount],
       });
-      // Refresh winners data
+      await queryClient.invalidateQueries({
+        queryKey: ["userPurchaseInfo", id, currentAccount],
+      });
+
+      // Invalidate raffle state data
+      await queryClient.invalidateQueries({
+        queryKey: ["raffleReturnState", id],
+      });
+
+      // Invalidate winners (though they shouldn't change)
       await queryClient.invalidateQueries({ queryKey: ["winners", id] });
+
+      // Invalidate any raffle lists that might include this raffle
+      await queryClient.invalidateQueries({ queryKey: ["raffles"] });
+
+      // Force refetch of critical data
+      await queryClient.refetchQueries({ queryKey: ["raffle", id] });
+      await queryClient.refetchQueries({
+        queryKey: ["tickets", id, currentAccount],
+      });
+      await queryClient.refetchQueries({
+        queryKey: ["userPurchaseInfo", id, currentAccount],
+      });
     } catch (err) {
-      let errorMessage = "Failed to purchase tickets";
-
-      if (err instanceof Error) {
-        // Handle specific error cases
-        if (err.message.includes("insufficient funds")) {
-          errorMessage = "Insufficient funds to purchase tickets";
-        } else if (err.message.includes("raffle is not active")) {
-          errorMessage = "This raffle is not active";
-        } else if (err.message.includes("invalid ticket amount")) {
-          errorMessage = "Invalid number of tickets requested";
-        } else {
-          errorMessage = err.message;
-        }
+      // Don't log user cancellations as errors - they're expected behavior
+      if (
+        err &&
+        typeof err === "object" &&
+        "code" in err &&
+        err.code !== "USER_REJECTED"
+      ) {
+        console.error("Error buying tickets:", err);
       }
-
-      setPurchaseError(errorMessage);
+      handleError(err);
+      setPurchaseError("Failed to buy tickets. Please try again.");
     } finally {
       setIsPurchasing(false);
     }
@@ -377,28 +202,43 @@ export default function RaffleDetail() {
     setTransactionDigest(null);
 
     try {
-      const tx = new Transaction();
-      tx.moveCall({
-        target: `${PACKAGE_ID}::${MODULE}::claim_prize`,
-        arguments: [tx.object(raffle.id), tx.object(ticketId)],
-      });
-
-      const result = await signAndExecute({
-        transaction: tx,
-      });
+      const result = await transactions.claimPrize(raffle.id, ticketId);
 
       setTransactionDigest(result.digest);
+      handleSuccess("Prize claimed successfully!");
+
+      // Refresh all affected data after claiming prize
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      await queryClient.invalidateQueries({ queryKey: ["raffle", id] });
       await queryClient.invalidateQueries({
         queryKey: ["tickets", id, currentAccount],
       });
-      await queryClient.invalidateQueries({ queryKey: ["raffle", id] });
+      await queryClient.invalidateQueries({
+        queryKey: ["userPurchaseInfo", id, currentAccount],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["raffleReturnState", id],
+      });
       await queryClient.invalidateQueries({ queryKey: ["winners", id] });
+
+      // Force refetch of critical data
+      await queryClient.refetchQueries({ queryKey: ["raffle", id] });
+      await queryClient.refetchQueries({
+        queryKey: ["tickets", id, currentAccount],
+      });
     } catch (err) {
-      let errorMessage = "Failed to claim prize";
-      if (err instanceof Error) {
-        errorMessage = err.message;
+      // Don't log user cancellations as errors - they're expected behavior
+      if (
+        err &&
+        typeof err === "object" &&
+        "code" in err &&
+        err.code !== "USER_REJECTED"
+      ) {
+        console.error("Error claiming prize:", err);
       }
-      setPurchaseError(errorMessage);
+      handleError(err);
+      setPurchaseError("Failed to claim prize. Please try again.");
     } finally {
       setIsPurchasing(false);
     }
@@ -407,58 +247,95 @@ export default function RaffleDetail() {
   const handleClaimOrganizerShare = async () => {
     if (!isConnected || !currentAccount || !raffle) return;
 
+    setIsClaimingOrganizerShare(true);
+    setPurchaseError(null);
+    setTransactionDigest(null);
+
+    try {
+      const result = await transactions.claimOrganizerShare(raffle.id);
+
+      setTransactionDigest(result.digest);
+      setOrganizerClaimed(true);
+      handleSuccess("Successfully claimed organizer share!");
+
+      // Refresh all affected data after claiming organizer share
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      await queryClient.invalidateQueries({ queryKey: ["raffle", id] });
+      await queryClient.invalidateQueries({
+        queryKey: ["userPurchaseInfo", id, currentAccount],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["raffleReturnState", id],
+      });
+      await queryClient.invalidateQueries({ queryKey: ["winners", id] });
+
+      // Force refetch of raffle data
+      await queryClient.refetchQueries({ queryKey: ["raffle", id] });
+    } catch (err) {
+      // Don't log user cancellations as errors - they're expected behavior
+      if (
+        err &&
+        typeof err === "object" &&
+        "code" in err &&
+        err.code !== "USER_REJECTED"
+      ) {
+        console.error("Error claiming organizer share:", err);
+      }
+      handleError(err);
+      setPurchaseError("Failed to claim organizer share. Please try again.");
+    } finally {
+      setIsClaimingOrganizerShare(false);
+    }
+  };
+
+  const handleReturnTicket = async (ticketId: string) => {
+    if (!isConnected || !currentAccount || !raffle) return;
+
     setIsPurchasing(true);
     setPurchaseError(null);
     setTransactionDigest(null);
 
     try {
-      const tx = new Transaction();
-      tx.moveCall({
-        target: `${PACKAGE_ID}::${MODULE}::claim_organizer_share`,
-        arguments: [tx.object(raffle.id)],
-      });
-
-      const result = await signAndExecute({
-        transaction: tx,
-      });
+      const result = await transactions.returnTicket(raffle.id, ticketId);
 
       setTransactionDigest(result.digest);
+      handleSuccess("Ticket returned successfully! You received a refund.");
+
+      // Refresh raffle data and user tickets
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
       await queryClient.invalidateQueries({ queryKey: ["raffle", id] });
+      await queryClient.invalidateQueries({
+        queryKey: ["tickets", id, currentAccount],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["userPurchaseInfo", id, currentAccount],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["raffleReturnState", id],
+      });
 
-      // Show success toast
-      const toast = document.createElement("div");
-      toast.className =
-        "fixed bottom-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2";
-      toast.innerHTML = `
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-        </svg>
-        <span>Successfully claimed organizer share!</span>
-        <a href="https://suiexplorer.com/txblock/${result.digest}?network=testnet" target="_blank" rel="noopener noreferrer" class="underline hover:text-green-100">
-          View on Explorer
-        </a>
-      `;
-      document.body.appendChild(toast);
-      setTimeout(() => toast.remove(), 5000);
+      // Force refetch of critical data
+      await queryClient.refetchQueries({ queryKey: ["raffle", id] });
+      await queryClient.refetchQueries({
+        queryKey: ["tickets", id, currentAccount],
+      });
+      await queryClient.refetchQueries({
+        queryKey: ["userPurchaseInfo", id, currentAccount],
+      });
     } catch (err) {
-      let errorMessage = "Failed to claim organizer share";
-      if (err instanceof Error) {
-        errorMessage = err.message;
+      // Don't log user cancellations as errors - they're expected behavior
+      if (
+        err &&
+        typeof err === "object" &&
+        "code" in err &&
+        err.code !== "USER_REJECTED"
+      ) {
+        console.error("Error returning ticket:", err);
       }
-      setPurchaseError(errorMessage);
-
-      // Show error toast
-      const toast = document.createElement("div");
-      toast.className =
-        "fixed bottom-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2";
-      toast.innerHTML = `
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-        </svg>
-        <span>${errorMessage}</span>
-      `;
-      document.body.appendChild(toast);
-      setTimeout(() => toast.remove(), 5000);
+      handleError(err);
+      setPurchaseError("Failed to return ticket. Please try again.");
     } finally {
       setIsPurchasing(false);
     }
@@ -466,6 +343,10 @@ export default function RaffleDetail() {
 
   const handleReleaseRaffle = async () => {
     if (!raffle) return;
+
+    setIsReleasing(true);
+    setPurchaseError(null);
+    setTransactionDigest(null);
 
     try {
       const response = await fetch(`/api/v1/release/${raffle.id}`, {
@@ -477,31 +358,26 @@ export default function RaffleDetail() {
         const errorMessage =
           data.details || data.error || "Failed to release raffle";
         console.error("Release raffle error:", errorMessage);
-        toast.error(errorMessage);
+        handleError(new Error(errorMessage));
         return;
       }
 
-      toast.success(
-        <div>
-          <p>Raffle released successfully!</p>
-          <a
-            href={`https://suiexplorer.com/txblock/${data.digest}?network=testnet`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-500 hover:text-blue-700 underline"
-          >
-            View transaction
-          </a>
-        </div>
+      setTransactionDigest(data.digest);
+      handleSuccess(
+        `Raffle released successfully! View transaction: https://suiexplorer.com/txblock/${data.digest}?network=testnet`
       );
 
       // Refresh the page to show updated status
       window.location.reload();
     } catch (error) {
       console.error("Failed to release raffle:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to release raffle"
+      handleError(
+        `Failed to release raffle: ${
+          error instanceof Error ? error.message : String(error)
+        }`
       );
+    } finally {
+      setIsReleasing(false);
     }
   };
 
@@ -570,13 +446,14 @@ export default function RaffleDetail() {
                   <div className="flex items-center gap-4">
                     {raffle.is_released &&
                       !raffle.organizer_claimed &&
+                      !organizerClaimed &&
                       currentAccount === raffle.organizer && (
                         <button
                           onClick={handleClaimOrganizerShare}
-                          disabled={isPurchasing}
+                          disabled={isClaimingOrganizerShare}
                           className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg font-medium hover:from-green-600 hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          {isPurchasing ? (
+                          {isClaimingOrganizerShare ? (
                             <span className="flex items-center">
                               <svg
                                 className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
@@ -614,6 +491,10 @@ export default function RaffleDetail() {
                         <span className="px-4 py-2 rounded-full font-semibold shadow-sm bg-red-100 text-red-700">
                           Ended
                         </span>
+                      ) : isInReturnState || isInReturnStateFallback ? (
+                        <span className="px-4 py-2 rounded-full font-semibold shadow-sm bg-orange-100 text-orange-700">
+                          Return State
+                        </span>
                       ) : (
                         <>
                           <span className="px-4 py-2 rounded-full font-semibold shadow-sm bg-green-100 text-green-700">
@@ -624,9 +505,36 @@ export default function RaffleDetail() {
                             raffle.tickets_sold >= 3 && (
                               <button
                                 onClick={handleReleaseRaffle}
-                                className="px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-lg font-medium hover:from-purple-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-all"
+                                disabled={isReleasing}
+                                className="px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-lg font-medium hover:from-purple-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                               >
-                                Release Raffle
+                                {isReleasing ? (
+                                  <span className="flex items-center">
+                                    <svg
+                                      className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                                      xmlns="http://www.w3.org/2000/svg"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <circle
+                                        className="opacity-25"
+                                        cx="12"
+                                        cy="12"
+                                        r="10"
+                                        stroke="currentColor"
+                                        strokeWidth="4"
+                                      ></circle>
+                                      <path
+                                        className="opacity-75"
+                                        fill="currentColor"
+                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                      ></path>
+                                    </svg>
+                                    Wait... Releasing...
+                                  </span>
+                                ) : (
+                                  "Release Raffle"
+                                )}
                               </button>
                             )}
                         </>
@@ -663,10 +571,14 @@ export default function RaffleDetail() {
                   </div>
                   <div className="mt-4 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg p-4">
                     <p className="text-purple-600 text-sm font-medium">
-                      Time Remaining
+                      {Number(raffle.end_time) <= Date.now()
+                        ? "Status"
+                        : "Time Remaining"}
                     </p>
                     <p className="text-2xl font-bold text-purple-900">
-                      {getRelativeTime(Number(raffle.end_time))}
+                      {Number(raffle.end_time) <= Date.now()
+                        ? `Ended ${getRelativeTime(Number(raffle.end_time))}`
+                        : getRelativeTime(Number(raffle.end_time))}
                     </p>
                   </div>
                 </div>
@@ -786,7 +698,26 @@ export default function RaffleDetail() {
                   </div>
                   {/* Main content */}
                   <div className="relative z-10">
-                    {raffle.is_released ? (
+                    {isInReturnState || isInReturnStateFallback ? (
+                      <>
+                        <div className="text-lg font-semibold text-gray-900 mb-1">
+                          Raffle in Return State
+                        </div>
+                        <div className="text-2xl font-bold text-orange-700 mb-2">
+                          Not enough tickets sold
+                        </div>
+                        <div className="text-base text-gray-700 mb-2">
+                          This raffle ended with only{" "}
+                          <span className="font-semibold">
+                            {raffle.tickets_sold} tickets
+                          </span>{" "}
+                          sold (minimum 3 required)
+                        </div>
+                        <div className="text-sm text-orange-700 mt-2 italic font-medium">
+                          💰 You can return your tickets to get a full refund!
+                        </div>
+                      </>
+                    ) : raffle.is_released ? (
                       <>
                         <div className="text-lg font-semibold text-gray-900 mb-1">
                           Winner took home
@@ -1039,10 +970,10 @@ export default function RaffleDetail() {
                 </div>
                 <div className="bg-purple-50 rounded-xl p-4">
                   <p className="text-purple-600 text-sm font-medium">
-                    Max Per Purchase
+                    Max Per Address
                   </p>
                   <p className="text-2xl font-bold text-purple-900">
-                    {raffle.max_tickets_per_purchase}
+                    {raffle.max_tickets_per_address}
                   </p>
                 </div>
                 <div className="bg-indigo-50 rounded-xl p-4">
@@ -1080,7 +1011,7 @@ export default function RaffleDetail() {
                     );
                     const winnerIndex = isWinner
                       ? winningTicketStrings.findIndex(
-                          (n) => String(ticket.ticket_number) === n
+                          (n: string) => String(ticket.ticket_number) === n
                         )
                       : -1;
                     const prizeAmount = isWinner
@@ -1128,6 +1059,28 @@ export default function RaffleDetail() {
                             </button>
                           </div>
                         )}
+                        {(isInReturnState || isInReturnStateFallback) &&
+                          !isWinner && (
+                            <div className="space-y-3">
+                              <div className="bg-orange-50 rounded-lg p-3 border border-orange-200">
+                                <p className="text-xs text-orange-600 font-medium">
+                                  Refund Amount
+                                </p>
+                                <p className="text-lg font-bold text-orange-800">
+                                  {raffle.ticket_price / 1e9} SUI
+                                </p>
+                              </div>
+                              <button
+                                onClick={() => handleReturnTicket(ticket.id)}
+                                disabled={isPurchasing}
+                                className="w-full px-4 py-2 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-lg font-medium hover:from-orange-600 hover:to-red-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {isPurchasing
+                                  ? "Returning..."
+                                  : "Return Ticket"}
+                              </button>
+                            </div>
+                          )}
                       </div>
                     );
                   })}
@@ -1176,6 +1129,27 @@ export default function RaffleDetail() {
                     </a>
                   </div>
                 </div>
+              ) : isInReturnState || isInReturnStateFallback ? (
+                <div className="text-center py-12">
+                  <div className="bg-orange-50 rounded-xl p-8 max-w-md mx-auto border border-orange-200">
+                    <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <span className="text-2xl">💰</span>
+                    </div>
+                    <p className="text-orange-700 text-lg font-medium mb-2">
+                      This raffle is in return state
+                    </p>
+                    <p className="text-orange-600 text-sm mb-4">
+                      Not enough tickets were sold (minimum 3 required). You can
+                      return your tickets to get a full refund.
+                    </p>
+                    <a
+                      href="/explore"
+                      className="mt-4 inline-block px-6 py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+                    >
+                      Explore Other Raffles
+                    </a>
+                  </div>
+                </div>
               ) : (
                 <form
                   onSubmit={(e) => {
@@ -1195,9 +1169,26 @@ export default function RaffleDetail() {
                       type="number"
                       id="ticketAmount"
                       min="1"
-                      max={raffle.max_tickets_per_purchase}
+                      max={
+                        userPurchaseInfo
+                          ? Math.min(
+                              raffle.max_tickets_per_address,
+                              userPurchaseInfo.remaining_allowed
+                            )
+                          : raffle.max_tickets_per_address
+                      }
                       value={ticketAmount}
-                      onChange={(e) => setTicketAmount(Number(e.target.value))}
+                      onChange={(e) => {
+                        const value = Number(e.target.value);
+                        if (
+                          userPurchaseInfo &&
+                          value > userPurchaseInfo.remaining_allowed
+                        ) {
+                          setTicketAmount(userPurchaseInfo.remaining_allowed);
+                        } else {
+                          setTicketAmount(value);
+                        }
+                      }}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-lg bg-gray-50"
                     />
                     <div className="mt-3">
@@ -1205,22 +1196,69 @@ export default function RaffleDetail() {
                         Quick select:
                       </label>
                       <div className="grid grid-cols-4 gap-2">
-                        {quickTicketOptions.map((amount) => (
-                          <button
-                            key={amount}
-                            type="button"
-                            onClick={() => setTicketAmount(amount)}
-                            className={`w-full px-4 py-1.5 text-sm rounded-full transition-colors ${
-                              ticketAmount === amount
-                                ? "bg-indigo-100 text-indigo-700 font-medium"
-                                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                            }`}
-                          >
-                            {amount}
-                          </button>
-                        ))}
+                        {quickTicketOptions.map((amount) => {
+                          const isDisabled =
+                            userPurchaseInfo &&
+                            amount > userPurchaseInfo.remaining_allowed;
+                          return (
+                            <button
+                              key={amount}
+                              type="button"
+                              disabled={isDisabled}
+                              onClick={() =>
+                                !isDisabled && setTicketAmount(amount)
+                              }
+                              className={`w-full px-4 py-1.5 text-sm rounded-full transition-colors ${
+                                isDisabled
+                                  ? "bg-gray-50 text-gray-400 cursor-not-allowed"
+                                  : ticketAmount === amount
+                                  ? "bg-indigo-100 text-indigo-700 font-medium"
+                                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                              }`}
+                            >
+                              {amount}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
+
+                    {/* User Purchase Info */}
+                    {purchaseInfoLoading ? (
+                      <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                        <div className="flex items-center justify-center">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                          <span className="text-gray-600 text-sm">
+                            Loading your ticket limit...
+                          </span>
+                        </div>
+                      </div>
+                    ) : userPurchaseInfo ? (
+                      <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-blue-700 font-medium">
+                            Your Limit: {userPurchaseInfo.purchased_so_far}/
+                            {raffle.max_tickets_per_address} tickets
+                          </span>
+                          <span className="text-blue-600">
+                            {userPurchaseInfo.remaining_allowed} more allowed
+                          </span>
+                        </div>
+                        {userPurchaseInfo.remaining_allowed === 0 && (
+                          <p className="text-red-600 text-xs mt-2 font-medium">
+                            🚫 You have reached your personal ticket limit for
+                            this raffle
+                          </p>
+                        )}
+                        {userPurchaseInfo.remaining_allowed > 0 &&
+                          userPurchaseInfo.remaining_allowed < 5 && (
+                            <p className="text-orange-600 text-xs mt-2 font-medium">
+                              ⚠️ Only {userPurchaseInfo.remaining_allowed} more
+                              tickets allowed in your limit
+                            </p>
+                          )}
+                      </div>
+                    ) : null}
                   </div>
                   <div className="space-y-4">
                     <div className="flex justify-between items-center bg-gray-50 rounded-lg p-4">

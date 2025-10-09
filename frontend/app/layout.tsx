@@ -1,7 +1,7 @@
 import "@mysten/dapp-kit/dist/index.css";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import Providers from "@/app/components/Providers";
+import Providers from "@/components/Providers";
 import type { Metadata } from "next";
 import { Toaster } from "react-hot-toast";
 
@@ -282,7 +282,16 @@ export default function RootLayout({
           {/* Adjust pt-6 if banner height changes */}
           <Providers>{children}</Providers>
         </div>
-        <Toaster position="bottom-right" />
+        <Toaster
+          position="top-center"
+          gutter={20}
+          toastOptions={{
+            duration: 10000,
+            style: {
+              zIndex: 9999,
+            },
+          }}
+        />
       </body>
     </html>
   );

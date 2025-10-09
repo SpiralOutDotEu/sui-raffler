@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PinataService } from '@/app/services/pinata';
+import { PinataService } from '@/lib/services/pinata';
 
 export async function POST(request: NextRequest) {
     try {

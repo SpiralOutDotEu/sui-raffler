@@ -210,14 +210,14 @@ export default function Header() {
                     Winners can claim their prizes directly through smart
                     contracts. The prize distribution is automatic and
                     transparent:
-                    <ul className="list-disc list-inside mt-2 space-y-1 text-sm">
-                      <li>1st Place: 50% of the prize pool</li>
-                      <li>2nd Place: 25% of the prize pool</li>
-                      <li>3rd Place: 10% of the prize pool</li>
-                      <li>Organizer: 10% of the prize pool</li>
-                      <li>Protocol Fee: 5% of the prize pool</li>
-                    </ul>
                   </p>
+                  <ul className="list-disc list-inside mt-2 space-y-1 text-sm text-gray-600">
+                    <li>1st Place: 50% of the prize pool</li>
+                    <li>2nd Place: 25% of the prize pool</li>
+                    <li>3rd Place: 10% of the prize pool</li>
+                    <li>Organizer: 10% of the prize pool</li>
+                    <li>Protocol Fee: 5% of the prize pool</li>
+                  </ul>
                 </div>
               </div>
             </div>
