@@ -4,7 +4,7 @@ import { useSuiClient } from "@mysten/dapp-kit";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState, useMemo } from "react";
-import { PACKAGE_ID, MODULE } from "../../constants";
+import { PACKAGE_ID, MODULE } from "@/lib/constants";
 import Image from "next/image";
 
 interface RaffleEvent {
@@ -410,9 +410,13 @@ export default function Explore() {
                           </p>
                         </div>
                         <div className="bg-gray-50 rounded-xl p-4">
-                          <p className="text-sm text-gray-600">Time Left</p>
+                          <p className="text-sm text-gray-600">
+                            {raffle.end_time <= now ? "Ended" : "Time Left"}
+                          </p>
                           <p className="text-lg font-semibold text-gray-900">
-                            {getRelativeTime(raffle.end_time)}
+                            {raffle.end_time <= now
+                              ? `Ended ${getRelativeTime(raffle.end_time)}`
+                              : getRelativeTime(raffle.end_time)}
                           </p>
                         </div>
                       </div>

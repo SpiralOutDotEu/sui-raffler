@@ -3,9 +3,9 @@
 import { useSuiClient, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
-import { PACKAGE_ID, MODULE, CONFIG_OBJECT_ID } from "../../constants";
+import { PACKAGE_ID, MODULE, CONFIG_OBJECT_ID } from "@/lib/constants";
 import { Transaction } from "@mysten/sui/transactions";
-import { useWallet } from "../context/WalletContext";
+import { useWallet } from "@/lib/context/WalletContext";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
@@ -328,7 +328,7 @@ export default function CreateRaffle() {
     startTime: "",
     endTime: "",
     ticketPrice: "",
-    maxTicketsPerPurchase: "",
+    maxTicketsPerAddress: "",
   });
 
   // Debounced price update handler
@@ -411,7 +411,7 @@ export default function CreateRaffle() {
       const startTime = isoStringToBlockchainTime(formData.startTime);
       const endTime = isoStringToBlockchainTime(formData.endTime);
       const ticketPrice = Math.floor(Number(formData.ticketPrice) * 1e9); // Convert SUI to MIST
-      const maxTicketsPerPurchase = Number(formData.maxTicketsPerPurchase);
+      const maxTicketsPerAddress = Number(formData.maxTicketsPerAddress);
 
       // Validate times
       const error = validateEndTime(startTime, endTime, currentBlockchainTime);
@@ -437,7 +437,7 @@ export default function CreateRaffle() {
           tx.pure.u64(startTime),
           tx.pure.u64(endTime),
           tx.pure.u64(ticketPrice),
-          tx.pure.u64(maxTicketsPerPurchase),
+          tx.pure.u64(maxTicketsPerAddress),
           tx.pure.address(currentAccount),
         ],
       });
@@ -803,22 +803,22 @@ export default function CreateRaffle() {
                 </div>
                 <div className="bg-indigo-50 rounded-xl p-6">
                   <label
-                    htmlFor="maxTicketsPerPurchase"
+                    htmlFor="maxTicketsPerAddress"
                     className="block text-indigo-600 text-sm font-medium mb-2"
                   >
-                    Max Tickets Per Purchase
+                    Max Tickets Per Address
                   </label>
                   <input
                     type="number"
-                    id="maxTicketsPerPurchase"
+                    id="maxTicketsPerAddress"
                     required
                     min="1"
                     max="50"
-                    value={formData.maxTicketsPerPurchase}
+                    value={formData.maxTicketsPerAddress}
                     onChange={(e) =>
                       setFormData({
                         ...formData,
-                        maxTicketsPerPurchase: e.target.value,
+                        maxTicketsPerAddress: e.target.value,
                       })
                     }
                     className="w-full px-4 py-3 border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-lg bg-white"
@@ -834,7 +834,7 @@ export default function CreateRaffle() {
                         onClick={() =>
                           setFormData({
                             ...formData,
-                            maxTicketsPerPurchase: option.value,
+                            maxTicketsPerAddress: option.value,
                           })
                         }
                         className="px-3 py-1 text-sm bg-indigo-100 text-indigo-700 rounded-full hover:bg-indigo-200 transition-colors"

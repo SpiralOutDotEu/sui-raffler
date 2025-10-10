@@ -10,7 +10,7 @@ import {
   RANDOM_OBJECT_ID,
   CLOCK_OBJECT_ID,
   CONFIG_OBJECT_ID,
-} from "../../constants";
+} from "@/lib/constants";
 import { Transaction } from "@mysten/sui/transactions";
 
 interface RaffleEvent {

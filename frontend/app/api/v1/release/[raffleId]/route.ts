@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
-import { PACKAGE_ID, CONFIG_OBJECT_ID, RANDOM_OBJECT_ID } from '@/constants';
+import { PACKAGE_ID, CONFIG_OBJECT_ID, RANDOM_OBJECT_ID } from '@/lib/constants';
 
 interface RaffleFields {
     is_released: boolean;
