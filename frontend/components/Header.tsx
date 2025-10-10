@@ -4,10 +4,12 @@ import { useState } from "react";
 import Link from "next/link";
 import { ConnectButton } from "@mysten/dapp-kit";
 import Image from "next/image";
+import { useAdminPermissions } from "@/lib/hooks/useAdminPermissions";
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isHowItWorksOpen, setIsHowItWorksOpen] = useState(false);
+  const { isAdminOrController } = useAdminPermissions();
 
   return (
     <>
@@ -53,6 +55,14 @@ export default function Header() {
               >
                 Create
               </Link>
+              {isAdminOrController && (
+                <Link
+                  href="/admin"
+                  className="text-gray-600 hover:text-indigo-600 transition-colors font-semibold"
+                >
+                  Admin
+                </Link>
+              )}
               <ConnectButton />
             </nav>
 
@@ -112,6 +122,15 @@ export default function Header() {
               >
                 Create
               </Link>
+              {isAdminOrController && (
+                <Link
+                  href="/admin"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="block px-3 py-2 text-gray-600 hover:text-indigo-600 hover:bg-gray-50 rounded-md font-semibold"
+                >
+                  Admin
+                </Link>
+              )}
             </div>
           </div>
         )}

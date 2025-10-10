@@ -448,9 +448,37 @@ export default function CreateRaffle() {
 
       setTransactionDigest(result.digest);
 
-      // Wait a bit for the transaction to be processed
+      // Extract raffle ID from the RaffleCreated event by fetching transaction details
+      let raffleId: string | null = null;
+      try {
+        const txDetails = await suiClient.getTransactionBlock({
+          digest: result.digest,
+          options: {
+            showEvents: true,
+          },
+        });
+
+        if (txDetails.events) {
+          const raffleCreatedEvent = txDetails.events.find(
+            (event) => event.type === `${PACKAGE_ID}::${MODULE}::RaffleCreated`
+          );
+          if (raffleCreatedEvent && raffleCreatedEvent.parsedJson) {
+            raffleId = (raffleCreatedEvent.parsedJson as { raffle_id: string })
+              .raffle_id;
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch transaction details:", error);
+      }
+
+      // Wait a bit for the transaction to be processed, then redirect
       setTimeout(() => {
-        router.push("/explore");
+        if (raffleId) {
+          router.push(`/raffle/${raffleId}`);
+        } else {
+          // Fallback to explore page if we couldn't extract the raffle ID
+          router.push("/explore");
+        }
       }, 2000);
     } catch (err) {
       let errorMessage = "Failed to create raffle";
@@ -1012,7 +1040,7 @@ export default function CreateRaffle() {
                   🎉 Raffle created successfully!
                 </p>
                 <p className="text-green-600 mb-2">
-                  Redirecting to explore page...
+                  Redirecting to your raffle page...
                 </p>
                 <a
                   href={`https://suiexplorer.com/txblock/${transactionDigest}?network=testnet`}
