@@ -298,6 +298,7 @@ module sui_raffler::sui_raffler {
     /// Buy tickets for a raffle
     /// Users can buy multiple tickets in a single transaction up to max_tickets_per_address
     public fun buy_tickets(
+        config: &Config,
         raffle: &mut Raffle,
         payment: Coin<SUI>,
         amount: u64,
@@ -308,6 +309,8 @@ module sui_raffler::sui_raffler {
         
         // Check if raffle is active
         assert!(current_time >= raffle.start_time && current_time <= raffle.end_time, ERaffleNotActive);
+        // Check if contract is paused
+        assert!(!config.paused, EPaused);
         // Check if raffle is paused
         assert!(!raffle.paused, ERafflePaused);
         
