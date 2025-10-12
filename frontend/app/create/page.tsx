@@ -137,6 +137,38 @@ function validateEndTime(
   return null;
 }
 
+// Helper function to validate Sui address
+function validateSuiAddress(address: string): string | null {
+  if (!address.trim()) {
+    return "Address is required";
+  }
+
+  if (!address.startsWith("0x")) {
+    return "Address must start with 0x";
+  }
+
+  // Check if it's the zero address
+  if (
+    address ===
+    "0x0000000000000000000000000000000000000000000000000000000000000000"
+  ) {
+    return "Cannot use zero address";
+  }
+
+  // Sui addresses are 66 characters long (0x + 64 hex characters)
+  if (address.length !== 66) {
+    return "Invalid address length";
+  }
+
+  // Check if all characters after 0x are valid hex
+  const hexPart = address.slice(2);
+  if (!/^[0-9a-fA-F]+$/.test(hexPart)) {
+    return "Address contains invalid characters";
+  }
+
+  return null;
+}
+
 // Image Upload Component
 function ImageUpload({
   onImageUpload,
@@ -319,6 +351,9 @@ export default function CreateRaffle() {
   );
   const [currentBlockchainTime, setCurrentBlockchainTime] = useState<number>(0);
   const [isPriceUpdating, setIsPriceUpdating] = useState(false);
+  const [organizerAddressError, setOrganizerAddressError] = useState<
+    string | null
+  >(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -329,6 +364,7 @@ export default function CreateRaffle() {
     endTime: "",
     ticketPrice: "",
     maxTicketsPerAddress: "",
+    organizerAddress: "",
   });
 
   // Debounced price update handler
@@ -384,6 +420,18 @@ export default function CreateRaffle() {
     }));
   };
 
+  const handleOrganizerAddressChange = (address: string) => {
+    setFormData({ ...formData, organizerAddress: address });
+
+    // Real-time validation
+    if (address.trim()) {
+      const validationError = validateSuiAddress(address);
+      setOrganizerAddressError(validationError);
+    } else {
+      setOrganizerAddressError(null);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isConnected || !currentAccount) return;
@@ -399,6 +447,12 @@ export default function CreateRaffle() {
     }
     if (!formData.imageCid) {
       setError("Please upload a raffle image");
+      return;
+    }
+    // Validate organizer address
+    const addressError = validateSuiAddress(formData.organizerAddress);
+    if (addressError) {
+      setError(addressError);
       return;
     }
 
@@ -438,7 +492,7 @@ export default function CreateRaffle() {
           tx.pure.u64(endTime),
           tx.pure.u64(ticketPrice),
           tx.pure.u64(maxTicketsPerAddress),
-          tx.pure.address(currentAccount),
+          tx.pure.address(formData.organizerAddress),
         ],
       });
 
@@ -875,6 +929,78 @@ export default function CreateRaffle() {
               </div>
             </div>
 
+            {/* Organizer Address Section */}
+            <div className="space-y-6">
+              <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <span className="text-purple-500">👤</span>
+                Organizer Settings
+              </h2>
+
+              <div className="bg-purple-50 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-purple-800 mb-4">
+                  Organizer Address
+                </h3>
+                <p className="text-sm text-purple-700 mb-4">
+                  This address will receive the organizer earnings (10% of total
+                  prize pool)
+                </p>
+
+                <div className="space-y-4">
+                  <div className="flex gap-3">
+                    <input
+                      type="text"
+                      id="organizerAddress"
+                      required
+                      value={formData.organizerAddress}
+                      onChange={(e) =>
+                        handleOrganizerAddressChange(e.target.value)
+                      }
+                      className={`flex-1 px-4 py-3 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-lg bg-white ${
+                        organizerAddressError
+                          ? "border-red-300 focus:ring-red-500 focus:border-red-500"
+                          : "border-purple-200"
+                      }`}
+                      placeholder="Enter organizer address (0x...)"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const address = currentAccount || "";
+                        handleOrganizerAddressChange(address);
+                      }}
+                      disabled={!isConnected || !currentAccount}
+                      className="px-4 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                    >
+                      Use Current Account
+                    </button>
+                  </div>
+
+                  {organizerAddressError && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                      <p className="text-sm text-red-600">
+                        <span className="font-medium">Error:</span>{" "}
+                        {organizerAddressError}
+                      </p>
+                    </div>
+                  )}
+
+                  {formData.organizerAddress && !organizerAddressError && (
+                    <div className="bg-purple-100 rounded-lg p-3">
+                      <p className="text-sm text-purple-800">
+                        <span className="font-medium">Organizer:</span>{" "}
+                        {formData.organizerAddress}
+                      </p>
+                      {formData.organizerAddress === currentAccount && (
+                        <p className="text-xs text-purple-600 mt-1">
+                          ✓ This is your current wallet address
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {/* Prize Distribution Info */}
             <div className="bg-gradient-to-r from-yellow-50 to-amber-50 rounded-xl p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
@@ -996,7 +1122,7 @@ export default function CreateRaffle() {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={isCreating || !isConnected}
+              disabled={isCreating || !isConnected || !!organizerAddressError}
               className="w-full px-6 py-4 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg font-semibold hover:from-indigo-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-lg shadow-lg"
             >
               {isCreating ? (
