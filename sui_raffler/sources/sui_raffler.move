@@ -19,6 +19,7 @@ module sui_raffler::sui_raffler;
 // https://docs.sui.io/concepts/sui-move-concepts/conventions
 
 module sui_raffler::sui_raffler {
+    // === Imports ===
     use sui::coin::{Self, Coin};
     use sui::balance::{Self, Balance};
     use sui::sui::SUI;
@@ -29,18 +30,7 @@ module sui_raffler::sui_raffler {
     use sui::types;
     use sui::table::{Self, Table};
 
-    // OTW - One time witness
-    public struct SUI_RAFFLER has drop {}
-
-    // === Constants ===
-    // Prize distribution percentages (must sum to 100)
-    const FIRST_PRIZE_PERCENTAGE: u64 = 50;  // 50% of total prize pool
-    const SECOND_PRIZE_PERCENTAGE: u64 = 25; // 25% of total prize pool
-    const THIRD_PRIZE_PERCENTAGE: u64 = 10;  // 10% of total prize pool
-    const ORGANIZER_PERCENTAGE: u64 = 10;    // 10% of total prize pool
-    const PROTOCOL_FEE_PERCENTAGE: u64 = 5;  // 5% of total prize pool
-
-    // === Error Codes ===
+    // === Errors ===
     const ENotAdmin: u64 = 0;                // Caller is not the admin
     const EInvalidDates: u64 = 1;            // Start time must be before end time
     const EInvalidTicketPrice: u64 = 2;      // Ticket price must be greater than 0
@@ -61,6 +51,18 @@ module sui_raffler::sui_raffler {
     const ENotMinimumTickets: u64 = 18;      // Not enough tickets sold for raffle release
     const ENotOneTimeWitness: u64 = 19;      // Not one time witness
     const EExceedsPerUserLimit: u64 = 20;    // Exceeds per-user cumulative ticket limit
+
+    // === Constants ===
+    // Prize distribution percentages (must sum to 100)
+    const FIRST_PRIZE_PERCENTAGE: u64 = 50;  // 50% of total prize pool
+    const SECOND_PRIZE_PERCENTAGE: u64 = 25; // 25% of total prize pool
+    const THIRD_PRIZE_PERCENTAGE: u64 = 10;  // 10% of total prize pool
+    const ORGANIZER_PERCENTAGE: u64 = 10;    // 10% of total prize pool
+    const PROTOCOL_FEE_PERCENTAGE: u64 = 5;  // 5% of total prize pool
+
+    // === Structs ===
+    // OTW - One time witness
+    public struct SUI_RAFFLER has drop {}
 
     /// Module configuration that holds admin, controller, fee collector, pause, and permissionless info
     public struct Config has key {
@@ -137,8 +139,7 @@ module sui_raffler::sui_raffler {
         new_fee_collector: address,
     }
 
-    // === Functions ===
-
+    // === Package Functions ===
     /// Initialize the module with admin, controller, and fee collector addresses
     /// This function can only be called once during module deployment
     fun init(otw: SUI_RAFFLER, ctx: &mut TxContext) {
@@ -154,6 +155,7 @@ module sui_raffler::sui_raffler {
         transfer::share_object(config);
     }
 
+    // === Admin Functions ===
     /// Update the admin address
     /// Only the admin can call this function
     public fun update_admin(config: &mut Config, new_admin: address, ctx: &mut TxContext) {
@@ -219,52 +221,63 @@ module sui_raffler::sui_raffler {
         raffle.paused = false;
     }
 
-    /// Helper: check if contract is paused
-    public fun is_contract_paused(config: &Config): bool {
-        config.paused
-    }
-
-    /// Helper: check if a raffle is paused
-    public fun is_raffle_paused(raffle: &Raffle): bool {
-        raffle.paused
-    }
-
-    /// Helper: check if sender is admin
-    public fun is_admin(config: &Config, sender: address): bool {
-        config.admin == sender
-    }
-
-    /// Helper: check if sender is controller
-    public fun is_controller(config: &Config, sender: address): bool {
-        config.controller == sender
-    }
-
-    /// Helper: check if sender is admin or controller
-    public fun is_admin_or_controller(config: &Config, sender: address): bool {
-        config.admin == sender || config.controller == sender
-    }
-
-    /// Helper: check if contract is permissionless
-    public fun is_contract_permissionless(config: &Config): bool {
-        config.permissionless
-    }
-
-    /// Helper: check if raffle is currently active (within start and end time)
-    public fun is_raffle_active(raffle: &Raffle, current_time: u64): bool {
-        current_time >= raffle.start_time && current_time <= raffle.end_time
-    }
-
-    /// Helper: check if raffle has ended (current time is after end time)
-    public fun is_raffle_ended(raffle: &Raffle, current_time: u64): bool {
-        current_time > raffle.end_time
-    }
-
-    /// Check if a raffle is in return state (ended with less than 3 tickets)
-    public fun is_in_return_state(raffle: &Raffle, clock: &Clock): bool {
+    /// Release the raffle and select winners
+    /// Can only be called after the raffle end time
+    #[allow(lint(public_random))]
+    public fun release_raffle(
+        config: &Config,
+        raffle: &mut Raffle,
+        random: &Random,
+        clock: &Clock,
+        ctx: &mut TxContext
+    ) {
+        // Check if contract is paused
+        assert!(!is_contract_paused(config), EPaused);
+        // Check if raffle is paused
+        assert!(!is_raffle_paused(raffle), ERafflePaused);
+        // Only admin or controller can call
+        if (!(is_admin(config, tx_context::sender(ctx)) || is_controller(config, tx_context::sender(ctx)))) {
+            abort(ENotController)
+        };
         let current_time = clock::timestamp_ms(clock);
-        is_raffle_ended(raffle, current_time) && !raffle.is_released && raffle.tickets_sold < 3
+        // Check if raffle has ended
+        assert!(is_raffle_ended(raffle, current_time), ERaffleNotEnded);
+        // Check if raffle is already released
+        assert!(!raffle.is_released, ERaffleAlreadyReleased);
+        // Check if minimum tickets are sold
+        assert!(raffle.tickets_sold >= 3, ENotMinimumTickets);
+        // Generate unique random numbers for winners
+        let mut random_generator = random::new_generator(random, ctx);
+        let first_winner = random_generator.generate_u64() % raffle.tickets_sold + 1;
+        let mut second_winner = random_generator.generate_u64() % raffle.tickets_sold + 1;
+        while (second_winner == first_winner) {
+            second_winner = random_generator.generate_u64() % raffle.tickets_sold + 1;
+        };
+        let mut third_winner = random_generator.generate_u64() % raffle.tickets_sold + 1;
+        while (third_winner == first_winner || third_winner == second_winner) {
+            third_winner = random_generator.generate_u64() % raffle.tickets_sold + 1;
+        };
+        // Store winning ticket numbers
+        vector::push_back(&mut raffle.winning_tickets, first_winner);
+        vector::push_back(&mut raffle.winning_tickets, second_winner);
+        vector::push_back(&mut raffle.winning_tickets, third_winner);
+        raffle.is_released = true;
+        // Store the prize pool at release
+        raffle.prize_pool = balance::value(&raffle.balance);
+
+        // Claim protocol fees immediately
+        claim_protocol_fees_internal(config, raffle, ctx);
+
+        // Emit event
+        event::emit(RaffleReleased {
+            raffle_id: object::id(raffle),
+            first_winner: first_winner,
+            second_winner: second_winner,
+            third_winner: third_winner,
+        });
     }
 
+    // === Public Functions ===
     /// Create a new raffle
     /// Anyone can create a raffle by specifying the parameters
     public fun create_raffle(
@@ -385,80 +398,6 @@ module sui_raffler::sui_raffler {
         });
     }
 
-    /// Release the raffle and select winners
-    /// Can only be called after the raffle end time
-    #[allow(lint(public_random))]
-    public fun release_raffle(
-        config: &Config,
-        raffle: &mut Raffle,
-        random: &Random,
-        clock: &Clock,
-        ctx: &mut TxContext
-    ) {
-        // Check if contract is paused
-        assert!(!is_contract_paused(config), EPaused);
-        // Check if raffle is paused
-        assert!(!is_raffle_paused(raffle), ERafflePaused);
-        // Only admin or controller can call
-        if (!(is_admin(config, tx_context::sender(ctx)) || is_controller(config, tx_context::sender(ctx)))) {
-            abort(ENotController)
-        };
-        let current_time = clock::timestamp_ms(clock);
-        // Check if raffle has ended
-        assert!(is_raffle_ended(raffle, current_time), ERaffleNotEnded);
-        // Check if raffle is already released
-        assert!(!raffle.is_released, ERaffleAlreadyReleased);
-        // Check if minimum tickets are sold
-        assert!(raffle.tickets_sold >= 3, ENotMinimumTickets);
-        // Generate unique random numbers for winners
-        let mut random_generator = random::new_generator(random, ctx);
-        let first_winner = random_generator.generate_u64() % raffle.tickets_sold + 1;
-        let mut second_winner = random_generator.generate_u64() % raffle.tickets_sold + 1;
-        while (second_winner == first_winner) {
-            second_winner = random_generator.generate_u64() % raffle.tickets_sold + 1;
-        };
-        let mut third_winner = random_generator.generate_u64() % raffle.tickets_sold + 1;
-        while (third_winner == first_winner || third_winner == second_winner) {
-            third_winner = random_generator.generate_u64() % raffle.tickets_sold + 1;
-        };
-        // Store winning ticket numbers
-        vector::push_back(&mut raffle.winning_tickets, first_winner);
-        vector::push_back(&mut raffle.winning_tickets, second_winner);
-        vector::push_back(&mut raffle.winning_tickets, third_winner);
-        raffle.is_released = true;
-        // Store the prize pool at release
-        raffle.prize_pool = balance::value(&raffle.balance);
-
-        // Claim protocol fees immediately
-        claim_protocol_fees_internal(config, raffle, ctx);
-
-        // Emit event
-        event::emit(RaffleReleased {
-            raffle_id: object::id(raffle),
-            first_winner: first_winner,
-            second_winner: second_winner,
-            third_winner: third_winner,
-        });
-    }
-
-    /// Internal function to claim protocol fees from the raffle
-    fun claim_protocol_fees_internal(
-        config: &Config,
-        raffle: &mut Raffle,
-        ctx: &mut TxContext
-    ) {
-        // Verify protocol fees haven't been claimed yet
-        assert!(!raffle.protocol_claimed, EAlreadyClaimed);
-
-        // Mark as claimed
-        raffle.protocol_claimed = true;
-
-        // Calculate and transfer protocol fees
-        let protocol_fee = (raffle.prize_pool * PROTOCOL_FEE_PERCENTAGE) / 100;
-        let fee = coin::from_balance(balance::split(&mut raffle.balance, protocol_fee), ctx);
-        transfer::public_transfer(fee, config.fee_collector);
-    }
-
     /// Claim prize with a winning ticket
     /// Winners can claim their prizes after the raffle is released
     public fun claim_prize(
@@ -522,8 +461,6 @@ module sui_raffler::sui_raffler {
         transfer::public_transfer(organizer_prize, raffle.organizer);
     }
 
-
-
     /// Return ticket and get refund when raffle has ended with less than 3 tickets
     public fun return_ticket(
         raffle: &mut Raffle,
@@ -550,6 +487,51 @@ module sui_raffler::sui_raffler {
     }
 
     // === View Functions ===
+    /// Helper: check if contract is paused
+    public fun is_contract_paused(config: &Config): bool {
+        config.paused
+    }
+
+    /// Helper: check if a raffle is paused
+    public fun is_raffle_paused(raffle: &Raffle): bool {
+        raffle.paused
+    }
+
+    /// Helper: check if sender is admin
+    public fun is_admin(config: &Config, sender: address): bool {
+        config.admin == sender
+    }
+
+    /// Helper: check if sender is controller
+    public fun is_controller(config: &Config, sender: address): bool {
+        config.controller == sender
+    }
+
+    /// Helper: check if sender is admin or controller
+    public fun is_admin_or_controller(config: &Config, sender: address): bool {
+        config.admin == sender || config.controller == sender
+    }
+
+    /// Helper: check if contract is permissionless
+    public fun is_contract_permissionless(config: &Config): bool {
+        config.permissionless
+    }
+
+    /// Helper: check if raffle is currently active (within start and end time)
+    public fun is_raffle_active(raffle: &Raffle, current_time: u64): bool {
+        current_time >= raffle.start_time && current_time <= raffle.end_time
+    }
+
+    /// Helper: check if raffle has ended (current time is after end time)
+    public fun is_raffle_ended(raffle: &Raffle, current_time: u64): bool {
+        current_time > raffle.end_time
+    }
+
+    /// Check if a raffle is in return state (ended with less than 3 tickets)
+    public fun is_in_return_state(raffle: &Raffle, clock: &Clock): bool {
+        let current_time = clock::timestamp_ms(clock);
+        is_raffle_ended(raffle, current_time) && !raffle.is_released && raffle.tickets_sold < 3
+    }
 
     /// Get per-address purchase info: (purchased_so_far, remaining_allowed)
     public fun get_address_purchase_info(raffle: &Raffle, addr: address): (
@@ -682,8 +664,26 @@ module sui_raffler::sui_raffler {
         )
     }
 
-    // === Test Helpers ===
+    // === Private Functions ===
+    /// Internal function to claim protocol fees from the raffle
+    fun claim_protocol_fees_internal(
+        config: &Config,
+        raffle: &mut Raffle,
+        ctx: &mut TxContext
+    ) {
+        // Verify protocol fees haven't been claimed yet
+        assert!(!raffle.protocol_claimed, EAlreadyClaimed);
 
+        // Mark as claimed
+        raffle.protocol_claimed = true;
+
+        // Calculate and transfer protocol fees
+        let protocol_fee = (raffle.prize_pool * PROTOCOL_FEE_PERCENTAGE) / 100;
+        let fee = coin::from_balance(balance::split(&mut raffle.balance, protocol_fee), ctx);
+        transfer::public_transfer(fee, config.fee_collector);
+    }
+
+    // === Test Functions ===
     #[test_only]
     public fun get_raffle_balance(raffle: &Raffle): u64 {
         balance::value(&raffle.balance)
@@ -710,5 +710,3 @@ module sui_raffler::sui_raffler {
     }
 
 }
-
-
