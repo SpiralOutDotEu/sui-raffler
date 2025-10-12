@@ -64,6 +64,7 @@ export class TransactionService {
             tx.moveCall({
                 target: BUY_TICKETS_TARGET,
                 arguments: [
+                    tx.object(CONFIG_OBJECT_ID), // Config object ID
                     tx.object(raffleId),
                     payment, // Use the split coin as payment
                     tx.pure.u64(amount),
