@@ -73,13 +73,13 @@ fun setup_raffle_with_two_tickets(
     ts.next_tx(buyer1);
     mint(buyer1, ticket_price, &mut ts);
     let coin1: Coin<SUI> = ts.take_from_sender();
-    sui_raffler::buy_tickets(&mut raffle, coin1, 1, &clock, ts.ctx());
+    sui_raffler::buy_tickets(&config, &mut raffle, coin1, 1, &clock, ts.ctx());
 
     // Buyer2 buys 1 ticket
     ts.next_tx(buyer2);
     mint(buyer2, ticket_price, &mut ts);
     let coin2: Coin<SUI> = ts.take_from_sender();
-    sui_raffler::buy_tickets(&mut raffle, coin2, 1, &clock, ts.ctx());
+    sui_raffler::buy_tickets(&config, &mut raffle, coin2, 1, &clock, ts.ctx());
 
     (ts, config, raffle, random_state, clock)
 }
@@ -281,7 +281,7 @@ fun test_buy_tickets_after_end() {
     ts.next_tx(buyer3);
     mint(buyer3, ticket_price, &mut ts);
     let coin: Coin<SUI> = ts.take_from_sender();
-    sui_raffler::buy_tickets(&mut raffle, coin, 1, &clock, ts.ctx());
+    sui_raffler::buy_tickets(&config, &mut raffle, coin, 1, &clock, ts.ctx());
 
     // Clean up
     clock.destroy_for_testing();

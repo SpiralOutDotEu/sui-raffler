@@ -247,7 +247,7 @@ fun test_claim_organizer_share_unauthorized() {
     mint(buyer, 300, &mut ts);
     let coin: Coin<SUI> = ts.take_from_sender();
     let mut clock = clock::create_for_testing(ts.ctx());
-    sui_raffler::buy_tickets(&mut raffle, coin, 3, &clock, ts.ctx());
+    sui_raffler::buy_tickets(&config, &mut raffle, coin, 3, &clock, ts.ctx());
 
     // Create clock and set time after end time
     ts.next_tx(admin);
@@ -316,13 +316,13 @@ fun test_claim_prize_unauthorized() {
     mint(buyer1, 300, &mut ts);
     let coin1: Coin<SUI> = ts.take_from_sender();
     let mut clock = clock::create_for_testing(ts.ctx());
-    sui_raffler::buy_tickets(&mut raffle, coin1, 3, &clock, ts.ctx());
+    sui_raffler::buy_tickets(&config, &mut raffle, coin1, 3, &clock, ts.ctx());
 
     // Buyer2 buys tickets
     ts.next_tx(buyer2);
     mint(buyer2, 200, &mut ts);
     let coin2: Coin<SUI> = ts.take_from_sender();
-    sui_raffler::buy_tickets(&mut raffle, coin2, 2, &clock, ts.ctx());
+    sui_raffler::buy_tickets(&config, &mut raffle, coin2, 2, &clock, ts.ctx());
 
     // Release raffle after end time
     ts.next_tx(admin);
@@ -354,7 +354,7 @@ fun test_claim_prize_unauthorized() {
 /// Test that cannot buy tickets when raffle is paused
 #[test]
 #[expected_failure(abort_code = sui_raffler::ERafflePaused)]
-fun test_cannot_buy_tickets_when_paused() {
+fun test_cannot_buy_tickets_when_rafflepaused() {
     let admin = @0xAD;
     let organizer = @0x1234;
     let buyer = @0xB0B;
@@ -390,7 +390,7 @@ fun test_cannot_buy_tickets_when_paused() {
     mint(buyer, 300, &mut ts);
     let coin: Coin<SUI> = ts.take_from_sender();
     let clock = clock::create_for_testing(ts.ctx());
-    sui_raffler::buy_tickets(&mut raffle, coin, 3, &clock, ts.ctx());
+    sui_raffler::buy_tickets(&config, &mut raffle, coin, 3, &clock, ts.ctx());
 
     clock.destroy_for_testing();
     ts::return_shared(config);
@@ -399,6 +399,55 @@ fun test_cannot_buy_tickets_when_paused() {
 }
 
 /// Test that cannot buy tickets when contract is paused
+#[test]
+#[expected_failure(abort_code = sui_raffler::EPaused)]
+fun test_cannot_buy_tickets_when_contract_paused() {
+    let admin = @0xAD;
+    let organizer = @0x1234;
+    let buyer = @0xB0B;
+
+    let mut ts = ts::begin(admin);
+    sui_raffler::init_for_testing(ts.ctx());
+    ts.next_tx(admin);
+    let mut config = ts.take_shared<sui_raffler::Config>();
+
+    // Create a raffle
+    ts.next_tx(organizer);
+    sui_raffler::create_raffle(
+        &config,
+        string::utf8(b"Test Raffle"),
+        string::utf8(b"Test Description"),
+        string::utf8(b"https://example.com/image.jpg"),
+        0,
+        1000,
+        100,
+        5,
+        organizer,
+        ts.ctx()
+    );
+    ts.next_tx(organizer);
+    let mut raffle = ts.take_shared<sui_raffler::Raffle>();
+
+    // Pause the contract
+    ts.next_tx(admin);
+    sui_raffler::pause(&mut config, ts.ctx());
+
+    // Try to buy tickets when raffle is paused
+    ts.next_tx(buyer);
+    mint(buyer, 300, &mut ts);
+    let coin: Coin<SUI> = ts.take_from_sender();
+    let clock = clock::create_for_testing(ts.ctx());
+    sui_raffler::buy_tickets(&config, &mut raffle, coin, 3, &clock, ts.ctx());
+
+    clock.destroy_for_testing();
+    ts::return_shared(config);
+    ts::return_shared(raffle);
+    ts.end();
+}
+
+
+
+/// Test that cannot create raffle when contract is paused
 #[test]
 #[expected_failure(abort_code = sui_raffler::EPaused)]
 fun test_cannot_create_raffle_when_contract_paused() {
@@ -504,7 +553,7 @@ fun test_buy_tickets_before_start() {
     mint(buyer, 300, &mut ts);
     let coin: Coin<SUI> = ts.take_from_sender();
     let clock = clock::create_for_testing(ts.ctx());
-    sui_raffler::buy_tickets(&mut raffle, coin, 3, &clock, ts.ctx());
+    sui_raffler::buy_tickets(&config, &mut raffle, coin, 3, &clock, ts.ctx());
 
     clock.destroy_for_testing();
     ts::return_shared(config);
@@ -548,7 +597,7 @@ fun test_buy_tickets_after_end() {
     let coin: Coin<SUI> = ts.take_from_sender();
     let mut clock = clock::create_for_testing(ts.ctx());
     clock.set_for_testing(1001);
-    sui_raffler::buy_tickets(&mut raffle, coin, 3, &clock, ts.ctx());
+    sui_raffler::buy_tickets(&config, &mut raffle, coin, 3, &clock, ts.ctx());
 
     clock.destroy_for_testing();
     ts::return_shared(config);
@@ -595,7 +644,7 @@ fun test_buy_tickets_exceeds_per_purchase_limit() {
     mint(buyer, ticket_price * 4, &mut ts);
     let coin: Coin<SUI> = ts.take_from_sender();
     let clock = clock::create_for_testing(ts.ctx());
-    sui_raffler::buy_tickets(&mut raffle, coin, 4, &clock, ts.ctx());
+    sui_raffler::buy_tickets(&config, &mut raffle, coin, 4, &clock, ts.ctx());
 
     clock.destroy_for_testing();
     ts::return_shared(config);
@@ -642,13 +691,13 @@ fun test_buy_tickets_two_txs_exceed_cumulative_limit() {
     mint(buyer, ticket_price * 2, &mut ts);
     let coin1: Coin<SUI> = ts.take_from_sender();
     let clock = clock::create_for_testing(ts.ctx());
-    sui_raffler::buy_tickets(&mut raffle, coin1, 2, &clock, ts.ctx());
+    sui_raffler::buy_tickets(&config, &mut raffle, coin1, 2, &clock, ts.ctx());
 
     // Second purchase: 2 tickets (2 + 2 = 4 > 3) should fail
     ts.next_tx(buyer);
     mint(buyer, ticket_price * 2, &mut ts);
     let coin2: Coin<SUI> = ts.take_from_sender();
-    sui_raffler::buy_tickets(&mut raffle, coin2, 2, &clock, ts.ctx());
+    sui_raffler::buy_tickets(&config, &mut raffle, coin2, 2, &clock, ts.ctx());
 
     clock.destroy_for_testing();
     ts::return_shared(config);
@@ -760,7 +809,7 @@ fun test_release_raffle_twice() {
     mint(buyer, 300, &mut ts);
     let coin: Coin<SUI> = ts.take_from_sender();
     let mut clock = clock::create_for_testing(ts.ctx());
-    sui_raffler::buy_tickets(&mut raffle, coin, 3, &clock, ts.ctx());
+    sui_raffler::buy_tickets(&config, &mut raffle, coin, 3, &clock, ts.ctx());
 
     // Release raffle after end time
     ts.next_tx(admin);
@@ -827,7 +876,7 @@ fun test_claim_organizer_share_twice() {
     mint(buyer, 300, &mut ts);
     let coin: Coin<SUI> = ts.take_from_sender();
     let mut clock = clock::create_for_testing(ts.ctx());
-    sui_raffler::buy_tickets(&mut raffle, coin, 3, &clock, ts.ctx());
+    sui_raffler::buy_tickets(&config, &mut raffle, coin, 3, &clock, ts.ctx());
 
     // Release raffle after end time
     ts.next_tx(admin);
@@ -900,19 +949,19 @@ fun test_log_winning_tickets() {
     mint(buyer1, 300, &mut ts);
     let coin1: Coin<SUI> = ts.take_from_sender();
     let mut clock = clock::create_for_testing(ts.ctx());
-    sui_raffler::buy_tickets(&mut raffle, coin1, 3, &clock, ts.ctx());
+    sui_raffler::buy_tickets(&config, &mut raffle, coin1, 3, &clock, ts.ctx());
 
     // Buyer2 buys 2 tickets
     ts.next_tx(buyer2);
     mint(buyer2, 200, &mut ts);
     let coin2: Coin<SUI> = ts.take_from_sender();
-    sui_raffler::buy_tickets(&mut raffle, coin2, 2, &clock, ts.ctx());
+    sui_raffler::buy_tickets(&config, &mut raffle, coin2, 2, &clock, ts.ctx());
 
     // Buyer3 buys 2 tickets
     ts.next_tx(buyer3);
     mint(buyer3, 200, &mut ts);
     let coin3: Coin<SUI> = ts.take_from_sender();
-    sui_raffler::buy_tickets(&mut raffle, coin3, 2, &clock, ts.ctx());
+    sui_raffler::buy_tickets(&config, &mut raffle, coin3, 2, &clock, ts.ctx());
 
     // Release raffle after end time
     ts.next_tx(admin);
@@ -990,19 +1039,19 @@ fun test_prize_claiming() {
     mint(buyer1, 300, &mut ts);
     let coin1: Coin<SUI> = ts.take_from_sender();
     let mut clock = clock::create_for_testing(ts.ctx());
-    sui_raffler::buy_tickets(&mut raffle, coin1, 3, &clock, ts.ctx());
+    sui_raffler::buy_tickets(&config, &mut raffle, coin1, 3, &clock, ts.ctx());
 
     // Buyer2 buys 2 tickets
     ts.next_tx(buyer2);
     mint(buyer2, 200, &mut ts);
     let coin2: Coin<SUI> = ts.take_from_sender();
-    sui_raffler::buy_tickets(&mut raffle, coin2, 2, &clock, ts.ctx());
+    sui_raffler::buy_tickets(&config, &mut raffle, coin2, 2, &clock, ts.ctx());
 
     // Buyer3 buys 2 tickets
     ts.next_tx(buyer3);
     mint(buyer3, 200, &mut ts);
     let coin3: Coin<SUI> = ts.take_from_sender();
-    sui_raffler::buy_tickets(&mut raffle, coin3, 2, &clock, ts.ctx());
+    sui_raffler::buy_tickets(&config, &mut raffle, coin3, 2, &clock, ts.ctx());
 
     // Release raffle after end time
     ts.next_tx(admin);

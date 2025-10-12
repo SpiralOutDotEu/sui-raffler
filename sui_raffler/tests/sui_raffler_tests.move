@@ -79,7 +79,7 @@ fun test_raffle_flow() {
     mint(buyer, ticket_price * 3, &mut ts);
     let coin: Coin<SUI> = ts.take_from_sender();
     let mut clock = clock::create_for_testing(ts.ctx());
-    sui_raffler::buy_tickets(&mut raffle, coin, 3, &clock, ts.ctx());
+    sui_raffler::buy_tickets(&config, &mut raffle, coin, 3, &clock, ts.ctx());
     assert!(sui_raffler::get_tickets_sold(&raffle) == 3, 1);
 
     // Test view functions before release
@@ -235,7 +235,7 @@ fun test_get_address_purchase_info() {
     mint(buyer, ticket_price * 2, &mut ts);
     let coin: Coin<SUI> = ts.take_from_sender();
     let clock = clock::create_for_testing(ts.ctx());
-    sui_raffler::buy_tickets(&mut raffle, coin, 2, &clock, ts.ctx());
+    sui_raffler::buy_tickets(&config, &mut raffle, coin, 2, &clock, ts.ctx());
 
     // After first purchase: purchased=2, remaining=1
     let (p1, r1) = sui_raffler::get_address_purchase_info(&raffle, buyer);
@@ -246,7 +246,7 @@ fun test_get_address_purchase_info() {
     ts.next_tx(buyer);
     mint(buyer, ticket_price, &mut ts);
     let coin2: Coin<SUI> = ts.take_from_sender();
-    sui_raffler::buy_tickets(&mut raffle, coin2, 1, &clock, ts.ctx());
+    sui_raffler::buy_tickets(&config, &mut raffle, coin2, 1, &clock, ts.ctx());
 
     // After reaching cap: purchased=3, remaining=0
     let (p2, r2) = sui_raffler::get_address_purchase_info(&raffle, buyer);
@@ -401,7 +401,7 @@ fun test_happy_path_raffle() {
     mint(buyer1, 300, &mut ts); // Mint exact amount needed
     let coin1: Coin<SUI> = ts.take_from_sender();
     let mut clock = clock::create_for_testing(ts.ctx());
-    sui_raffler::buy_tickets(&mut raffle, coin1, 3, &clock, ts.ctx());
+    sui_raffler::buy_tickets(&config, &mut raffle, coin1, 3, &clock, ts.ctx());
     
     // Verify state after first purchase
     let (_, _, _, _, _, _, _, _, _, balance, sold, _, total, first, second, third, org_share, fee) = sui_raffler::get_raffle_info(&raffle);
@@ -420,7 +420,7 @@ fun test_happy_path_raffle() {
     ts.next_tx(buyer2);
     mint(buyer2, 200, &mut ts); // Mint exact amount needed
     let coin2: Coin<SUI> = ts.take_from_sender();
-    sui_raffler::buy_tickets(&mut raffle, coin2, 2, &clock, ts.ctx());
+    sui_raffler::buy_tickets(&config, &mut raffle, coin2, 2, &clock, ts.ctx());
     
     // Verify state after second purchase
     let (_, _, _, _, _, _, _, _, _, balance, sold, _, total, first, second, third, org_share, fee) = sui_raffler::get_raffle_info(&raffle);
@@ -439,7 +439,7 @@ fun test_happy_path_raffle() {
     ts.next_tx(buyer3);
     mint(buyer3, 400, &mut ts); // Mint exact amount needed
     let coin3: Coin<SUI> = ts.take_from_sender();
-    sui_raffler::buy_tickets(&mut raffle, coin3, 4, &clock, ts.ctx());
+    sui_raffler::buy_tickets(&config, &mut raffle, coin3, 4, &clock, ts.ctx());
     
     // Verify state after third purchase
     let (_, _, _, _, _, _, _, _, _, balance, sold, _, total, first, second, third, org_share, fee) = sui_raffler::get_raffle_info(&raffle);
@@ -693,7 +693,7 @@ fun test_protocol_fee_auto_collection() {
     mint(buyer, 500, &mut ts);
     let coin: Coin<SUI> = ts.take_from_sender();
     let mut clock = clock::create_for_testing(ts.ctx());
-    sui_raffler::buy_tickets(&mut raffle, coin, 5, &clock, ts.ctx());
+    sui_raffler::buy_tickets(&config, &mut raffle, coin, 5, &clock, ts.ctx());
 
     // Verify initial state
     let (_, _, _, _, _, _, _, _, _, balance, sold, _, total, _, _, _, _, fee) = sui_raffler::get_raffle_info(&raffle);

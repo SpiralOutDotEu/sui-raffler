@@ -220,7 +220,7 @@ module sui_raffler::sui_raffler {
     }
 
     /// Helper: check if contract is paused
-    public fun is_paused(config: &Config): bool {
+    public fun is_contract_paused(config: &Config): bool {
         config.paused
     }
 
@@ -244,6 +244,27 @@ module sui_raffler::sui_raffler {
         config.admin == sender || config.controller == sender
     }
 
+    /// Helper: check if contract is permissionless
+    public fun is_contract_permissionless(config: &Config): bool {
+        config.permissionless
+    }
+
+    /// Helper: check if raffle is currently active (within start and end time)
+    public fun is_raffle_active(raffle: &Raffle, current_time: u64): bool {
+        current_time >= raffle.start_time && current_time <= raffle.end_time
+    }
+
+    /// Helper: check if raffle has ended (current time is after end time)
+    public fun is_raffle_ended(raffle: &Raffle, current_time: u64): bool {
+        current_time > raffle.end_time
+    }
+
+    /// Check if a raffle is in return state (ended with less than 3 tickets)
+    public fun is_in_return_state(raffle: &Raffle, clock: &Clock): bool {
+        let current_time = clock::timestamp_ms(clock);
+        is_raffle_ended(raffle, current_time) && !raffle.is_released && raffle.tickets_sold < 3
+    }
+
     /// Create a new raffle
     /// Anyone can create a raffle by specifying the parameters
     public fun create_raffle(
@@ -258,8 +279,8 @@ module sui_raffler::sui_raffler {
         organizer: address,
         ctx: &mut TxContext
     ) {
-        assert!(!config.paused, EPaused);
-        assert!(config.permissionless || tx_context::sender(ctx) == config.admin, EPermissionDenied);
+        assert!(!is_contract_paused(config), EPaused);
+        assert!(is_contract_permissionless(config) || is_admin(config, ctx.sender()), EPermissionDenied);
         assert!(start_time < end_time, EInvalidDates);
         assert!(ticket_price > 0, EInvalidTicketPrice);
         assert!(max_tickets_per_address > 0, EInvalidMaxTickets);
@@ -298,6 +319,7 @@ module sui_raffler::sui_raffler {
     /// Buy tickets for a raffle
     /// Users can buy multiple tickets in a single transaction up to max_tickets_per_address
     public fun buy_tickets(
+        config: &Config,
         raffle: &mut Raffle,
         payment: Coin<SUI>,
         amount: u64,
@@ -307,12 +329,15 @@ module sui_raffler::sui_raffler {
         let current_time = clock::timestamp_ms(clock);
         
         // Check if raffle is active
-        assert!(current_time >= raffle.start_time && current_time <= raffle.end_time, ERaffleNotActive);
+        assert!(is_raffle_active(raffle, current_time), ERaffleNotActive);
+        // Check if contract is paused
+        assert!(!is_contract_paused(config), EPaused);
         // Check if raffle is paused
-        assert!(!raffle.paused, ERafflePaused);
+        assert!(!is_raffle_paused(raffle), ERafflePaused);
         
         // Validate amount
         assert!(amount > 0 && amount <= raffle.max_tickets_per_address, EInvalidTicketAmount);
+
         // Enforce cumulative per-user limit across transactions
         let buyer = tx_context::sender(ctx);
         if (!table::contains<address, u64>(&raffle.purchases_by_address, buyer)) {
@@ -371,16 +396,16 @@ module sui_raffler::sui_raffler {
         ctx: &mut TxContext
     ) {
         // Check if contract is paused
-        assert!(!config.paused, EPaused);
+        assert!(!is_contract_paused(config), EPaused);
         // Check if raffle is paused
-        assert!(!raffle.paused, ERafflePaused);
+        assert!(!is_raffle_paused(raffle), ERafflePaused);
         // Only admin or controller can call
-        if (!(config.admin == tx_context::sender(ctx) || config.controller == tx_context::sender(ctx))) {
+        if (!(is_admin(config, tx_context::sender(ctx)) || is_controller(config, tx_context::sender(ctx)))) {
             abort(ENotController)
         };
         let current_time = clock::timestamp_ms(clock);
         // Check if raffle has ended
-        assert!(current_time > raffle.end_time, ERaffleNotEnded);
+        assert!(is_raffle_ended(raffle, current_time), ERaffleNotEnded);
         // Check if raffle is already released
         assert!(!raffle.is_released, ERaffleAlreadyReleased);
         // Check if minimum tickets are sold
@@ -497,11 +522,7 @@ module sui_raffler::sui_raffler {
         transfer::public_transfer(organizer_prize, raffle.organizer);
     }
 
-    /// Check if a raffle is in return state (ended with less than 3 tickets)
-    public fun is_in_return_state(raffle: &Raffle, clock: &Clock): bool {
-        let current_time = clock::timestamp_ms(clock);
-        current_time > raffle.end_time && !raffle.is_released && raffle.tickets_sold < 3
-    }
+
 
     /// Return ticket and get refund when raffle has ended with less than 3 tickets
     public fun return_ticket(
@@ -651,7 +672,7 @@ module sui_raffler::sui_raffler {
         } else {
             0
         };
-        let is_active = current_time >= raffle.start_time && current_time <= raffle.end_time;
+        let is_active = is_raffle_active(raffle, current_time);
         (
             raffle.tickets_sold,
             balance::value(&raffle.balance),
