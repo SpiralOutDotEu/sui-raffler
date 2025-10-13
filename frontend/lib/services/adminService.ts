@@ -84,14 +84,15 @@ export class AdminService {
         }
     }
 
-    async pauseContract(): Promise<TransactionResult> {
+    async setContractPaused(paused: boolean): Promise<TransactionResult> {
         try {
             const tx = new Transaction();
 
             tx.moveCall({
-                target: `${PACKAGE_ID}::${MODULE}::pause`,
+                target: `${PACKAGE_ID}::${MODULE}::set_contract_paused`,
                 arguments: [
                     tx.object(CONFIG_OBJECT_ID),
+                    tx.pure.bool(paused),
                 ],
             });
 
@@ -101,50 +102,16 @@ export class AdminService {
         }
     }
 
-    async unpauseContract(): Promise<TransactionResult> {
+    async setRafflePaused(raffleId: string, paused: boolean): Promise<TransactionResult> {
         try {
             const tx = new Transaction();
 
             tx.moveCall({
-                target: `${PACKAGE_ID}::${MODULE}::unpause`,
-                arguments: [
-                    tx.object(CONFIG_OBJECT_ID),
-                ],
-            });
-
-            return await this.signAndExecute({ transaction: tx });
-        } catch (error) {
-            throw SuiErrorHandler.handleSuiError(error);
-        }
-    }
-
-    async pauseRaffle(raffleId: string): Promise<TransactionResult> {
-        try {
-            const tx = new Transaction();
-
-            tx.moveCall({
-                target: `${PACKAGE_ID}::${MODULE}::pause_raffle`,
+                target: `${PACKAGE_ID}::${MODULE}::set_raffle_paused`,
                 arguments: [
                     tx.object(CONFIG_OBJECT_ID),
                     tx.object(raffleId),
-                ],
-            });
-
-            return await this.signAndExecute({ transaction: tx });
-        } catch (error) {
-            throw SuiErrorHandler.handleSuiError(error);
-        }
-    }
-
-    async unpauseRaffle(raffleId: string): Promise<TransactionResult> {
-        try {
-            const tx = new Transaction();
-
-            tx.moveCall({
-                target: `${PACKAGE_ID}::${MODULE}::unpause_raffle`,
-                arguments: [
-                    tx.object(CONFIG_OBJECT_ID),
-                    tx.object(raffleId),
+                    tx.pure.bool(paused),
                 ],
             });
 

@@ -140,7 +140,7 @@ export default function AdminPage() {
   const handlePauseContract = async () => {
     setIsPausingContract(true);
     try {
-      await admin.pauseContract();
+      await admin.setContractPaused(true);
       handleSuccess("Contract paused successfully!");
       await queryClient.invalidateQueries({ queryKey: ["adminConfig"] });
     } catch (error) {
@@ -153,7 +153,7 @@ export default function AdminPage() {
   const handleUnpauseContract = async () => {
     setIsUnpausingContract(true);
     try {
-      await admin.unpauseContract();
+      await admin.setContractPaused(false);
       handleSuccess("Contract unpaused successfully!");
       await queryClient.invalidateQueries({ queryKey: ["adminConfig"] });
     } catch (error) {
@@ -171,7 +171,7 @@ export default function AdminPage() {
 
     setIsPausingRaffle(true);
     try {
-      await admin.pauseRaffle(raffleId);
+      await admin.setRafflePaused(raffleId, true);
       handleSuccess("Raffle paused successfully!");
       await queryClient.invalidateQueries({ queryKey: ["raffle", raffleId] });
     } catch (error) {
@@ -189,7 +189,7 @@ export default function AdminPage() {
 
     setIsUnpausingRaffle(true);
     try {
-      await admin.unpauseRaffle(raffleId);
+      await admin.setRafflePaused(raffleId, false);
       handleSuccess("Raffle unpaused successfully!");
       await queryClient.invalidateQueries({ queryKey: ["raffle", raffleId] });
     } catch (error) {
