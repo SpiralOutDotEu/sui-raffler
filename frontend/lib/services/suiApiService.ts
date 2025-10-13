@@ -115,6 +115,16 @@ export class SuiApiService {
                                     balance: fields.balance,
                                     winners: fields.winners,
                                     prize_pool: fields.prize_pool,
+                                    paused: fields.paused,
+                                    visible: fields.visible,
+                                    // Add default values for missing fields
+                                    max_tickets_per_address: 0,
+                                    fee_collector: "",
+                                    admin: "",
+                                    controller: "",
+                                    organizer_claimed: false,
+                                    protocol_claimed: false,
+                                    winning_tickets: [],
                                 } as Raffle;
                             }
                             return null;
@@ -125,7 +135,9 @@ export class SuiApiService {
                     })
             );
 
-            return raffles.filter((raffle): raffle is Raffle => raffle !== null);
+            return raffles.filter((raffle): raffle is Raffle =>
+                raffle !== null && raffle.visible === true
+            );
         } catch (error) {
             throw SuiErrorHandler.handleSuiError(error);
         }

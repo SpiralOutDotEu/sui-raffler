@@ -173,4 +173,23 @@ export class AdminService {
             throw SuiErrorHandler.handleSuiError(error);
         }
     }
+
+    async setRaffleVisibility(raffleId: string, visible: boolean): Promise<TransactionResult> {
+        try {
+            const tx = new Transaction();
+
+            tx.moveCall({
+                target: `${PACKAGE_ID}::${MODULE}::set_raffle_visibility`,
+                arguments: [
+                    tx.object(CONFIG_OBJECT_ID),
+                    tx.object(raffleId),
+                    tx.pure.bool(visible),
+                ],
+            });
+
+            return await this.signAndExecute({ transaction: tx });
+        } catch (error) {
+            throw SuiErrorHandler.handleSuiError(error);
+        }
+    }
 }

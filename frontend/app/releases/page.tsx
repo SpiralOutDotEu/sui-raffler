@@ -1,7 +1,6 @@
 "use client";
 
-import { useSuiClient, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
-import { useQuery } from "@tanstack/react-query";
+import { useSignAndExecuteTransaction } from "@mysten/dapp-kit";
 import Link from "next/link";
 import { useState, useMemo } from "react";
 import {
@@ -12,21 +11,7 @@ import {
   CONFIG_OBJECT_ID,
 } from "@/lib/constants";
 import { Transaction } from "@mysten/sui/transactions";
-
-interface RaffleEvent {
-  raffle_id: string;
-  organizer: string;
-  start_time: number;
-  end_time: number;
-  ticket_price: number;
-}
-
-interface RaffleFields {
-  tickets_sold: number;
-  is_released: boolean;
-  balance: number;
-  winners: { [key: number]: string } | undefined;
-}
+import { useRaffles } from "@/lib/hooks/useRaffles";
 
 // Helper function to format time for display
 function formatTimeForDisplay(timestamp: number | string) {
@@ -49,64 +34,6 @@ function formatTimeForDisplay(timestamp: number | string) {
   const minutes = String(date.getUTCMinutes()).padStart(2, "0");
 
   return `${day}/${month}/${year}, ${hours}:${minutes} UTC`;
-}
-
-function useRaffles() {
-  const suiClient = useSuiClient();
-
-  return useQuery({
-    queryKey: ["raffles"],
-    queryFn: async () => {
-      const events = await suiClient.queryEvents({
-        query: {
-          MoveModule: {
-            package: PACKAGE_ID,
-            module: MODULE,
-          },
-        },
-        limit: 50,
-        order: "descending",
-      });
-
-      const raffles = await Promise.all(
-        events.data
-          .filter(
-            (event) => event.type === `${PACKAGE_ID}::${MODULE}::RaffleCreated`
-          )
-          .map(async (event) => {
-            const raffleData = event.parsedJson as RaffleEvent;
-
-            const raffleObject = await suiClient.getObject({
-              id: raffleData.raffle_id,
-              options: {
-                showContent: true,
-              },
-            });
-
-            if (raffleObject.data?.content?.dataType === "moveObject") {
-              const fields = raffleObject.data.content
-                .fields as unknown as RaffleFields;
-              return {
-                id: raffleData.raffle_id,
-                organizer: raffleData.organizer,
-                start_time: raffleData.start_time,
-                end_time: raffleData.end_time,
-                ticket_price: raffleData.ticket_price,
-                tickets_sold: fields.tickets_sold,
-                is_released: fields.is_released,
-                balance: fields.balance,
-                winners: fields.winners,
-              };
-            }
-            return null;
-          })
-      );
-
-      return raffles.filter(
-        (raffle): raffle is NonNullable<typeof raffle> => raffle !== null
-      );
-    },
-  });
 }
 
 type FilterOption = "all" | "ended" | "released" | "unreleased";

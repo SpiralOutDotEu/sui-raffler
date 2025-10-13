@@ -17,6 +17,7 @@ export interface Raffle {
     organizer_claimed: boolean;
     protocol_claimed: boolean;
     paused: boolean;
+    visible: boolean;
     winning_tickets: number[];
     name: string;
     description: string;
@@ -55,6 +56,8 @@ export interface RaffleFields {
     image: string;
     name: string;
     description: string;
+    paused: boolean;
+    visible: boolean;
 }
 
 export interface CreateRaffleData {
