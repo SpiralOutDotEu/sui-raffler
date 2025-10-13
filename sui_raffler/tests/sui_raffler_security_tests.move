@@ -1214,4 +1214,288 @@ fun test_prize_claiming() {
     ts::return_shared(raffle);
     ts::return_shared(random_state);
     ts.end();
+}
+
+/// Test that cannot burn tickets before raffle is released
+#[test]
+#[expected_failure(abort_code = sui_raffler::ERaffleNotEnded)]
+fun test_burn_tickets_before_release() {
+    let admin = @0xAD;
+    let organizer = @0x1234;
+    let buyer = @0xB0B;
+
+    // Start with system address for random setup
+    let mut ts = ts::begin(@0x0);
+
+    // Setup randomness
+    random::create_for_testing(ts.ctx());
+    ts.next_tx(@0x0);
+    let mut random_state: Random = ts.take_shared();
+    random_state.update_randomness_state_for_testing(
+        0,
+        x"1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F",
+        ts.ctx(),
+    );
+
+    // Initialize module configuration
+    ts.next_tx(admin);
+    sui_raffler::init_for_testing(ts.ctx());
+    ts.next_tx(admin);
+    let config = ts.take_shared<sui_raffler::Config>();
+
+    // Create a raffle
+    ts.next_tx(organizer);
+    sui_raffler::create_raffle(
+        &config,
+        string::utf8(b"Test Raffle"),
+        string::utf8(b"Test Description"),
+        string::utf8(b"https://example.com/image.jpg"),
+        0,
+        1000,
+        100,
+        5,
+        organizer,
+        ts.ctx()
+    );
+    ts.next_tx(organizer);
+    let mut raffle = ts.take_shared<sui_raffler::Raffle>();
+
+    // Buyer buys tickets
+    ts.next_tx(buyer);
+    mint(buyer, 300, &mut ts);
+    let coin: Coin<SUI> = ts.take_from_sender();
+    let clock = clock::create_for_testing(ts.ctx());
+    sui_raffler::buy_tickets(&config, &mut raffle, coin, 3, &clock, ts.ctx());
+
+    // Try to burn tickets before release
+    ts.next_tx(buyer);
+    let mut tickets = vector::empty<sui_raffler::Ticket>();
+    let mut i = 0;
+    while (i < 3) {
+        let ticket = ts.take_from_sender<sui_raffler::Ticket>();
+        vector::push_back(&mut tickets, ticket);
+        i = i + 1;
+    };
+    sui_raffler::burn_tickets(&mut raffle, tickets, ts.ctx());
+
+    clock.destroy_for_testing();
+    ts::return_shared(config);
+    ts::return_shared(raffle);
+    ts::return_shared(random_state);
+    ts.end();
+}
+
+/// Test that winning tickets are returned to caller instead of being burned
+#[test]
+fun test_burn_tickets_returns_winning_tickets() {
+    let admin = @0xAD;
+    let organizer = @0x1234;
+    let buyer = @0xB0B;
+
+    // Start with system address for random setup
+    let mut ts = ts::begin(@0x0);
+
+    // Setup randomness
+    random::create_for_testing(ts.ctx());
+    ts.next_tx(@0x0);
+    let mut random_state: Random = ts.take_shared();
+    random_state.update_randomness_state_for_testing(
+        0,
+        x"1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F",
+        ts.ctx(),
+    );
+
+    // Initialize module configuration
+    ts.next_tx(admin);
+    sui_raffler::init_for_testing(ts.ctx());
+    ts.next_tx(admin);
+    let config = ts.take_shared<sui_raffler::Config>();
+
+    // Create a raffle
+    ts.next_tx(organizer);
+    sui_raffler::create_raffle(
+        &config,
+        string::utf8(b"Test Raffle"),
+        string::utf8(b"Test Description"),
+        string::utf8(b"https://example.com/image.jpg"),
+        0,
+        1000,
+        100,
+        5,
+        organizer,
+        ts.ctx()
+    );
+    ts.next_tx(organizer);
+    let mut raffle = ts.take_shared<sui_raffler::Raffle>();
+
+    // Buyer buys tickets
+    ts.next_tx(buyer);
+    mint(buyer, 300, &mut ts);
+    let coin: Coin<SUI> = ts.take_from_sender();
+    let mut clock = clock::create_for_testing(ts.ctx());
+    sui_raffler::buy_tickets(&config, &mut raffle, coin, 3, &clock, ts.ctx());
+
+    // Release raffle after end time
+    ts.next_tx(admin);
+    clock.set_for_testing(1001);
+    sui_raffler::release_raffle(&config, &mut raffle, &random_state, &clock, ts.ctx());
+
+    // Get winning tickets
+    let (has_winners, winning_tickets) = sui_raffler::get_winners(&raffle);
+    assert!(has_winners, 0);
+    assert!(vector::length(&winning_tickets) == 3, 0);
+    
+    let first_winner = *vector::borrow(&winning_tickets, 0);
+
+    // Collect buyer's tickets
+    ts.next_tx(buyer);
+    let mut tickets = vector::empty<sui_raffler::Ticket>();
+    let mut i = 0;
+    while (i < 3) {
+        let ticket = ts.take_from_sender<sui_raffler::Ticket>();
+        vector::push_back(&mut tickets, ticket);
+        i = i + 1;
+    };
+
+    // Try to burn tickets (should return winning tickets and burn non-winning ones)
+    sui_raffler::burn_tickets(&mut raffle, tickets, ts.ctx());
+
+    // Check that winning tickets were returned
+    ts.next_tx(buyer);
+    let mut returned_tickets = vector::empty<sui_raffler::Ticket>();
+    let mut j = 0;
+    while (j < 3) {
+        let ticket = ts.take_from_sender<sui_raffler::Ticket>();
+        vector::push_back(&mut returned_tickets, ticket);
+        j = j + 1;
+    };
+
+    // Verify that the winning ticket was returned
+    let mut found_winner = false;
+    i = 0;
+    while (i < vector::length(&returned_tickets)) {
+        let ticket = vector::borrow(&returned_tickets, i);
+        let (_, ticket_number) = sui_raffler::get_ticket_info(ticket);
+        if (ticket_number == first_winner) {
+            found_winner = true;
+        };
+        i = i + 1;
+    };
+    assert!(found_winner, 1);
+
+    // Clean up returned tickets
+    while (!vector::is_empty(&returned_tickets)) {
+        let ticket = vector::pop_back(&mut returned_tickets);
+        transfer::public_transfer(ticket, @0x0);
+    };
+    vector::destroy_empty(returned_tickets);
+
+    clock.destroy_for_testing();
+    ts::return_shared(config);
+    ts::return_shared(raffle);
+    ts::return_shared(random_state);
+    ts.end();
+}
+
+/// Test that cannot burn tickets from different raffle
+#[test]
+#[expected_failure(abort_code = sui_raffler::EInvalidTicket)]
+fun test_burn_tickets_different_raffle() {
+    let admin = @0xAD;
+    let organizer = @0x1234;
+    let buyer = @0xB0B;
+
+    // Start with system address for random setup
+    let mut ts = ts::begin(@0x0);
+
+    // Setup randomness
+    random::create_for_testing(ts.ctx());
+    ts.next_tx(@0x0);
+    let mut random_state: Random = ts.take_shared();
+    random_state.update_randomness_state_for_testing(
+        0,
+        x"1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F",
+        ts.ctx(),
+    );
+
+    // Initialize module configuration
+    ts.next_tx(admin);
+    sui_raffler::init_for_testing(ts.ctx());
+    ts.next_tx(admin);
+    let config = ts.take_shared<sui_raffler::Config>();
+
+    // Create first raffle
+    ts.next_tx(organizer);
+    sui_raffler::create_raffle(
+        &config,
+        string::utf8(b"Test Raffle 1"),
+        string::utf8(b"Test Description 1"),
+        string::utf8(b"https://example.com/image1.jpg"),
+        0,
+        1000,
+        100,
+        5,
+        organizer,
+        ts.ctx()
+    );
+    ts.next_tx(organizer);
+    let mut raffle1 = ts.take_shared<sui_raffler::Raffle>();
+
+    // Create second raffle with different timing to ensure different ticket numbers
+    ts.next_tx(organizer);
+    sui_raffler::create_raffle(
+        &config,
+        string::utf8(b"Test Raffle 2"),
+        string::utf8(b"Test Description 2"),
+        string::utf8(b"https://example.com/image2.jpg"),
+        0,
+        1000,
+        100,
+        5,
+        organizer,
+        ts.ctx()
+    );
+    ts.next_tx(organizer);
+    let mut raffle2 = ts.take_shared<sui_raffler::Raffle>();
+
+    // Buyer buys tickets from raffle1 first (tickets 1-3)
+    ts.next_tx(buyer);
+    mint(buyer, 300, &mut ts);
+    let coin1: Coin<SUI> = ts.take_from_sender();
+    let mut clock = clock::create_for_testing(ts.ctx());
+    sui_raffler::buy_tickets(&config, &mut raffle1, coin1, 3, &clock, ts.ctx());
+
+    // Buyer buys tickets from raffle2 (tickets 1-3, but different raffle ID)
+    ts.next_tx(buyer);
+    mint(buyer, 300, &mut ts);
+    let coin2: Coin<SUI> = ts.take_from_sender();
+    sui_raffler::buy_tickets(&config, &mut raffle2, coin2, 3, &clock, ts.ctx());
+
+    // Release both raffles
+    ts.next_tx(admin);
+    clock.set_for_testing(1001);
+    sui_raffler::release_raffle(&config, &mut raffle1, &random_state, &clock, ts.ctx());
+    sui_raffler::release_raffle(&config, &mut raffle2, &random_state, &clock, ts.ctx());
+
+    // Collect tickets from raffle2 only
+    ts.next_tx(buyer);
+    let mut raffle2_tickets = vector::empty<sui_raffler::Ticket>();
+    
+    let mut i = 0;
+    while (i < 3) {
+        let ticket = ts.take_from_sender<sui_raffler::Ticket>();
+        vector::push_back(&mut raffle2_tickets, ticket);
+        i = i + 1;
+    };
+
+    // Try to burn raffle2 tickets using raffle1 (should fail with EInvalidTicket)
+    // because raffle2 tickets have different raffle_id than raffle1
+    sui_raffler::burn_tickets(&mut raffle1, raffle2_tickets, ts.ctx());
+
+    clock.destroy_for_testing();
+    ts::return_shared(config);
+    ts::return_shared(raffle1);
+    ts::return_shared(raffle2);
+    ts::return_shared(random_state);
+    ts.end();
 } 

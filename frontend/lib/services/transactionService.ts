@@ -8,7 +8,8 @@ import {
     CLOCK_OBJECT_ID,
     CREATE_RAFFLE_TARGET,
     BUY_TICKETS_TARGET,
-    RELEASE_RAFFLE_TARGET
+    RELEASE_RAFFLE_TARGET,
+    BURN_TICKETS_TARGET
 } from '@/lib/constants';
 import { CreateRaffleData, TransactionResult } from '../types';
 import { SuiErrorHandler } from '../utils/errorHandler';
@@ -173,6 +174,39 @@ export class TransactionService {
             return await this.signAndExecute({ transaction: tx });
         } catch (error) {
             throw SuiErrorHandler.handleSuiError(error);
+        }
+    }
+
+    async burnTickets(raffleId: string, ticketIds: string[]): Promise<TransactionResult> {
+        try {
+            const tx = new Transaction();
+
+            // Create ticket objects
+            const ticketObjects = ticketIds.map(ticketId => tx.object(ticketId));
+
+            // Create a vector of ticket objects using makeMoveVec
+            const ticketsVector = tx.makeMoveVec({
+                elements: ticketObjects
+            });
+
+            tx.moveCall({
+                target: BURN_TICKETS_TARGET,
+                arguments: [
+                    tx.object(raffleId),
+                    ticketsVector,
+                ],
+            });
+
+            return await this.signAndExecute({ transaction: tx });
+        } catch (error) {
+            const suiError = SuiErrorHandler.handleSuiError(error);
+
+            // Don't log user cancellations as errors - they're expected behavior
+            if (suiError.code !== 'USER_REJECTED') {
+                console.error('Burn tickets error:', suiError);
+            }
+
+            throw suiError;
         }
     }
 }

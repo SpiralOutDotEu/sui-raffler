@@ -486,6 +486,45 @@ module sui_raffler::sui_raffler {
         object::delete(id);
     }
 
+    /// Burn multiple non-winning tickets at once
+    /// Can only be called after the raffle is released
+    /// Winning tickets are returned to the caller, non-winning tickets are burned
+    #[allow(lint(self_transfer))]
+    public fun burn_tickets(
+        raffle: &mut Raffle,
+        mut tickets: vector<Ticket>,
+        ctx: &mut TxContext
+    ) {
+        // Verify raffle is released
+        assert!(raffle.is_released, ERaffleNotEnded);
+        
+        // Check if minimum tickets are sold
+        assert!(raffle.tickets_sold >= 3, ENotMinimumTickets);
+        
+        // Process all tickets in a single loop - burn non-winning, return winning
+        while (!vector::is_empty(&tickets)) {
+            let ticket = vector::pop_back(&mut tickets);
+            
+            // Verify ticket belongs to this raffle
+            assert!(ticket.raffle_id == object::id(raffle), EInvalidTicket);
+            
+            // Check if ticket is a winning ticket
+            let ticket_number = ticket.ticket_number;
+            if (vector::contains(&raffle.winning_tickets, &ticket_number)) {
+                // Return winning ticket to caller immediately
+                
+                transfer::public_transfer(ticket, tx_context::sender(ctx));
+            } else {
+                // Burn non-winning ticket immediately
+                let Ticket { id, raffle_id: _, ticket_number: _ } = ticket;
+                object::delete(id);
+            };
+        };
+        
+        // Destroy the empty vector
+        vector::destroy_empty(tickets);
+    }
+
     // === View Functions ===
     /// Helper: check if contract is paused
     public fun is_contract_paused(config: &Config): bool {
