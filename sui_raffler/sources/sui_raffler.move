@@ -95,6 +95,7 @@ module sui_raffler::sui_raffler {
         organizer_claimed: bool,  // Whether organizer has claimed their share
         protocol_claimed: bool,   // Whether protocol fees have been claimed
         paused: bool,            // Whether this specific raffle is paused
+        visible: bool,           // Whether this raffle is visible on frontend
         purchases_by_address: Table<address, u64>, // Cumulative tickets purchased per address
     }
 
@@ -221,6 +222,13 @@ module sui_raffler::sui_raffler {
         raffle.paused = false;
     }
 
+    /// Set raffle visibility (hide/show from frontend)
+    /// Only the admin or controller can call this function
+    public fun set_raffle_visibility(config: &Config, raffle: &mut Raffle, visible: bool, ctx: &mut TxContext) {
+        assert!(is_admin_or_controller(config, tx_context::sender(ctx)), ENotAuthorized);
+        raffle.visible = visible;
+    }
+
     /// Release the raffle and select winners
     /// Can only be called after the raffle end time
     #[allow(lint(public_random))]
@@ -325,6 +333,7 @@ module sui_raffler::sui_raffler {
             organizer_claimed: false,
             protocol_claimed: false,
             paused: false,
+            visible: true,
             purchases_by_address: table::new<address, u64>(ctx),
         });
     }
@@ -536,6 +545,11 @@ module sui_raffler::sui_raffler {
         raffle.paused
     }
 
+    /// Helper: check if a raffle is visible
+    public fun is_raffle_visible(raffle: &Raffle): bool {
+        raffle.visible
+    }
+
     /// Helper: check if sender is admin
     public fun is_admin(config: &Config, sender: address): bool {
         config.admin == sender
@@ -741,6 +755,11 @@ module sui_raffler::sui_raffler {
     #[test_only]
     public fun get_config_fee_collector(config: &Config): address {
         config.fee_collector
+    }
+
+    #[test_only]
+    public fun get_raffle_visibility(raffle: &Raffle): bool {
+        raffle.visible
     }
     
     #[test_only]
