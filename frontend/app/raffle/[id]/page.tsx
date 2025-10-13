@@ -15,6 +15,7 @@ import { useRaffleReturnState } from "@/lib/hooks/useRaffleReturnState";
 import { getRelativeTime, truncateAddress } from "@/lib/utils/formatters";
 import { validateTicketAmount } from "@/lib/utils/validators";
 import Image from "next/image";
+import PausedRaffleModal from "@/components/PausedRaffleModal";
 
 // Add this helper function near the other helper functions
 function calculateQuickTicketOptions(maxTickets: number) {
@@ -477,16 +478,77 @@ export default function RaffleDetail() {
     );
   }
 
+  // Check if raffle is hidden
+  const isHidden = !raffle.visible;
+
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
+        {/* Violation Banner */}
+        {isHidden && (
+          <div className="bg-red-50 border-l-4 border-red-400 rounded-lg p-6 mb-8 shadow-lg">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <svg
+                  className="h-8 w-8 text-red-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                  />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <h3 className="text-lg font-semibold text-red-800">
+                  Raffle Hidden Due to Terms Violation
+                </h3>
+                <p className="text-red-700 mt-1">
+                  This raffle has been hidden by administrators due to violation
+                  of terms and conditions. The raffle data and functionality
+                  remain accessible for transparency purposes.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Paused Raffle Modal */}
+        <PausedRaffleModal isOpen={raffle.paused} raffleId={raffle.id} />
+
         {/* Header Section */}
         <div className="bg-white rounded-2xl shadow-lg p-8 mb-8 border border-gray-100">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Left Panel - Image */}
             <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-2xl p-6 flex items-center justify-center">
               <div className="aspect-square w-full max-w-md rounded-2xl overflow-hidden bg-white shadow-lg">
-                {raffle.image ? (
+                {isHidden ? (
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-red-100 to-red-200">
+                    <div className="text-center">
+                      <svg
+                        className="h-16 w-16 text-red-400 mx-auto mb-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                        />
+                      </svg>
+                      <p className="text-red-600 font-medium">Content Hidden</p>
+                      <p className="text-red-500 text-sm">
+                        Due to Terms Violation
+                      </p>
+                    </div>
+                  </div>
+                ) : raffle.image ? (
                   <Image
                     src={raffle.image}
                     alt={raffle.name}
@@ -509,7 +571,13 @@ export default function RaffleDetail() {
               <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-2xl p-6 mb-6">
                 <div className="flex items-center justify-between">
                   <h1 className="text-3xl font-bold text-gray-900">
-                    {raffle.name || `Raffle #${raffle.id.slice(0, 8)}...`}
+                    {isHidden ? (
+                      <span className="text-red-600">
+                        Hidden Raffle #{raffle.id.slice(0, 8)}...
+                      </span>
+                    ) : (
+                      raffle.name || `Raffle #${raffle.id.slice(0, 8)}...`
+                    )}
                   </h1>
                   <div className="flex items-center gap-4">
                     {raffle.is_released &&
@@ -610,11 +678,17 @@ export default function RaffleDetail() {
                     </div>
                   </div>
                 </div>
-                {raffle.description && (
+                {isHidden ? (
+                  <div className="mt-2 p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-red-600 text-lg font-medium">
+                      Description hidden due to terms violation
+                    </p>
+                  </div>
+                ) : raffle.description ? (
                   <p className="text-gray-600 text-lg mt-2">
                     {raffle.description}
                   </p>
-                )}
+                ) : null}
               </div>
 
               {/* 2. Middle: Two Columns (Time & Address) */}

@@ -95,6 +95,7 @@ module sui_raffler::sui_raffler {
         organizer_claimed: bool,  // Whether organizer has claimed their share
         protocol_claimed: bool,   // Whether protocol fees have been claimed
         paused: bool,            // Whether this specific raffle is paused
+        visible: bool,           // Whether this raffle is visible on frontend
         purchases_by_address: Table<address, u64>, // Cumulative tickets purchased per address
     }
 
@@ -193,32 +194,25 @@ module sui_raffler::sui_raffler {
         config.permissionless = value;
     }
 
-    /// Pause the contract globally
+    /// Set contract pause state globally
     /// Only the admin or controller can call this function
-    public fun pause(config: &mut Config, ctx: &mut TxContext) {
+    public fun set_contract_paused(config: &mut Config, paused: bool, ctx: &mut TxContext) {
         assert!(is_admin_or_controller(config, tx_context::sender(ctx)), ENotAuthorized);
-        config.paused = true;
+        config.paused = paused;
     }
 
-    /// Unpause the contract globally
+    /// Set raffle pause state
     /// Only the admin or controller can call this function
-    public fun unpause(config: &mut Config, ctx: &mut TxContext) {
+    public fun set_raffle_paused(config: &Config, raffle: &mut Raffle, paused: bool, ctx: &mut TxContext) {
         assert!(is_admin_or_controller(config, tx_context::sender(ctx)), ENotAuthorized);
-        config.paused = false;
+        raffle.paused = paused;
     }
 
-    /// Pause a specific raffle
+    /// Set raffle visibility (hide/show from frontend)
     /// Only the admin or controller can call this function
-    public fun pause_raffle(config: &Config, raffle: &mut Raffle, ctx: &mut TxContext) {
+    public fun set_raffle_visibility(config: &Config, raffle: &mut Raffle, visible: bool, ctx: &mut TxContext) {
         assert!(is_admin_or_controller(config, tx_context::sender(ctx)), ENotAuthorized);
-        raffle.paused = true;
-    }
-
-    /// Unpause a specific raffle
-    /// Only the admin or controller can call this function
-    public fun unpause_raffle(config: &Config, raffle: &mut Raffle, ctx: &mut TxContext) {
-        assert!(is_admin_or_controller(config, tx_context::sender(ctx)), ENotAuthorized);
-        raffle.paused = false;
+        raffle.visible = visible;
     }
 
     /// Release the raffle and select winners
@@ -325,6 +319,7 @@ module sui_raffler::sui_raffler {
             organizer_claimed: false,
             protocol_claimed: false,
             paused: false,
+            visible: true,
             purchases_by_address: table::new<address, u64>(ctx),
         });
     }
@@ -536,6 +531,11 @@ module sui_raffler::sui_raffler {
         raffle.paused
     }
 
+    /// Helper: check if a raffle is visible
+    public fun is_raffle_visible(raffle: &Raffle): bool {
+        raffle.visible
+    }
+
     /// Helper: check if sender is admin
     public fun is_admin(config: &Config, sender: address): bool {
         config.admin == sender
@@ -741,6 +741,11 @@ module sui_raffler::sui_raffler {
     #[test_only]
     public fun get_config_fee_collector(config: &Config): address {
         config.fee_collector
+    }
+
+    #[test_only]
+    public fun get_raffle_visibility(raffle: &Raffle): bool {
+        raffle.visible
     }
     
     #[test_only]

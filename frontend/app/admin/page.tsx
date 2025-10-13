@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAdmin } from "@/lib/hooks/useAdmin";
 import { useAdminConfig } from "@/lib/hooks/useAdminConfig";
 import { useAdminPermissions } from "@/lib/hooks/useAdminPermissions";
+import { useRaffle } from "@/lib/hooks/useRaffle";
 import { useNotifications } from "@/lib/hooks/useNotifications";
 import { useWallet } from "@/lib/context/WalletContext";
 import { truncateAddress } from "@/lib/utils/formatters";
@@ -33,6 +34,14 @@ export default function AdminPage() {
   const [permissionless, setPermissionless] = useState(
     config?.permissionless ?? false
   );
+  const [raffleId, setRaffleId] = useState("");
+
+  // Fetch raffle data when raffleId is provided
+  const {
+    data: raffleData,
+    isLoading: raffleLoading,
+    error: raffleError,
+  } = useRaffle(raffleId);
 
   // Loading states
   const [isUpdatingAdmin, setIsUpdatingAdmin] = useState(false);
@@ -42,6 +51,10 @@ export default function AdminPage() {
     useState(false);
   const [isPausingContract, setIsPausingContract] = useState(false);
   const [isUnpausingContract, setIsUnpausingContract] = useState(false);
+  const [isPausingRaffle, setIsPausingRaffle] = useState(false);
+  const [isUnpausingRaffle, setIsUnpausingRaffle] = useState(false);
+  const [isHidingRaffle, setIsHidingRaffle] = useState(false);
+  const [isShowingRaffle, setIsShowingRaffle] = useState(false);
 
   const handleSuccess = (message: string) => {
     notifications.handleSuccess(message);
@@ -127,7 +140,7 @@ export default function AdminPage() {
   const handlePauseContract = async () => {
     setIsPausingContract(true);
     try {
-      await admin.pauseContract();
+      await admin.setContractPaused(true);
       handleSuccess("Contract paused successfully!");
       await queryClient.invalidateQueries({ queryKey: ["adminConfig"] });
     } catch (error) {
@@ -140,13 +153,85 @@ export default function AdminPage() {
   const handleUnpauseContract = async () => {
     setIsUnpausingContract(true);
     try {
-      await admin.unpauseContract();
+      await admin.setContractPaused(false);
       handleSuccess("Contract unpaused successfully!");
       await queryClient.invalidateQueries({ queryKey: ["adminConfig"] });
     } catch (error) {
       handleError(error);
     } finally {
       setIsUnpausingContract(false);
+    }
+  };
+
+  const handlePauseRaffle = async () => {
+    if (!raffleId.trim()) {
+      notifications.handleError("Please enter a valid raffle ID");
+      return;
+    }
+
+    setIsPausingRaffle(true);
+    try {
+      await admin.setRafflePaused(raffleId, true);
+      handleSuccess("Raffle paused successfully!");
+      await queryClient.invalidateQueries({ queryKey: ["raffle", raffleId] });
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setIsPausingRaffle(false);
+    }
+  };
+
+  const handleUnpauseRaffle = async () => {
+    if (!raffleId.trim()) {
+      notifications.handleError("Please enter a valid raffle ID");
+      return;
+    }
+
+    setIsUnpausingRaffle(true);
+    try {
+      await admin.setRafflePaused(raffleId, false);
+      handleSuccess("Raffle unpaused successfully!");
+      await queryClient.invalidateQueries({ queryKey: ["raffle", raffleId] });
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setIsUnpausingRaffle(false);
+    }
+  };
+
+  const handleHideRaffle = async () => {
+    if (!raffleId.trim()) {
+      notifications.handleError("Please enter a valid raffle ID");
+      return;
+    }
+
+    setIsHidingRaffle(true);
+    try {
+      await admin.setRaffleVisibility(raffleId, false);
+      handleSuccess("Raffle hidden successfully!");
+      await queryClient.invalidateQueries({ queryKey: ["raffle", raffleId] });
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setIsHidingRaffle(false);
+    }
+  };
+
+  const handleShowRaffle = async () => {
+    if (!raffleId.trim()) {
+      notifications.handleError("Please enter a valid raffle ID");
+      return;
+    }
+
+    setIsShowingRaffle(true);
+    try {
+      await admin.setRaffleVisibility(raffleId, true);
+      handleSuccess("Raffle shown successfully!");
+      await queryClient.invalidateQueries({ queryKey: ["raffle", raffleId] });
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setIsShowingRaffle(false);
     }
   };
 
@@ -818,6 +903,267 @@ export default function AdminPage() {
               </div>
             </div>
           </>
+        )}
+
+        {/* Raffle Management */}
+        {isAdminOrController && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center">
+                <svg
+                  className="h-5 w-5 text-purple-600 mr-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                  />
+                </svg>
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Raffle Management
+                </h2>
+              </div>
+              <p className="text-sm text-gray-600 mt-1">
+                Manage individual raffles - pause/unpause and control visibility
+              </p>
+            </div>
+            <div className="p-6">
+              {/* Raffle ID Input */}
+              <div className="mb-6">
+                <label
+                  htmlFor="raffleId"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Raffle ID
+                </label>
+                <input
+                  type="text"
+                  id="raffleId"
+                  value={raffleId}
+                  onChange={(e) => setRaffleId(e.target.value)}
+                  placeholder="Enter raffle object ID..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+
+              {/* Raffle Information */}
+              {raffleId && (
+                <div className="mb-6">
+                  {raffleLoading ? (
+                    <div className="flex items-center justify-center py-4">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
+                      <span className="ml-2 text-sm text-gray-600">
+                        Loading raffle...
+                      </span>
+                    </div>
+                  ) : raffleError ? (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <div className="flex">
+                        <div className="flex-shrink-0">
+                          <svg
+                            className="h-5 w-5 text-red-400"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        </div>
+                        <div className="ml-3">
+                          <p className="text-sm text-red-800">
+                            Error loading raffle: {raffleError.message}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : raffleData ? (
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <h3 className="text-lg font-medium text-gray-900 mb-2">
+                            {raffleData.name}
+                          </h3>
+                          <p className="text-sm text-gray-600 mb-3">
+                            {raffleData.description}
+                          </p>
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-gray-600">
+                                Status:
+                              </span>
+                              <span
+                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                  raffleData.paused
+                                    ? "bg-red-100 text-red-800"
+                                    : "bg-green-100 text-green-800"
+                                }`}
+                              >
+                                {raffleData.paused ? "Paused" : "Active"}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-gray-600">
+                                Visibility:
+                              </span>
+                              <span
+                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                  raffleData.visible
+                                    ? "bg-green-100 text-green-800"
+                                    : "bg-gray-100 text-gray-800"
+                                }`}
+                              >
+                                {raffleData.visible ? "Visible" : "Hidden"}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-gray-600">
+                                Tickets Sold:
+                              </span>
+                              <span className="text-sm font-medium text-gray-900">
+                                {raffleData.tickets_sold}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-gray-600">
+                                Prize Pool:
+                              </span>
+                              <span className="text-sm font-medium text-gray-900">
+                                {raffleData.prize_pool} SUI
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex flex-col justify-center space-y-3">
+                          {/* Pause/Unpause Controls */}
+                          <div className="flex gap-2">
+                            {raffleData.paused ? (
+                              <button
+                                onClick={handleUnpauseRaffle}
+                                disabled={isUnpausingRaffle}
+                                className="flex-1 inline-flex items-center justify-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {isUnpausingRaffle ? (
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                ) : (
+                                  <svg
+                                    className="h-4 w-4 mr-2"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                    />
+                                  </svg>
+                                )}
+                                {isUnpausingRaffle ? "Unpausing..." : "Unpause"}
+                              </button>
+                            ) : (
+                              <button
+                                onClick={handlePauseRaffle}
+                                disabled={isPausingRaffle}
+                                className="flex-1 inline-flex items-center justify-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {isPausingRaffle ? (
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                ) : (
+                                  <svg
+                                    className="h-4 w-4 mr-2"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                                    />
+                                  </svg>
+                                )}
+                                {isPausingRaffle ? "Pausing..." : "Pause"}
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Visibility Controls */}
+                          <div className="flex gap-2">
+                            {raffleData.visible ? (
+                              <button
+                                onClick={handleHideRaffle}
+                                disabled={isHidingRaffle}
+                                className="flex-1 inline-flex items-center justify-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {isHidingRaffle ? (
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                ) : (
+                                  <svg
+                                    className="h-4 w-4 mr-2"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"
+                                    />
+                                  </svg>
+                                )}
+                                {isHidingRaffle ? "Hiding..." : "Hide"}
+                              </button>
+                            ) : (
+                              <button
+                                onClick={handleShowRaffle}
+                                disabled={isShowingRaffle}
+                                className="flex-1 inline-flex items-center justify-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {isShowingRaffle ? (
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                ) : (
+                                  <svg
+                                    className="h-4 w-4 mr-2"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                                    />
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                                    />
+                                  </svg>
+                                )}
+                                {isShowingRaffle ? "Showing..." : "Show"}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              )}
+            </div>
+          </div>
         )}
 
         {/* Admin Functions Info */}

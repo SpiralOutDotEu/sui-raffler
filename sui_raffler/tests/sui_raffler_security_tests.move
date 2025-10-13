@@ -93,7 +93,7 @@ fun test_pause_unauthorized() {
 
     // Try to pause as non-admin/controller
     ts.next_tx(non_admin);
-    sui_raffler::pause(&mut config, ts.ctx());
+    sui_raffler::set_contract_paused(&mut config, true, ts.ctx());
 
     ts::return_shared(config);
     ts.end();
@@ -131,7 +131,7 @@ fun test_pause_raffle_unauthorized() {
 
     // Try to pause raffle as non-admin/controller
     ts.next_tx(non_admin);
-    sui_raffler::pause_raffle(&config, &mut raffle, ts.ctx());
+    sui_raffler::set_raffle_paused(&config, &mut raffle, true, ts.ctx());
 
     ts::return_shared(config);
     ts::return_shared(raffle);
@@ -383,7 +383,7 @@ fun test_cannot_buy_tickets_when_rafflepaused() {
 
     // Pause the raffle
     ts.next_tx(admin);
-    sui_raffler::pause_raffle(&config, &mut raffle, ts.ctx());
+    sui_raffler::set_raffle_paused(&config, &mut raffle, true, ts.ctx());
 
     // Try to buy tickets when raffle is paused
     ts.next_tx(buyer);
@@ -430,7 +430,7 @@ fun test_cannot_buy_tickets_when_contract_paused() {
 
     // Pause the contract
     ts.next_tx(admin);
-    sui_raffler::pause(&mut config, ts.ctx());
+    sui_raffler::set_contract_paused(&mut config, true, ts.ctx());
 
     // Try to buy tickets when raffle is paused
     ts.next_tx(buyer);
@@ -461,7 +461,7 @@ fun test_cannot_create_raffle_when_contract_paused() {
 
     // Pause the contract
     ts.next_tx(admin);
-    sui_raffler::pause(&mut config, ts.ctx());
+    sui_raffler::set_contract_paused(&mut config, true, ts.ctx());
 
     // Create a raffle (should fail)
     ts.next_tx(organizer);
@@ -1497,5 +1497,178 @@ fun test_burn_tickets_different_raffle() {
     ts::return_shared(raffle1);
     ts::return_shared(raffle2);
     ts::return_shared(random_state);
+    ts.end();
+}
+
+/// Test that admin can set raffle visibility
+#[test]
+fun test_set_raffle_visibility_admin() {
+    let admin = @0xAD;
+    let organizer = @0x1234;
+
+    let mut ts = ts::begin(admin);
+    sui_raffler::init_for_testing(ts.ctx());
+    ts.next_tx(admin);
+    let config = ts.take_shared<sui_raffler::Config>();
+
+    // Create a raffle
+    ts.next_tx(organizer);
+    sui_raffler::create_raffle(
+        &config,
+        string::utf8(b"Test Raffle"),
+        string::utf8(b"Test Description"),
+        string::utf8(b"https://example.com/image.jpg"),
+        0,
+        1000,
+        100,
+        5,
+        organizer,
+        ts.ctx()
+    );
+    ts.next_tx(organizer);
+    let mut raffle = ts.take_shared<sui_raffler::Raffle>();
+
+    // Verify raffle is visible by default
+    assert!(sui_raffler::get_raffle_visibility(&raffle), 1);
+
+    // Admin sets visibility to false
+    ts.next_tx(admin);
+    sui_raffler::set_raffle_visibility(&config, &mut raffle, false, ts.ctx());
+    assert!(!sui_raffler::get_raffle_visibility(&raffle), 1);
+
+    // Admin sets visibility back to true
+    ts.next_tx(admin);
+    sui_raffler::set_raffle_visibility(&config, &mut raffle, true, ts.ctx());
+    assert!(sui_raffler::get_raffle_visibility(&raffle), 1);
+
+    ts::return_shared(config);
+    ts::return_shared(raffle);
+    ts.end();
+}
+
+/// Test that controller can set raffle visibility
+#[test]
+fun test_set_raffle_visibility_controller() {
+    let admin = @0xAD;
+    let controller = @0x1236;
+    let organizer = @0x1234;
+
+    let mut ts = ts::begin(admin);
+    sui_raffler::init_for_testing(ts.ctx());
+    ts.next_tx(admin);
+    let mut config = ts.take_shared<sui_raffler::Config>();
+
+    // Update controller
+    sui_raffler::update_controller(&mut config, controller, ts.ctx());
+
+    // Create a raffle
+    ts.next_tx(organizer);
+    sui_raffler::create_raffle(
+        &config,
+        string::utf8(b"Test Raffle"),
+        string::utf8(b"Test Description"),
+        string::utf8(b"https://example.com/image.jpg"),
+        0,
+        1000,
+        100,
+        5,
+        organizer,
+        ts.ctx()
+    );
+    ts.next_tx(organizer);
+    let mut raffle = ts.take_shared<sui_raffler::Raffle>();
+
+    // Verify raffle is visible by default
+    assert!(sui_raffler::get_raffle_visibility(&raffle), 1);
+
+    // Controller sets visibility to false
+    ts.next_tx(controller);
+    sui_raffler::set_raffle_visibility(&config, &mut raffle, false, ts.ctx());
+    assert!(!sui_raffler::get_raffle_visibility(&raffle), 1);
+
+    // Controller sets visibility back to true
+    ts.next_tx(controller);
+    sui_raffler::set_raffle_visibility(&config, &mut raffle, true, ts.ctx());
+    assert!(sui_raffler::get_raffle_visibility(&raffle), 1);
+
+    ts::return_shared(config);
+    ts::return_shared(raffle);
+    ts.end();
+}
+
+/// Test that non-admin/controller cannot set raffle visibility
+#[test]
+#[expected_failure(abort_code = sui_raffler::ENotAuthorized)]
+fun test_set_raffle_visibility_unauthorized() {
+    let admin = @0xAD;
+    let non_admin = @0xBEEF;
+    let organizer = @0x1234;
+
+    let mut ts = ts::begin(admin);
+    sui_raffler::init_for_testing(ts.ctx());
+    ts.next_tx(admin);
+    let config = ts.take_shared<sui_raffler::Config>();
+
+    // Create a raffle
+    ts.next_tx(organizer);
+    sui_raffler::create_raffle(
+        &config,
+        string::utf8(b"Test Raffle"),
+        string::utf8(b"Test Description"),
+        string::utf8(b"https://example.com/image.jpg"),
+        0,
+        1000,
+        100,
+        5,
+        organizer,
+        ts.ctx()
+    );
+    ts.next_tx(organizer);
+    let mut raffle = ts.take_shared<sui_raffler::Raffle>();
+
+    // Try to set visibility as non-admin/controller
+    ts.next_tx(non_admin);
+    sui_raffler::set_raffle_visibility(&config, &mut raffle, false, ts.ctx());
+
+    ts::return_shared(config);
+    ts::return_shared(raffle);
+    ts.end();
+}
+
+/// Test that organizer cannot set raffle visibility
+#[test]
+#[expected_failure(abort_code = sui_raffler::ENotAuthorized)]
+fun test_set_raffle_visibility_organizer_unauthorized() {
+    let admin = @0xAD;
+    let organizer = @0x1234;
+
+    let mut ts = ts::begin(admin);
+    sui_raffler::init_for_testing(ts.ctx());
+    ts.next_tx(admin);
+    let config = ts.take_shared<sui_raffler::Config>();
+
+    // Create a raffle
+    ts.next_tx(organizer);
+    sui_raffler::create_raffle(
+        &config,
+        string::utf8(b"Test Raffle"),
+        string::utf8(b"Test Description"),
+        string::utf8(b"https://example.com/image.jpg"),
+        0,
+        1000,
+        100,
+        5,
+        organizer,
+        ts.ctx()
+    );
+    ts.next_tx(organizer);
+    let mut raffle = ts.take_shared<sui_raffler::Raffle>();
+
+    // Try to set visibility as organizer (should fail)
+    ts.next_tx(organizer);
+    sui_raffler::set_raffle_visibility(&config, &mut raffle, false, ts.ctx());
+
+    ts::return_shared(config);
+    ts::return_shared(raffle);
     ts.end();
 } 
