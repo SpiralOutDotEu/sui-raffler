@@ -194,32 +194,18 @@ module sui_raffler::sui_raffler {
         config.permissionless = value;
     }
 
-    /// Pause the contract globally
+    /// Set contract pause state globally
     /// Only the admin or controller can call this function
-    public fun pause(config: &mut Config, ctx: &mut TxContext) {
+    public fun set_contract_paused(config: &mut Config, paused: bool, ctx: &mut TxContext) {
         assert!(is_admin_or_controller(config, tx_context::sender(ctx)), ENotAuthorized);
-        config.paused = true;
+        config.paused = paused;
     }
 
-    /// Unpause the contract globally
+    /// Set raffle pause state
     /// Only the admin or controller can call this function
-    public fun unpause(config: &mut Config, ctx: &mut TxContext) {
+    public fun set_raffle_paused(config: &Config, raffle: &mut Raffle, paused: bool, ctx: &mut TxContext) {
         assert!(is_admin_or_controller(config, tx_context::sender(ctx)), ENotAuthorized);
-        config.paused = false;
-    }
-
-    /// Pause a specific raffle
-    /// Only the admin or controller can call this function
-    public fun pause_raffle(config: &Config, raffle: &mut Raffle, ctx: &mut TxContext) {
-        assert!(is_admin_or_controller(config, tx_context::sender(ctx)), ENotAuthorized);
-        raffle.paused = true;
-    }
-
-    /// Unpause a specific raffle
-    /// Only the admin or controller can call this function
-    public fun unpause_raffle(config: &Config, raffle: &mut Raffle, ctx: &mut TxContext) {
-        assert!(is_admin_or_controller(config, tx_context::sender(ctx)), ENotAuthorized);
-        raffle.paused = false;
+        raffle.paused = paused;
     }
 
     /// Set raffle visibility (hide/show from frontend)

@@ -93,7 +93,7 @@ fun test_pause_unauthorized() {
 
     // Try to pause as non-admin/controller
     ts.next_tx(non_admin);
-    sui_raffler::pause(&mut config, ts.ctx());
+    sui_raffler::set_contract_paused(&mut config, true, ts.ctx());
 
     ts::return_shared(config);
     ts.end();
@@ -131,7 +131,7 @@ fun test_pause_raffle_unauthorized() {
 
     // Try to pause raffle as non-admin/controller
     ts.next_tx(non_admin);
-    sui_raffler::pause_raffle(&config, &mut raffle, ts.ctx());
+    sui_raffler::set_raffle_paused(&config, &mut raffle, true, ts.ctx());
 
     ts::return_shared(config);
     ts::return_shared(raffle);
@@ -383,7 +383,7 @@ fun test_cannot_buy_tickets_when_rafflepaused() {
 
     // Pause the raffle
     ts.next_tx(admin);
-    sui_raffler::pause_raffle(&config, &mut raffle, ts.ctx());
+    sui_raffler::set_raffle_paused(&config, &mut raffle, true, ts.ctx());
 
     // Try to buy tickets when raffle is paused
     ts.next_tx(buyer);
@@ -430,7 +430,7 @@ fun test_cannot_buy_tickets_when_contract_paused() {
 
     // Pause the contract
     ts.next_tx(admin);
-    sui_raffler::pause(&mut config, ts.ctx());
+    sui_raffler::set_contract_paused(&mut config, true, ts.ctx());
 
     // Try to buy tickets when raffle is paused
     ts.next_tx(buyer);
@@ -461,7 +461,7 @@ fun test_cannot_create_raffle_when_contract_paused() {
 
     // Pause the contract
     ts.next_tx(admin);
-    sui_raffler::pause(&mut config, ts.ctx());
+    sui_raffler::set_contract_paused(&mut config, true, ts.ctx());
 
     // Create a raffle (should fail)
     ts.next_tx(organizer);
