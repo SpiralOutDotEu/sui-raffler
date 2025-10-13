@@ -41,6 +41,7 @@ export const RAFFLE_RELEASED_EVENT = `${PACKAGE_ID}::${MODULE}::RaffleReleased`;
 export const CREATE_RAFFLE_TARGET = `${PACKAGE_ID}::${MODULE}::create_raffle`;
 export const BUY_TICKETS_TARGET = `${PACKAGE_ID}::${MODULE}::buy_tickets`;
 export const RELEASE_RAFFLE_TARGET = `${PACKAGE_ID}::${MODULE}::release_raffle`;
+export const BURN_TICKETS_TARGET = `${PACKAGE_ID}::${MODULE}::burn_tickets`;
 
 // Cache configuration
 export const CACHE_MAX_ITEMS = 1000;

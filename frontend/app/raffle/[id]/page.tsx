@@ -62,6 +62,7 @@ export default function RaffleDetail() {
   const [isReleasing, setIsReleasing] = useState(false);
   const [isClaimingOrganizerShare, setIsClaimingOrganizerShare] =
     useState(false);
+  const [isBurningTickets, setIsBurningTickets] = useState(false);
   const [organizerClaimed, setOrganizerClaimed] = useState(false);
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
   const [transactionDigest, setTransactionDigest] = useState<string | null>(
@@ -338,6 +339,73 @@ export default function RaffleDetail() {
       setPurchaseError("Failed to return ticket. Please try again.");
     } finally {
       setIsPurchasing(false);
+    }
+  };
+
+  const handleBurnTickets = async () => {
+    if (!isConnected || !currentAccount || !raffle || !winners) return;
+
+    // Get non-winning tickets
+    const winningTicketStrings =
+      winners.winningTicketNumbers?.map(String) ?? [];
+    const nonWinningTickets = userTickets.filter(
+      (ticket) => !winningTicketStrings.includes(String(ticket.ticket_number))
+    );
+
+    if (nonWinningTickets.length === 0) {
+      handleError(new Error("No non-winning tickets to burn"));
+      return;
+    }
+
+    setIsBurningTickets(true);
+    setPurchaseError(null);
+    setTransactionDigest(null);
+
+    try {
+      const ticketIds = nonWinningTickets.map((ticket) => ticket.id);
+      const result = await transactions.burnTickets(raffle.id, ticketIds);
+
+      setTransactionDigest(result.digest);
+      handleSuccess(
+        `Successfully burned ${nonWinningTickets.length} non-winning tickets!`
+      );
+
+      // Refresh raffle data and user tickets
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      await queryClient.invalidateQueries({ queryKey: ["raffle", id] });
+      await queryClient.invalidateQueries({
+        queryKey: ["tickets", id, currentAccount],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["userPurchaseInfo", id, currentAccount],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["raffleReturnState", id],
+      });
+
+      // Force refetch of critical data
+      await queryClient.refetchQueries({ queryKey: ["raffle", id] });
+      await queryClient.refetchQueries({
+        queryKey: ["tickets", id, currentAccount],
+      });
+      await queryClient.refetchQueries({
+        queryKey: ["userPurchaseInfo", id, currentAccount],
+      });
+    } catch (err) {
+      // Don't log user cancellations as errors - they're expected behavior
+      if (
+        err &&
+        typeof err === "object" &&
+        "code" in err &&
+        err.code !== "USER_REJECTED"
+      ) {
+        console.error("Error burning tickets:", err);
+      }
+      handleError(err);
+      setPurchaseError("Failed to burn tickets. Please try again.");
+    } finally {
+      setIsBurningTickets(false);
     }
   };
 
@@ -992,10 +1060,62 @@ export default function RaffleDetail() {
 
             {/* Your Tickets Card */}
             <div className="bg-white rounded-2xl shadow-lg p-8 border border-gray-100">
-              <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                <span className="text-green-500">🎫</span>
-                Your Tickets
-              </h2>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                  <span className="text-green-500">🎫</span>
+                  Your Tickets
+                </h2>
+                {raffle.is_released &&
+                  winners &&
+                  userTickets.length > 0 &&
+                  isConnected &&
+                  currentAccount &&
+                  (() => {
+                    const winningTicketStrings =
+                      winners.winningTicketNumbers?.map(String) ?? [];
+                    const nonWinningTickets = userTickets.filter(
+                      (ticket) =>
+                        !winningTicketStrings.includes(
+                          String(ticket.ticket_number)
+                        )
+                    );
+                    return nonWinningTickets.length > 0 ? (
+                      <button
+                        onClick={handleBurnTickets}
+                        disabled={isBurningTickets}
+                        className="px-4 py-2 bg-gradient-to-r from-red-500 to-orange-600 text-white rounded-lg font-medium hover:from-red-600 hover:to-orange-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isBurningTickets ? (
+                          <span className="flex items-center">
+                            <svg
+                              className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                              xmlns="http://www.w3.org/2000/svg"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                            >
+                              <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                              ></circle>
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                              ></path>
+                            </svg>
+                            Burning...
+                          </span>
+                        ) : (
+                          `Burn ${nonWinningTickets.length} Non-Winning Tickets`
+                        )}
+                      </button>
+                    ) : null;
+                  })()}
+              </div>
               {isLoadingTickets ? (
                 <div className="flex justify-center items-center min-h-[200px]">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
