@@ -68,6 +68,10 @@ export interface CreateRaffleData {
     endTime: number;
     ticketPrice: string;
     maxTicketsPerAddress: string; // Changed from maxTicketsPerPurchase
+    // Optional creation fee handling (in MIST)
+    creationFeeMist?: number;
+    // Caller privilege flag to decide if fee coin should be provided
+    isAdminOrController?: boolean;
 }
 
 export interface UserPurchaseInfo {

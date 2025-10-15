@@ -8,6 +8,7 @@ export interface AdminConfig {
     feeCollector: string;
     paused: boolean;
     permissionless: boolean;
+    creationFee: number; // in MIST
 }
 
 export function useAdminConfig() {
@@ -36,6 +37,7 @@ export function useAdminConfig() {
                     feeCollector: fields.fee_collector as string,
                     paused: fields.paused as boolean,
                     permissionless: fields.permissionless as boolean,
+                    creationFee: Number(fields.creation_fee ?? 0),
                 };
             } catch (error) {
                 console.error('Error fetching admin config:', error);

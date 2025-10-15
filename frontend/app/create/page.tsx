@@ -1,11 +1,12 @@
 "use client";
 
-import { useSuiClient, useSignAndExecuteTransaction } from "@mysten/dapp-kit";
+import { useSuiClient } from "@mysten/dapp-kit";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
-import { PACKAGE_ID, MODULE, CONFIG_OBJECT_ID } from "@/lib/constants";
-import { Transaction } from "@mysten/sui/transactions";
+import { PACKAGE_ID, MODULE } from "@/lib/constants";
 import { useWallet } from "@/lib/context/WalletContext";
+import { useAdminPermissions } from "@/lib/hooks/useAdminPermissions";
+import { useTransactions } from "@/lib/hooks/useTransactions";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
@@ -342,8 +343,9 @@ function ImageUpload({
 export default function CreateRaffle() {
   const router = useRouter();
   const { address: currentAccount, isConnected } = useWallet();
-  const { mutateAsync: signAndExecute } = useSignAndExecuteTransaction();
   const suiClient = useSuiClient();
+  const { isAdminOrController, creationFee } = useAdminPermissions();
+  const txService = useTransactions();
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [transactionDigest, setTransactionDigest] = useState<string | null>(
@@ -464,7 +466,6 @@ export default function CreateRaffle() {
       // Convert form data to required format using blockchain time
       const startTime = isoStringToBlockchainTime(formData.startTime);
       const endTime = isoStringToBlockchainTime(formData.endTime);
-      const ticketPrice = Math.floor(Number(formData.ticketPrice) * 1e9); // Convert SUI to MIST
       const maxTicketsPerAddress = Number(formData.maxTicketsPerAddress);
 
       // Validate times
@@ -478,27 +479,21 @@ export default function CreateRaffle() {
         throw new Error("Raffle must last at least 1 minute");
       }
 
-      const tx = new Transaction();
-
-      // Add the create_raffle call
-      tx.moveCall({
-        target: `${PACKAGE_ID}::${MODULE}::create_raffle`,
-        arguments: [
-          tx.object(CONFIG_OBJECT_ID),
-          tx.pure.string(formData.name),
-          tx.pure.string(formData.description),
-          tx.pure.string(formData.imageCid),
-          tx.pure.u64(startTime),
-          tx.pure.u64(endTime),
-          tx.pure.u64(ticketPrice),
-          tx.pure.u64(maxTicketsPerAddress),
-          tx.pure.address(formData.organizerAddress),
-        ],
-      });
-
-      const result = await signAndExecute({
-        transaction: tx,
-      });
+      // Build data and delegate to TransactionService which handles Option<Coin<SUI>>
+      const result = await txService.createRaffle(
+        {
+          name: formData.name,
+          description: formData.description,
+          imageCid: formData.imageCid,
+          startTime,
+          endTime,
+          ticketPrice: String(Number(formData.ticketPrice)),
+          maxTicketsPerAddress: String(maxTicketsPerAddress),
+          creationFeeMist: creationFee ?? 0,
+          isAdminOrController: Boolean(isAdminOrController),
+        },
+        formData.organizerAddress
+      );
 
       setTransactionDigest(result.digest);
 
