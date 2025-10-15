@@ -27,6 +27,7 @@ module sui_raffler::sui_raffler {
     use sui::clock::{Self, Clock};
     use sui::event;
     use std::string::{String};
+    use std::option::{Self, Option};
     use sui::types;
     use sui::table::{Self, Table};
 
@@ -51,6 +52,7 @@ module sui_raffler::sui_raffler {
     const ENotMinimumTickets: u64 = 18;      // Not enough tickets sold for raffle release
     const ENotOneTimeWitness: u64 = 19;      // Not one time witness
     const EExceedsPerUserLimit: u64 = 20;    // Exceeds per-user cumulative ticket limit
+    const EInvalidCreationFee: u64 = 21;     // Invalid or missing creation fee payment
 
     // === Constants ===
     // Prize distribution percentages (must sum to 100)
@@ -72,6 +74,7 @@ module sui_raffler::sui_raffler {
         fee_collector: address,
         paused: bool,
         permissionless: bool,
+        creation_fee: u64,
     }
 
     /// A raffle object that holds all the raffle information
@@ -152,6 +155,8 @@ module sui_raffler::sui_raffler {
             fee_collector: ctx.sender(),
             paused: false,
             permissionless: true,
+            // Default creator fee set to 2 SUI = 2_000_000_000 MIST
+            creation_fee: 2_000_000_000,
         };
         transfer::share_object(config);
     }
@@ -192,6 +197,13 @@ module sui_raffler::sui_raffler {
     public fun set_permissionless(config: &mut Config, value: bool, ctx: &mut TxContext) {
         assert!(config.admin == tx_context::sender(ctx), ENotAdmin);
         config.permissionless = value;
+    }
+
+    /// Update raffle creation fee (in MIST)
+    /// Only the admin can call this function
+    public fun update_creation_fee(config: &mut Config, new_fee: u64, ctx: &mut TxContext) {
+        assert!(config.admin == tx_context::sender(ctx), ENotAdmin);
+        config.creation_fee = new_fee;
     }
 
     /// Set contract pause state globally
@@ -276,6 +288,7 @@ module sui_raffler::sui_raffler {
     /// Anyone can create a raffle by specifying the parameters
     public fun create_raffle(
         config: &Config,
+        payment: Option<Coin<SUI>>,
         name: String,
         description: String,
         image: String,
@@ -292,6 +305,31 @@ module sui_raffler::sui_raffler {
         assert!(ticket_price > 0, EInvalidTicketPrice);
         assert!(max_tickets_per_address > 0, EInvalidMaxTickets);
         assert!(!(organizer == @0x0), EInvalidOrganizer);
+
+        // Creation fee handling: non-admin/controller must pay exact fee to fee_collector
+        let sender = ctx.sender();
+        let is_privileged = is_admin_or_controller(config, sender);
+        if (!is_privileged) {
+            if (config.creation_fee > 0) {
+                assert!(option::is_some(&payment), EInvalidCreationFee);
+                let fee_coin = option::extract<Coin<SUI>>(&mut payment);
+                let paid = coin::value(&fee_coin);
+                assert!(paid == config.creation_fee, EInvalidCreationFee);
+                transfer::public_transfer(fee_coin, config.fee_collector);
+            } else {
+                // No fee required; refund any provided coin
+                if (option::is_some(&payment)) {
+                    let refund = option::extract<Coin<SUI>>(&mut payment);
+                    transfer::public_transfer(refund, sender);
+                };
+            };
+        } else {
+            if (option::is_some(&payment)) {
+                let refund = option::extract<Coin<SUI>>(&mut payment);
+                transfer::public_transfer(refund, sender);
+            };
+        };
+        option::destroy_none(payment);
         let raffle_uid = object::new(ctx);
         event::emit(RaffleCreated {
             raffle_id: object::uid_to_inner(&raffle_uid),
