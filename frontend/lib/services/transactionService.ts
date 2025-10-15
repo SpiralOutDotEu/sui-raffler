@@ -30,10 +30,32 @@ export class TransactionService {
             const endTime = Math.floor(data.endTime);
             const maxTicketsPerAddress = parseInt(data.maxTicketsPerAddress);
 
+            // Build Option<Coin<SUI>> for payment based on admin/controller and creation fee
+            const needsFee = !data.isAdminOrController && (data.creationFeeMist ?? 0) > 0;
+            let paymentOption;
+            if (needsFee) {
+                // Split a coin from gas for the exact creation fee
+                const [feeCoin] = tx.splitCoins(tx.gas, [tx.pure.u64(data.creationFeeMist!)]);
+                // Create Some<Coin<SUI>> using moveCall
+                paymentOption = tx.moveCall({
+                    target: '0x1::option::some',
+                    typeArguments: ['0x2::coin::Coin<0x2::sui::SUI>'],
+                    arguments: [feeCoin],
+                });
+            } else {
+                // Create None<Coin<SUI>> using moveCall
+                paymentOption = tx.moveCall({
+                    target: '0x1::option::none',
+                    typeArguments: ['0x2::coin::Coin<0x2::sui::SUI>'],
+                    arguments: [],
+                });
+            }
+
             tx.moveCall({
                 target: CREATE_RAFFLE_TARGET,
                 arguments: [
                     tx.object(CONFIG_OBJECT_ID),
+                    paymentOption,
                     tx.pure.string(data.name),
                     tx.pure.string(data.description),
                     tx.pure.string(data.imageCid),
@@ -41,7 +63,7 @@ export class TransactionService {
                     tx.pure.u64(endTime),
                     tx.pure.u64(ticketPriceInMist),
                     tx.pure.u64(maxTicketsPerAddress),
-                    tx.pure.address(organizer), // Add organizer address
+                    tx.pure.address(organizer),
                 ],
             });
 

@@ -8,6 +8,7 @@ use sui::coin::{Self, Coin};
 use sui::random::{Self, Random};
 use sui::sui::SUI;
 use std::string;
+use std::option::some;
 
 /// Helper function to mint SUI coins for testing
 fun mint(addr: address, amount: u64, scenario: &mut ts::Scenario) {
@@ -45,6 +46,9 @@ fun setup_raffle_with_two_tickets(
     sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
+    
+     // Mint a Coin<SUI> with exactly 2 SUI (2_000_000_000 MIST) for creation fee
+    let payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
 
     // Create raffle
     ts.next_tx(creator);
@@ -52,6 +56,7 @@ fun setup_raffle_with_two_tickets(
     ts.next_tx(creator);
     sui_raffler::create_raffle(
         &config,
+        some(payment_coin),
         string::utf8(b"Test Raffle"),
         string::utf8(b"Test Description"),
         string::utf8(b"https://example.com/image.jpg"),

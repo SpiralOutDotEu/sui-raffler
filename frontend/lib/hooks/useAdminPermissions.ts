@@ -12,6 +12,7 @@ export function useAdminPermissions() {
                 isAdmin: false,
                 isController: false,
                 isAdminOrController: false,
+                creationFee: 0,
                 isLoading: true,
                 error: null,
             };
@@ -26,6 +27,7 @@ export function useAdminPermissions() {
             isAdmin,
             isController,
             isAdminOrController,
+            creationFee: config.creationFee,
             isLoading: false,
             error: null,
         };
