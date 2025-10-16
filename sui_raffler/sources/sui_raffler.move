@@ -285,6 +285,7 @@ module sui_raffler::sui_raffler {
     // === Public Functions ===
     /// Create a new raffle
     /// Anyone can create a raffle by specifying the parameters
+    #[allow(lint(self_transfer))]
     public fun create_raffle(
         config: &Config,
         payment: Coin<SUI>,
@@ -351,6 +352,7 @@ module sui_raffler::sui_raffler {
 
     /// Buy tickets for a raffle
     /// Users can buy multiple tickets in a single transaction up to max_tickets_per_address
+    #[allow(lint(self_transfer))]
     public fun buy_tickets(
         config: &Config,
         raffle: &mut Raffle,
@@ -420,6 +422,7 @@ module sui_raffler::sui_raffler {
 
     /// Claim prize with a winning ticket
     /// Winners can claim their prizes after the raffle is released
+    #[allow(lint(self_transfer))]
     public fun claim_prize(
         raffle: &mut Raffle,
         ticket: Ticket,
@@ -456,6 +459,7 @@ module sui_raffler::sui_raffler {
 
     /// Claim organizer's share of the raffle
     /// Only the organizer can claim their share after all winners have claimed their prizes
+    #[allow(lint(self_transfer))]
     public fun claim_organizer_share(
         raffle: &mut Raffle,
         ctx: &mut TxContext
@@ -482,6 +486,7 @@ module sui_raffler::sui_raffler {
     }
 
     /// Return ticket and get refund when raffle has ended with less than 3 tickets
+    #[allow(lint(self_transfer))]
     public fun return_ticket(
         raffle: &mut Raffle,
         ticket: Ticket,
