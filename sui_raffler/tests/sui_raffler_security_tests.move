@@ -5,12 +5,11 @@ use sui_raffler::sui_raffler;
 use sui::test_scenario as ts;
 use sui::clock;
 use sui::coin::{Self, Coin};
-use sui::balance::{Self, Balance};
+use sui::balance;
 use sui::random::{Self, Random};
 use sui::sui::SUI;
 use std::debug;
 use std::string;
-use std::option::some;
 
 /// Helper function to mint SUI coins for testing
 fun mint(addr: address, amount: u64, scenario: &mut ts::Scenario) {
@@ -105,10 +104,10 @@ fun test_create_raffle_missing_fee_non_admin() {
     sui_raffler::update_creation_fee(&mut config, 10, ts.ctx());
 
     ts.next_tx(non_admin);
-    // No payment passed, should abort
+    // No payment case is now represented by wrong amount; pass zero to trigger failure
     sui_raffler::create_raffle(
         &config,
-        std::option::none<Coin<SUI>>(),
+        coin::mint_for_testing<SUI>(0, ts.ctx()),
         string::utf8(b"Test Raffle"),
         string::utf8(b"Desc"),
         string::utf8(b"img"),
@@ -153,7 +152,7 @@ fun test_create_raffle_wrong_fee_non_admin() {
 
     sui_raffler::create_raffle(
         &config,
-        some(wrong_fee),
+        wrong_fee,
         string::utf8(b"Test Raffle"),
         string::utf8(b"Desc"),
         string::utf8(b"img"),
@@ -197,7 +196,7 @@ fun test_create_raffle_exact_fee_non_admin() {
     // Create raffle with fee
     sui_raffler::create_raffle(
         &config,
-        std::option::some<Coin<SUI>>(fee_coin),
+        fee_coin,
         string::utf8(b"Test Raffle"),
         string::utf8(b"Desc"),
         string::utf8(b"img"),
@@ -246,7 +245,7 @@ fun test_create_raffle_admin_refund_if_provided_coin() {
 
     sui_raffler::create_raffle(
         &config,
-        std::option::some<Coin<SUI>>(admin_coin),
+        admin_coin,
         string::utf8(b"Test Raffle"),
         string::utf8(b"Desc"),
         string::utf8(b"img"),
@@ -303,11 +302,11 @@ fun test_pause_raffle_unauthorized() {
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
     ts.next_tx(organizer);
-    let payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
+    let mut payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
     ts.next_tx(organizer);
     sui_raffler::create_raffle(
         &config,
-        some(payment_coin),
+        payment_coin,
         string::utf8(b"Test Raffle"),
         string::utf8(b"Test Description"),
         string::utf8(b"https://example.com/image.jpg"),
@@ -356,13 +355,13 @@ fun test_release_raffle_unauthorized() {
     sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
-    let payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
+    let mut payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
 
     // Create a raffle
     ts.next_tx(organizer);
     sui_raffler::create_raffle(
         &config,
-        some(payment_coin),
+        payment_coin,
         string::utf8(b"Test Raffle"),
         string::utf8(b"Test Description"),
         string::utf8(b"https://example.com/image.jpg"),
@@ -418,13 +417,13 @@ fun test_claim_organizer_share_unauthorized() {
     sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
-    let payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
+    let mut payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
 
     // Create a raffle
     ts.next_tx(organizer);
     sui_raffler::create_raffle(
         &config,
-        some(payment_coin),
+        payment_coin,
         string::utf8(b"Test Raffle"),
         string::utf8(b"Test Description"),
         string::utf8(b"https://example.com/image.jpg"),
@@ -489,13 +488,13 @@ fun test_claim_prize_unauthorized() {
     sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
-    let payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
+    let mut payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
 
     // Create a raffle
     ts.next_tx(organizer);
     sui_raffler::create_raffle(
         &config,
-        some(payment_coin),
+        payment_coin,
         string::utf8(b"Test Raffle"),
         string::utf8(b"Test Description"),
         string::utf8(b"https://example.com/image.jpg"),
@@ -586,13 +585,13 @@ fun test_cannot_buy_tickets_when_rafflepaused() {
     sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
-    let payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
+    let mut payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
 
     // Create a raffle
     ts.next_tx(organizer);
     sui_raffler::create_raffle(
         &config,
-        some(payment_coin),
+        payment_coin,
         string::utf8(b"Test Raffle"),
         string::utf8(b"Test Description"),
         string::utf8(b"https://example.com/image.jpg"),
@@ -636,13 +635,13 @@ fun test_cannot_buy_tickets_when_contract_paused() {
     ts.next_tx(admin);
     let mut config = ts.take_shared<sui_raffler::Config>();
     // Ensure no creation fee interferes when creating raffle
-    let payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
+    let mut payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
 
     // Create a raffle
     ts.next_tx(organizer);
     sui_raffler::create_raffle(
         &config,
-        some(payment_coin),
+        payment_coin,
         string::utf8(b"Test Raffle"),
         string::utf8(b"Test Description"),
         string::utf8(b"https://example.com/image.jpg"),
@@ -686,7 +685,7 @@ fun test_cannot_create_raffle_when_contract_paused() {
     sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let mut config = ts.take_shared<sui_raffler::Config>();
-    let payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
+    let mut payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
 
     // Pause the contract
     ts.next_tx(admin);
@@ -696,7 +695,7 @@ fun test_cannot_create_raffle_when_contract_paused() {
     ts.next_tx(organizer);
     sui_raffler::create_raffle(
         &config,
-        some(payment_coin),
+        payment_coin,
         string::utf8(b"Test Raffle"),
         string::utf8(b"Test Description"),
         string::utf8(b"https://example.com/image.jpg"),
@@ -724,7 +723,7 @@ fun test_create_raffle_not_permissionless() {
     sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let mut config = ts.take_shared<sui_raffler::Config>();
-    let payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
+    let mut payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
 
     // Set permissionless to false
     ts.next_tx(admin);
@@ -734,7 +733,7 @@ fun test_create_raffle_not_permissionless() {
     ts.next_tx(non_admin);
     sui_raffler::create_raffle(
         &config,
-        some(payment_coin),
+        payment_coin,
         string::utf8(b"Test Raffle"),
         string::utf8(b"Test Description"),
         string::utf8(b"https://example.com/image.jpg"),
@@ -762,13 +761,13 @@ fun test_buy_tickets_before_start() {
     sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let mut config = ts.take_shared<sui_raffler::Config>();
-    let payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
+    let mut payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
 
     // Create a raffle with future start time
     ts.next_tx(organizer);
     sui_raffler::create_raffle(
         &config,
-        some(payment_coin),
+        payment_coin,
         string::utf8(b"Test Raffle"),
         string::utf8(b"Test Description"),
         string::utf8(b"https://example.com/image.jpg"),
@@ -807,13 +806,13 @@ fun test_buy_tickets_after_end() {
     sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
-    let payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
+    let mut payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
 
     // Create a raffle
     ts.next_tx(organizer);
     sui_raffler::create_raffle(
         &config,
-        some(payment_coin),
+        payment_coin,
         string::utf8(b"Test Raffle"),
         string::utf8(b"Test Description"),
         string::utf8(b"https://example.com/image.jpg"),
@@ -857,13 +856,13 @@ fun test_buy_tickets_exceeds_per_purchase_limit() {
     sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
-    let payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
+    let mut payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
 
     // Create a raffle with max_tickets_per_address = 3
     ts.next_tx(organizer);
     sui_raffler::create_raffle(
         &config,
-        some(payment_coin),
+        payment_coin,
         string::utf8(b"Test Raffle"),
         string::utf8(b"Test Description"),
         string::utf8(b"https://example.com/image.jpg"),
@@ -906,13 +905,13 @@ fun test_buy_tickets_two_txs_exceed_cumulative_limit() {
     sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
-    let payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
+    let mut payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
 
     // Create a raffle with per-purchase cap = 3 (now cumulative per-user cap)
     ts.next_tx(organizer);
     sui_raffler::create_raffle(
         &config,
-        some(payment_coin),
+        payment_coin,
         string::utf8(b"Test Raffle"),
         string::utf8(b"Test Description"),
         string::utf8(b"https://example.com/image.jpg"),
@@ -970,13 +969,13 @@ fun test_release_raffle_before_end() {
     sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
-    let payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
+    let mut payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
 
     // Create a raffle
     ts.next_tx(organizer);
     sui_raffler::create_raffle(
         &config,
-        some(payment_coin),
+        payment_coin,
         string::utf8(b"Test Raffle"),
         string::utf8(b"Test Description"),
         string::utf8(b"https://example.com/image.jpg"),
@@ -1028,13 +1027,13 @@ fun test_release_raffle_twice() {
     sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
-    let payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
+    let mut payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
 
     // Create a raffle
     ts.next_tx(organizer);
     sui_raffler::create_raffle(
         &config,
-        some(payment_coin),
+        payment_coin,
         string::utf8(b"Test Raffle"),
         string::utf8(b"Test Description"),
         string::utf8(b"https://example.com/image.jpg"),
@@ -1097,13 +1096,13 @@ fun test_claim_organizer_share_twice() {
     sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
-    let payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
+    let mut payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
 
     // Create a raffle
     ts.next_tx(organizer);
     sui_raffler::create_raffle(
         &config,
-        some(payment_coin),
+        payment_coin,
         string::utf8(b"Test Raffle"),
         string::utf8(b"Test Description"),
         string::utf8(b"https://example.com/image.jpg"),
@@ -1172,13 +1171,13 @@ fun test_log_winning_tickets() {
     sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
-    let payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
+    let mut payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
 
     // Create a raffle
     ts.next_tx(organizer);
     sui_raffler::create_raffle(
         &config,
-        some(payment_coin),
+        payment_coin,
         string::utf8(b"Test Raffle"),
         string::utf8(b"Test Description"),
         string::utf8(b"https://example.com/image.jpg"),
@@ -1264,13 +1263,13 @@ fun test_prize_claiming() {
     sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
-    let payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
+    let mut payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
 
     // Create a raffle
     ts.next_tx(organizer);
     sui_raffler::create_raffle(
         &config,
-        some(payment_coin),
+        payment_coin,
         string::utf8(b"Test Raffle"),
         string::utf8(b"Test Description"),
         string::utf8(b"https://example.com/image.jpg"),
@@ -1492,13 +1491,13 @@ fun test_burn_tickets_before_release() {
     sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
-    let payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
+    let mut payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
 
     // Create a raffle
     ts.next_tx(organizer);
     sui_raffler::create_raffle(
         &config,
-        some(payment_coin),
+        payment_coin,
         string::utf8(b"Test Raffle"),
         string::utf8(b"Test Description"),
         string::utf8(b"https://example.com/image.jpg"),
@@ -1562,13 +1561,13 @@ fun test_burn_tickets_returns_winning_tickets() {
     sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let mut config = ts.take_shared<sui_raffler::Config>();
-    let payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
+    let mut payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
 
     // Create a raffle
     ts.next_tx(organizer);
     sui_raffler::create_raffle(
         &config,
-        some(payment_coin),
+        payment_coin,
         string::utf8(b"Test Raffle"),
         string::utf8(b"Test Description"),
         string::utf8(b"https://example.com/image.jpg"),
@@ -1677,14 +1676,14 @@ fun test_burn_tickets_different_raffle() {
     sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
-    let payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
+    let mut payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
     let payment_coin2 = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
 
     // Create first raffle
     ts.next_tx(organizer);
     sui_raffler::create_raffle(
         &config,
-        some(payment_coin),
+        payment_coin,
         string::utf8(b"Test Raffle 1"),
         string::utf8(b"Test Description 1"),
         string::utf8(b"https://example.com/image1.jpg"),
@@ -1702,7 +1701,7 @@ fun test_burn_tickets_different_raffle() {
     ts.next_tx(organizer);
     sui_raffler::create_raffle(
         &config,
-        some(payment_coin2),
+        payment_coin2,
         string::utf8(b"Test Raffle 2"),
         string::utf8(b"Test Description 2"),
         string::utf8(b"https://example.com/image2.jpg"),
@@ -1768,13 +1767,13 @@ fun test_set_raffle_visibility_admin() {
     sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
-    let payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
+    let mut payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
 
     // Create a raffle
     ts.next_tx(organizer);
     sui_raffler::create_raffle(
         &config,
-        some(payment_coin),
+        payment_coin,
         string::utf8(b"Test Raffle"),
         string::utf8(b"Test Description"),
         string::utf8(b"https://example.com/image.jpg"),
@@ -1817,7 +1816,7 @@ fun test_set_raffle_visibility_controller() {
     sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let mut config = ts.take_shared<sui_raffler::Config>();
-    let payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
+    let mut payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
 
     // Update controller
     sui_raffler::update_controller(&mut config, controller, ts.ctx());
@@ -1826,7 +1825,7 @@ fun test_set_raffle_visibility_controller() {
     ts.next_tx(organizer);
     sui_raffler::create_raffle(
         &config,
-        some(payment_coin),
+        payment_coin,
         string::utf8(b"Test Raffle"),
         string::utf8(b"Test Description"),
         string::utf8(b"https://example.com/image.jpg"),
@@ -1870,13 +1869,13 @@ fun test_set_raffle_visibility_unauthorized() {
     sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
-    let payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());    
+    let mut payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());    
 
     // Create a raffle
     ts.next_tx(organizer);
     sui_raffler::create_raffle(
         &config,
-        some(payment_coin),
+        payment_coin,
         string::utf8(b"Test Raffle"),
         string::utf8(b"Test Description"),
         string::utf8(b"https://example.com/image.jpg"),
@@ -1910,13 +1909,13 @@ fun test_set_raffle_visibility_organizer_unauthorized() {
     sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
     let config = ts.take_shared<sui_raffler::Config>();
-    let payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
+    let mut payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
 
     // Create a raffle
     ts.next_tx(organizer);
     sui_raffler::create_raffle(
         &config,
-        some(payment_coin),
+        payment_coin,
         string::utf8(b"Test Raffle"),
         string::utf8(b"Test Description"),
         string::utf8(b"https://example.com/image.jpg"),
