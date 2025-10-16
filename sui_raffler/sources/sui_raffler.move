@@ -27,7 +27,6 @@ module sui_raffler::sui_raffler {
     use sui::clock::{Self, Clock};
     use sui::event;
     use std::string::{String};
-    use std::option::{Self, Option};
     use sui::types;
     use sui::table::{Self, Table};
 
@@ -288,7 +287,7 @@ module sui_raffler::sui_raffler {
     /// Anyone can create a raffle by specifying the parameters
     public fun create_raffle(
         config: &Config,
-        payment: Option<Coin<SUI>>,
+        payment: Coin<SUI>,
         name: String,
         description: String,
         image: String,
@@ -309,27 +308,15 @@ module sui_raffler::sui_raffler {
         // Creation fee handling: non-admin/controller must pay exact fee to fee_collector
         let sender = ctx.sender();
         let is_privileged = is_admin_or_controller(config, sender);
-        if (!is_privileged) {
-            if (config.creation_fee > 0) {
-                assert!(option::is_some(&payment), EInvalidCreationFee);
-                let fee_coin = option::extract<Coin<SUI>>(&mut payment);
-                let paid = coin::value(&fee_coin);
-                assert!(paid == config.creation_fee, EInvalidCreationFee);
-                transfer::public_transfer(fee_coin, config.fee_collector);
-            } else {
-                // No fee required; refund any provided coin
-                if (option::is_some(&payment)) {
-                    let refund = option::extract<Coin<SUI>>(&mut payment);
-                    transfer::public_transfer(refund, sender);
-                };
-            };
+        let paid = coin::value(&payment);
+        if (is_privileged || config.creation_fee == 0) {
+            // No payment needed; refund to sender
+            transfer::public_transfer(payment, sender);
         } else {
-            if (option::is_some(&payment)) {
-                let refund = option::extract<Coin<SUI>>(&mut payment);
-                transfer::public_transfer(refund, sender);
-            };
+            // Require exact fee
+            assert!(paid == config.creation_fee, EInvalidCreationFee);
+            transfer::public_transfer(payment, config.fee_collector);
         };
-        option::destroy_none(payment);
         let raffle_uid = object::new(ctx);
         event::emit(RaffleCreated {
             raffle_id: object::uid_to_inner(&raffle_uid),
