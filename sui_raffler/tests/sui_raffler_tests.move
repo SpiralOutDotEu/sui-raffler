@@ -1032,3 +1032,153 @@ fun test_init_for_testing() {
     ts.end();
 }
 
+/// Test successful admin update by current admin
+#[test]
+fun test_update_admin_success() {
+    let admin = @0xAD;
+    let new_admin = @0xAD2;
+
+    let mut ts = ts::begin(admin);
+    sui_raffler::init_for_testing(ts.ctx());
+    ts.next_tx(admin);
+    let mut config = ts.take_shared<sui_raffler::Config>();
+
+    // Verify initial admin
+    assert!(sui_raffler::is_admin(&config, admin), 0);
+
+    // Update admin
+    sui_raffler::update_admin(&mut config, new_admin, ts.ctx());
+
+    // Verify admin was updated
+    assert!(sui_raffler::is_admin(&config, new_admin), 1);
+    assert!(!sui_raffler::is_admin(&config, admin), 2);
+
+    ts::return_shared(config);
+    ts.end();
+}
+
+/// Test that non-admin cannot update admin
+#[test]
+#[expected_failure(abort_code = sui_raffler::ENotAdmin)]
+fun test_update_admin_unauthorized() {
+    let admin = @0xAD;
+    let non_admin = @0xBEEF;
+    let new_admin = @0xAD2;
+
+    let mut ts = ts::begin(admin);
+    sui_raffler::init_for_testing(ts.ctx());
+    ts.next_tx(admin);
+    let mut config = ts.take_shared<sui_raffler::Config>();
+
+    // Try to update admin as non-admin
+    ts.next_tx(non_admin);
+    sui_raffler::update_admin(&mut config, new_admin, ts.ctx());
+
+    ts::return_shared(config);
+    ts.end();
+}
+
+/// Test that admin can update admin to same address (should work)
+#[test]
+fun test_update_admin_to_same_address() {
+    let admin = @0xAD;
+
+    let mut ts = ts::begin(admin);
+    sui_raffler::init_for_testing(ts.ctx());
+    ts.next_tx(admin);
+    let mut config = ts.take_shared<sui_raffler::Config>();
+
+    // Verify initial admin
+    assert!(sui_raffler::is_admin(&config, admin), 0);
+
+    // Update admin to same address
+    sui_raffler::update_admin(&mut config, admin, ts.ctx());
+
+    // Verify admin is still the same
+    assert!(sui_raffler::is_admin(&config, admin), 1);
+
+    ts::return_shared(config);
+    ts.end();
+}
+
+/// Test that admin can update admin to zero address (edge case)
+#[test]
+fun test_update_admin_to_zero_address() {
+    let admin = @0xAD;
+    let zero_admin = @0x0;
+
+    let mut ts = ts::begin(admin);
+    sui_raffler::init_for_testing(ts.ctx());
+    ts.next_tx(admin);
+    let mut config = ts.take_shared<sui_raffler::Config>();
+
+    // Verify initial admin
+    assert!(sui_raffler::is_admin(&config, admin), 0);
+
+    // Update admin to zero address
+    sui_raffler::update_admin(&mut config, zero_admin, ts.ctx());
+
+    // Verify admin was updated to zero address
+    assert!(sui_raffler::is_admin(&config, zero_admin), 1);
+    assert!(!sui_raffler::is_admin(&config, admin), 2);
+
+    ts::return_shared(config);
+    ts.end();
+}
+
+/// Test multiple admin updates in sequence
+#[test]
+fun test_multiple_admin_updates() {
+    let admin1 = @0xAD;
+    let admin2 = @0xAD2;
+    let admin3 = @0xAD3;
+
+    let mut ts = ts::begin(admin1);
+    sui_raffler::init_for_testing(ts.ctx());
+    ts.next_tx(admin1);
+    let mut config = ts.take_shared<sui_raffler::Config>();
+
+    // First update: admin1 -> admin2
+    sui_raffler::update_admin(&mut config, admin2, ts.ctx());
+    assert!(sui_raffler::is_admin(&config, admin2), 0);
+    assert!(!sui_raffler::is_admin(&config, admin1), 1);
+
+    // Second update: admin2 -> admin3
+    ts.next_tx(admin2);
+    sui_raffler::update_admin(&mut config, admin3, ts.ctx());
+    assert!(sui_raffler::is_admin(&config, admin3), 2);
+    assert!(!sui_raffler::is_admin(&config, admin2), 3);
+    assert!(!sui_raffler::is_admin(&config, admin1), 4);
+
+    ts::return_shared(config);
+    ts.end();
+}
+
+/// Test that controller cannot update admin
+#[test]
+#[expected_failure(abort_code = sui_raffler::ENotAdmin)]
+fun test_controller_cannot_update_admin() {
+    let admin = @0xAD;
+    let controller = @0x1236;
+    let new_admin = @0xAD2;
+
+    let mut ts = ts::begin(admin);
+    sui_raffler::init_for_testing(ts.ctx());
+    ts.next_tx(admin);
+    let mut config = ts.take_shared<sui_raffler::Config>();
+
+    // Update controller to a different address
+    sui_raffler::update_controller(&mut config, controller, ts.ctx());
+
+    // Verify controller is set
+    assert!(sui_raffler::is_controller(&config, controller), 0);
+    assert!(sui_raffler::is_admin(&config, admin), 1);
+
+    // Try to update admin as controller (should fail)
+    ts.next_tx(controller);
+    sui_raffler::update_admin(&mut config, new_admin, ts.ctx());
+
+    ts::return_shared(config);
+    ts.end();
+}
+
