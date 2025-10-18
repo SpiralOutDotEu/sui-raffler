@@ -107,3 +107,59 @@ fun test_is_raffle_visible() {
     ts::return_shared(raffle);
     ts.end();
 }
+
+/// Test the is_winning_ticket view function when raffle is not released
+#[test]
+fun test_is_winning_ticket_not_released() {
+    let admin = @0xAD;
+    let organizer = @0x1234;
+    let buyer = @0xB0B;
+
+    let mut ts = ts::begin(admin);
+    let config = test_helpers::init_config_and_get(admin, &mut ts);
+    let mut raffle = test_helpers::create_basic_raffle(
+        &config,
+        organizer,
+        organizer,
+        0,
+        1000,
+        100,
+        5,
+        &mut ts
+    );
+
+    // Buyer buys tickets
+    ts.next_tx(buyer);
+    test_helpers::mint(buyer, 300, &mut ts);
+    let coin: Coin<SUI> = ts.take_from_sender();
+    let clock = clock::create_for_testing(ts.ctx());
+    sui_raffler::buy_tickets(&config, &mut raffle, coin, 3, &clock, ts.ctx());
+
+    // Get buyer's tickets
+    ts.next_tx(buyer);
+    let mut tickets = vector::empty<sui_raffler::Ticket>();
+    let mut i = 0;
+    while (i < 3) {
+        let ticket = ts.take_from_sender<sui_raffler::Ticket>();
+        vector::push_back(&mut tickets, ticket);
+        i = i + 1;
+    };
+
+    // Test is_winning_ticket when raffle is not released (should return false, 0)
+    while (!vector::is_empty(&tickets)) {
+        let ticket = vector::pop_back(&mut tickets);
+        let (is_winner, prize_amount) = sui_raffler::is_winning_ticket(&raffle, &ticket);
+        
+        // Should return false and 0 when raffle is not released
+        assert!(!is_winner, 1);
+        assert!(prize_amount == 0, 1);
+        
+        transfer::public_transfer(ticket, buyer);
+    };
+    vector::destroy_empty(tickets);
+
+    clock.destroy_for_testing();
+    ts::return_shared(config);
+    ts::return_shared(raffle);
+    ts.end();
+}
