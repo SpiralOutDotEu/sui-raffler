@@ -868,3 +868,168 @@ fun test_claim_organizer_share_before_release() {
     ts::return_shared(raffle);
     ts.end();
 }
+
+/// Test that cannot return ticket when raffle is not in return state (before end time)
+#[test]
+#[expected_failure(abort_code = sui_raffler::ERaffleNotEnded)]
+fun test_return_ticket_before_end_time() {
+    let admin = @0xAD;
+    let organizer = @0x1234;
+    let buyer = @0xB0B;
+
+    let mut ts = ts::begin(admin);
+    let config = test_helpers::init_config_and_get(admin, &mut ts);
+    let mut raffle = test_helpers::create_basic_raffle(
+        &config,
+        organizer,
+        organizer,
+        0,
+        1000,
+        100,
+        5,
+        &mut ts
+    );
+
+    // Buyer buys tickets
+    ts.next_tx(buyer);
+    test_helpers::mint(buyer, 200, &mut ts);
+    let coin: Coin<SUI> = ts.take_from_sender();
+    let clock = clock::create_for_testing(ts.ctx());
+    sui_raffler::buy_tickets(&config, &mut raffle, coin, 2, &clock, ts.ctx());
+
+    // Try to return ticket before end time (should fail)
+    ts.next_tx(buyer);
+    let ticket = ts.take_from_sender<sui_raffler::Ticket>();
+    sui_raffler::return_ticket(&mut raffle, ticket, &clock, ts.ctx());
+
+    clock.destroy_for_testing();
+    ts::return_shared(config);
+    ts::return_shared(raffle);
+    ts.end();
+}
+
+/// Test that cannot return ticket when raffle is not in return state (after release)
+#[test]
+#[expected_failure(abort_code = sui_raffler::ERaffleNotEnded)]
+fun test_return_ticket_after_release() {
+    let admin = @0xAD;
+    let organizer = @0x1234;
+    let buyer = @0xB0B;
+
+    // Start with system address for random setup
+    let (mut ts, random_state) = test_helpers::begin_scenario_with_random(@0x0);
+
+    // Initialize module configuration
+    let config = test_helpers::init_config_and_get(admin, &mut ts);
+    let mut raffle = test_helpers::create_basic_raffle(
+        &config,
+        organizer,
+        organizer,
+        0,
+        1000,
+        100,
+        5,
+        &mut ts
+    );
+
+    // Buyer buys tickets to meet minimum requirement
+    let mut clock = test_helpers::new_clock(&mut ts);
+    test_helpers::buy_tickets_exact(&config, &mut raffle, buyer, 3, 100, &clock, &mut ts);
+
+    // Release raffle after end time
+    ts.next_tx(admin);
+    clock.set_for_testing(1001);
+    sui_raffler::release_raffle(&config, &mut raffle, &random_state, &clock, ts.ctx());
+
+    // Try to return ticket after raffle is released (should fail)
+    ts.next_tx(buyer);
+    let ticket = ts.take_from_sender<sui_raffler::Ticket>();
+    sui_raffler::return_ticket(&mut raffle, ticket, &clock, ts.ctx());
+
+    clock.destroy_for_testing();
+    ts::return_shared(config);
+    ts::return_shared(raffle);
+    ts::return_shared(random_state);
+    ts.end();
+}
+
+/// Test that cannot return ticket from different raffle
+#[test]
+#[expected_failure(abort_code = sui_raffler::EInvalidTicket)]
+fun test_return_ticket_different_raffle() {
+    let admin = @0xAD;
+    let organizer = @0x1234;
+    let buyer = @0xB0B;
+
+    let mut ts = ts::begin(admin);
+    let config = test_helpers::init_config_and_get(admin, &mut ts);
+    
+    // Create first raffle
+    let mut raffle1 = test_helpers::create_basic_raffle(
+        &config,
+        organizer,
+        organizer,
+        0,
+        1000,
+        100,
+        5,
+        &mut ts
+    );
+
+    // Create second raffle
+    let mut raffle2 = test_helpers::create_basic_raffle(
+        &config,
+        organizer,
+        organizer,
+        0,
+        1000,
+        100,
+        5,
+        &mut ts
+    );
+
+    // Buyer buys tickets from raffle1
+    ts.next_tx(buyer);
+    test_helpers::mint(buyer, 200, &mut ts);
+    let coin: Coin<SUI> = ts.take_from_sender();
+    let mut clock = clock::create_for_testing(ts.ctx());
+    sui_raffler::buy_tickets(&config, &mut raffle1, coin, 2, &clock, ts.ctx());
+
+    // Buyer buys tickets from raffle2
+    ts.next_tx(buyer);
+    test_helpers::mint(buyer, 200, &mut ts);
+    let coin2: Coin<SUI> = ts.take_from_sender();
+    sui_raffler::buy_tickets(&config, &mut raffle2, coin2, 2, &clock, ts.ctx());
+
+    // Set time after end time for raffle1 (making it in return state)
+    clock.set_for_testing(1001);
+
+    // Collect tickets from raffle2 only
+    ts.next_tx(buyer);
+    let mut raffle2_tickets = vector::empty<sui_raffler::Ticket>();
+    
+    let mut i = 0;
+    while (i < 2) {
+        let ticket = ts.take_from_sender<sui_raffler::Ticket>();
+        vector::push_back(&mut raffle2_tickets, ticket);
+        i = i + 1;
+    };
+
+    // Try to return raffle2 ticket using raffle1 (should fail with EInvalidTicket)
+    // because raffle2 tickets have different raffle_id than raffle1
+    let ticket_to_return = vector::pop_back(&mut raffle2_tickets);
+    sui_raffler::return_ticket(&mut raffle1, ticket_to_return, &clock, ts.ctx());
+
+    // Clean up remaining tickets
+    while (!vector::is_empty(&raffle2_tickets)) {
+        let leftover = vector::pop_back(&mut raffle2_tickets);
+        transfer::public_transfer(leftover, admin);
+    };
+    vector::destroy_empty(raffle2_tickets);
+
+    clock.destroy_for_testing();
+    ts::return_shared(config);
+    ts::return_shared(raffle1);
+    ts::return_shared(raffle2);
+    ts.end();
+}
