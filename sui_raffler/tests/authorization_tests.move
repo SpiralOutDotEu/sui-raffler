@@ -336,3 +336,40 @@ fun test_set_raffle_visibility_organizer_unauthorized() {
     ts::return_shared(raffle);
     ts.end();
 }
+
+/// Test that non-admin cannot set permissionless mode
+#[test]
+#[expected_failure(abort_code = sui_raffler::ENotAdmin)]
+fun test_set_permissionless_unauthorized() {
+    let admin = @0xAD;
+    let non_admin = @0xBEEF;
+
+    let mut ts = ts::begin(admin);
+    let mut config = test_helpers::init_config_and_get(admin, &mut ts);
+
+    // Try to set permissionless as non-admin
+    ts.next_tx(non_admin);
+    sui_raffler::set_permissionless(&mut config, false, ts.ctx());
+
+    ts::return_shared(config);
+    ts.end();
+}
+
+/// Test that non-admin cannot update creation fee
+#[test]
+#[expected_failure(abort_code = sui_raffler::ENotAdmin)]
+fun test_update_creation_fee_unauthorized() {
+    let admin = @0xAD;
+    let non_admin = @0xBEEF;
+    let new_fee = 5_000_000_000; // 5 SUI
+
+    let mut ts = ts::begin(admin);
+    let mut config = test_helpers::init_config_and_get(admin, &mut ts);
+
+    // Try to update creation fee as non-admin
+    ts.next_tx(non_admin);
+    sui_raffler::update_creation_fee(&mut config, new_fee, ts.ctx());
+
+    ts::return_shared(config);
+    ts.end();
+}
