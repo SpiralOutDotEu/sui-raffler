@@ -163,3 +163,86 @@ fun test_is_winning_ticket_not_released() {
     ts::return_shared(raffle);
     ts.end();
 }
+
+/// Test the get_raffle_stats view function when no tickets are sold
+#[test]
+fun test_get_raffle_stats_no_tickets_sold() {
+    let admin = @0xAD;
+    let organizer = @0x1234;
+
+    let mut ts = ts::begin(admin);
+    let config = test_helpers::init_config_and_get(admin, &mut ts);
+    let raffle = test_helpers::create_basic_raffle(
+        &config,
+        organizer,
+        organizer,
+        0,
+        1000,
+        100,
+        5,
+        &mut ts
+    );
+
+    let clock = clock::create_for_testing(ts.ctx());
+    
+    // Test get_raffle_stats when no tickets are sold
+    let (total_sold, volume, avg_tix, time_left, is_active) = sui_raffler::get_raffle_stats(&raffle, &clock);
+    
+    // Should return 0 for average tickets per purchase when no tickets sold
+    assert!(total_sold == 0, 1);
+    assert!(volume == 0, 1);
+    assert!(avg_tix == 0, 1); // This covers the else branch: { 0 }
+    assert!(time_left > 0, 1); // Raffle hasn't ended yet
+    assert!(is_active, 1);
+
+    clock.destroy_for_testing();
+    ts::return_shared(config);
+    ts::return_shared(raffle);
+    ts.end();
+}
+
+/// Test the get_raffle_stats view function when raffle has ended
+#[test]
+fun test_get_raffle_stats_raffle_ended() {
+    let admin = @0xAD;
+    let organizer = @0x1234;
+    let buyer = @0xB0B;
+
+    let mut ts = ts::begin(admin);
+    let config = test_helpers::init_config_and_get(admin, &mut ts);
+    let mut raffle = test_helpers::create_basic_raffle(
+        &config,
+        organizer,
+        organizer,
+        0,
+        1000,
+        100,
+        5,
+        &mut ts
+    );
+
+    // Buyer buys tickets
+    ts.next_tx(buyer);
+    test_helpers::mint(buyer, 300, &mut ts);
+    let coin: Coin<SUI> = ts.take_from_sender();
+    let mut clock = clock::create_for_testing(ts.ctx());
+    sui_raffler::buy_tickets(&config, &mut raffle, coin, 3, &clock, ts.ctx());
+
+    // Set time after raffle end time
+    clock.set_for_testing(1001);
+    
+    // Test get_raffle_stats when raffle has ended
+    let (total_sold, volume, avg_tix, time_left, is_active) = sui_raffler::get_raffle_stats(&raffle, &clock);
+    
+    // Should return 0 for time remaining when raffle has ended
+    assert!(total_sold == 3, 1);
+    assert!(volume == 300, 1);
+    assert!(avg_tix == 100, 1); // 300 / 3 = 100
+    assert!(time_left == 0, 1); // This covers the else branch: { 0 }
+    assert!(!is_active, 1);
+
+    clock.destroy_for_testing();
+    ts::return_shared(config);
+    ts::return_shared(raffle);
+    ts.end();
+}
