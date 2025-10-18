@@ -384,7 +384,7 @@ module sui_raffler::sui_raffler {
         // Calculate total cost
         let total_cost = raffle.ticket_price * amount;
         let payment_value = coin::value(&payment);
-        assert!(payment_value >= total_cost, EInvalidTicketPrice);
+        assert!(payment_value == total_cost, EInvalidTicketPrice);
 
         // Add payment to raffle balance
         balance::join(&mut raffle.balance, coin::into_balance(payment));
@@ -523,7 +523,7 @@ module sui_raffler::sui_raffler {
         // Verify raffle is released
         assert!(raffle.is_released, ERaffleNotEnded);
         
-        // Check if minimum tickets are sold
+        // Check if minimum tickets are sold. Unreachable in practice because release_raffle requires tickets_sold >= 3.
         assert!(raffle.tickets_sold >= 3, ENotMinimumTickets);
         
         // Process all tickets in a single loop - burn non-winning, return winning
@@ -740,7 +740,8 @@ module sui_raffler::sui_raffler {
         raffle: &mut Raffle,
         ctx: &mut TxContext
     ) {
-        // Verify protocol fees haven't been claimed yet
+        // Verify protocol fees haven't been claimed yet. 
+        // Unreachable in practice because release_raffle requires protocol_claimed = false.
         assert!(!raffle.protocol_claimed, EAlreadyClaimed);
 
         // Mark as claimed
