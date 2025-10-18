@@ -485,3 +485,127 @@ fun test_create_raffle_not_permissionless() {
     ts::return_shared(config);
     ts.end();
 }
+
+/// Test that cannot create raffle with invalid dates (start_time >= end_time)
+#[test]
+#[expected_failure(abort_code = sui_raffler::EInvalidDates)]
+fun test_create_raffle_invalid_dates() {
+    let admin = @0xAD;
+    let organizer = @0x1234;
+
+    let mut ts = ts::begin(admin);
+    let config = test_helpers::init_config_and_get(admin, &mut ts);
+    let payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
+
+    // Try to create raffle with start_time >= end_time
+    ts.next_tx(organizer);
+    sui_raffler::create_raffle(
+        &config,
+        payment_coin,
+        string::utf8(b"Test Raffle"),
+        string::utf8(b"Test Description"),
+        string::utf8(b"https://example.com/image.jpg"),
+        1000, // start_time
+        1000, // end_time (same as start_time - should fail)
+        100,
+        5,
+        organizer,
+        ts.ctx()
+    );
+
+    ts::return_shared(config);
+    ts.end();
+}
+
+/// Test that cannot create raffle with start_time > end_time
+#[test]
+#[expected_failure(abort_code = sui_raffler::EInvalidDates)]
+fun test_create_raffle_start_after_end() {
+    let admin = @0xAD;
+    let organizer = @0x1234;
+
+    let mut ts = ts::begin(admin);
+    let config = test_helpers::init_config_and_get(admin, &mut ts);
+    let payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
+
+    // Try to create raffle with start_time > end_time
+    ts.next_tx(organizer);
+    sui_raffler::create_raffle(
+        &config,
+        payment_coin,
+        string::utf8(b"Test Raffle"),
+        string::utf8(b"Test Description"),
+        string::utf8(b"https://example.com/image.jpg"),
+        2000, // start_time
+        1000, // end_time (before start_time - should fail)
+        100,
+        5,
+        organizer,
+        ts.ctx()
+    );
+
+    ts::return_shared(config);
+    ts.end();
+}
+
+/// Test that cannot create raffle with zero ticket price
+#[test]
+#[expected_failure(abort_code = sui_raffler::EInvalidTicketPrice)]
+fun test_create_raffle_zero_ticket_price() {
+    let admin = @0xAD;
+    let organizer = @0x1234;
+
+    let mut ts = ts::begin(admin);
+    let config = test_helpers::init_config_and_get(admin, &mut ts);
+    let payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
+
+    // Try to create raffle with ticket_price = 0
+    ts.next_tx(organizer);
+    sui_raffler::create_raffle(
+        &config,
+        payment_coin,
+        string::utf8(b"Test Raffle"),
+        string::utf8(b"Test Description"),
+        string::utf8(b"https://example.com/image.jpg"),
+        0,
+        1000,
+        0, // ticket_price = 0 (should fail)
+        5,
+        organizer,
+        ts.ctx()
+    );
+
+    ts::return_shared(config);
+    ts.end();
+}
+
+/// Test that cannot create raffle with zero max tickets per address
+#[test]
+#[expected_failure(abort_code = sui_raffler::EInvalidMaxTickets)]
+fun test_create_raffle_zero_max_tickets() {
+    let admin = @0xAD;
+    let organizer = @0x1234;
+
+    let mut ts = ts::begin(admin);
+    let config = test_helpers::init_config_and_get(admin, &mut ts);
+    let payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
+
+    // Try to create raffle with max_tickets_per_address = 0
+    ts.next_tx(organizer);
+    sui_raffler::create_raffle(
+        &config,
+        payment_coin,
+        string::utf8(b"Test Raffle"),
+        string::utf8(b"Test Description"),
+        string::utf8(b"https://example.com/image.jpg"),
+        0,
+        1000,
+        100,
+        0, // max_tickets_per_address = 0 (should fail)
+        organizer,
+        ts.ctx()
+    );
+
+    ts::return_shared(config);
+    ts.end();
+}
