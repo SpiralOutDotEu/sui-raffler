@@ -27,7 +27,6 @@ module sui_raffler::sui_raffler {
     use sui::clock::{Self, Clock};
     use sui::event;
     use std::string::{String};
-    use std::option::{Self, Option};
     use sui::types;
     use sui::table::{Self, Table};
 
@@ -286,9 +285,10 @@ module sui_raffler::sui_raffler {
     // === Public Functions ===
     /// Create a new raffle
     /// Anyone can create a raffle by specifying the parameters
+    #[allow(lint(self_transfer))]
     public fun create_raffle(
         config: &Config,
-        payment: Option<Coin<SUI>>,
+        payment: Coin<SUI>,
         name: String,
         description: String,
         image: String,
@@ -309,27 +309,15 @@ module sui_raffler::sui_raffler {
         // Creation fee handling: non-admin/controller must pay exact fee to fee_collector
         let sender = ctx.sender();
         let is_privileged = is_admin_or_controller(config, sender);
-        if (!is_privileged) {
-            if (config.creation_fee > 0) {
-                assert!(option::is_some(&payment), EInvalidCreationFee);
-                let fee_coin = option::extract<Coin<SUI>>(&mut payment);
-                let paid = coin::value(&fee_coin);
-                assert!(paid == config.creation_fee, EInvalidCreationFee);
-                transfer::public_transfer(fee_coin, config.fee_collector);
-            } else {
-                // No fee required; refund any provided coin
-                if (option::is_some(&payment)) {
-                    let refund = option::extract<Coin<SUI>>(&mut payment);
-                    transfer::public_transfer(refund, sender);
-                };
-            };
+        let paid = coin::value(&payment);
+        if (is_privileged || config.creation_fee == 0) {
+            // No payment needed; refund to sender
+            transfer::public_transfer(payment, sender);
         } else {
-            if (option::is_some(&payment)) {
-                let refund = option::extract<Coin<SUI>>(&mut payment);
-                transfer::public_transfer(refund, sender);
-            };
+            // Require exact fee
+            assert!(paid == config.creation_fee, EInvalidCreationFee);
+            transfer::public_transfer(payment, config.fee_collector);
         };
-        option::destroy_none(payment);
         let raffle_uid = object::new(ctx);
         event::emit(RaffleCreated {
             raffle_id: object::uid_to_inner(&raffle_uid),
@@ -364,6 +352,7 @@ module sui_raffler::sui_raffler {
 
     /// Buy tickets for a raffle
     /// Users can buy multiple tickets in a single transaction up to max_tickets_per_address
+    #[allow(lint(self_transfer))]
     public fun buy_tickets(
         config: &Config,
         raffle: &mut Raffle,
@@ -433,6 +422,7 @@ module sui_raffler::sui_raffler {
 
     /// Claim prize with a winning ticket
     /// Winners can claim their prizes after the raffle is released
+    #[allow(lint(self_transfer))]
     public fun claim_prize(
         raffle: &mut Raffle,
         ticket: Ticket,
@@ -469,6 +459,7 @@ module sui_raffler::sui_raffler {
 
     /// Claim organizer's share of the raffle
     /// Only the organizer can claim their share after all winners have claimed their prizes
+    #[allow(lint(self_transfer))]
     public fun claim_organizer_share(
         raffle: &mut Raffle,
         ctx: &mut TxContext
@@ -495,6 +486,7 @@ module sui_raffler::sui_raffler {
     }
 
     /// Return ticket and get refund when raffle has ended with less than 3 tickets
+    #[allow(lint(self_transfer))]
     public fun return_ticket(
         raffle: &mut Raffle,
         ticket: Ticket,

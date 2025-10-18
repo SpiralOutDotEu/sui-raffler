@@ -479,7 +479,7 @@ export default function CreateRaffle() {
         throw new Error("Raffle must last at least 1 minute");
       }
 
-      // Build data and delegate to TransactionService which handles Option<Coin<SUI>>
+      // Build data and delegate to TransactionService which handles direct Coin<SUI> payment
       const result = await txService.createRaffle(
         {
           name: formData.name,

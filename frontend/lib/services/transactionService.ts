@@ -30,32 +30,24 @@ export class TransactionService {
             const endTime = Math.floor(data.endTime);
             const maxTicketsPerAddress = parseInt(data.maxTicketsPerAddress);
 
-            // Build Option<Coin<SUI>> for payment based on admin/controller and creation fee
+            // Simplified payment handling: always provide a coin, contract handles refunds
             const needsFee = !data.isAdminOrController && (data.creationFeeMist ?? 0) > 0;
-            let paymentOption;
+            let paymentCoin;
             if (needsFee) {
                 // Split a coin from gas for the exact creation fee
                 const [feeCoin] = tx.splitCoins(tx.gas, [tx.pure.u64(data.creationFeeMist!)]);
-                // Create Some<Coin<SUI>> using moveCall
-                paymentOption = tx.moveCall({
-                    target: '0x1::option::some',
-                    typeArguments: ['0x2::coin::Coin<0x2::sui::SUI>'],
-                    arguments: [feeCoin],
-                });
+                paymentCoin = feeCoin;
             } else {
-                // Create None<Coin<SUI>> using moveCall
-                paymentOption = tx.moveCall({
-                    target: '0x1::option::none',
-                    typeArguments: ['0x2::coin::Coin<0x2::sui::SUI>'],
-                    arguments: [],
-                });
+                // Split a zero coin (0 MIST)
+                const [minimalCoin] = tx.splitCoins(tx.gas, [tx.pure.u64(0)]);
+                paymentCoin = minimalCoin;
             }
 
             tx.moveCall({
                 target: CREATE_RAFFLE_TARGET,
                 arguments: [
                     tx.object(CONFIG_OBJECT_ID),
-                    paymentOption,
+                    paymentCoin, // Direct Coin<SUI> instead of Option<Coin<SUI>>
                     tx.pure.string(data.name),
                     tx.pure.string(data.description),
                     tx.pure.string(data.imageCid),
