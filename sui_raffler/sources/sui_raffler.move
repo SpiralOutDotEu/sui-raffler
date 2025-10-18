@@ -740,7 +740,8 @@ module sui_raffler::sui_raffler {
         raffle: &mut Raffle,
         ctx: &mut TxContext
     ) {
-        // Verify protocol fees haven't been claimed yet
+        // Verify protocol fees haven't been claimed yet. 
+        // Unreachable in practice because release_raffle requires protocol_claimed = false.
         assert!(!raffle.protocol_claimed, EAlreadyClaimed);
 
         // Mark as claimed
