@@ -830,3 +830,41 @@ fun test_claim_prize_different_raffle() {
     ts::return_shared(random_state);
     ts.end();
 }
+
+/// Test that cannot claim organizer share before raffle is released
+#[test]
+#[expected_failure(abort_code = sui_raffler::ERaffleNotEnded)]
+fun test_claim_organizer_share_before_release() {
+    let admin = @0xAD;
+    let organizer = @0x1234;
+    let buyer = @0xB0B;
+
+    let mut ts = ts::begin(admin);
+    let config = test_helpers::init_config_and_get(admin, &mut ts);
+    let mut raffle = test_helpers::create_basic_raffle(
+        &config,
+        organizer,
+        organizer,
+        0,
+        1000,
+        100,
+        5,
+        &mut ts
+    );
+
+    // Buyer buys tickets to meet minimum requirement
+    ts.next_tx(buyer);
+    test_helpers::mint(buyer, 300, &mut ts);
+    let coin: Coin<SUI> = ts.take_from_sender();
+    let clock = clock::create_for_testing(ts.ctx());
+    sui_raffler::buy_tickets(&config, &mut raffle, coin, 3, &clock, ts.ctx());
+
+    // Try to claim organizer share before raffle is released (should fail)
+    ts.next_tx(organizer);
+    sui_raffler::claim_organizer_share(&mut raffle, ts.ctx());
+
+    clock.destroy_for_testing();
+    ts::return_shared(config);
+    ts::return_shared(raffle);
+    ts.end();
+}
