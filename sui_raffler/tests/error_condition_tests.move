@@ -643,3 +643,108 @@ fun test_create_raffle_zero_max_tickets() {
     ts::return_shared(config);
     ts.end();
 }
+
+/// Test that cannot buy tickets with insufficient payment (underpayment)
+#[test]
+#[expected_failure(abort_code = sui_raffler::EInvalidTicketPrice)]
+fun test_buy_tickets_insufficient_payment() {
+    let admin = @0xAD;
+    let organizer = @0x1234;
+    let buyer = @0xB0B;
+
+    let mut ts = ts::begin(admin);
+    let config = test_helpers::init_config_and_get(admin, &mut ts);
+    let mut raffle = test_helpers::create_basic_raffle(
+        &config,
+        organizer,
+        organizer,
+        0,
+        1000,
+        100, // ticket_price = 100
+        5,
+        &mut ts
+    );
+
+    // Try to buy 3 tickets (cost: 300) but only pay 200 (insufficient)
+    ts.next_tx(buyer);
+    test_helpers::mint(buyer, 200, &mut ts);
+    let coin: Coin<SUI> = ts.take_from_sender();
+    let clock = clock::create_for_testing(ts.ctx());
+    sui_raffler::buy_tickets(&config, &mut raffle, coin, 3, &clock, ts.ctx());
+
+    clock.destroy_for_testing();
+    ts::return_shared(config);
+    ts::return_shared(raffle);
+    ts.end();
+}
+
+/// Test that cannot buy tickets with excessive payment (overpayment)
+#[test]
+#[expected_failure(abort_code = sui_raffler::EInvalidTicketPrice)]
+fun test_buy_tickets_excessive_payment() {
+    let admin = @0xAD;
+    let organizer = @0x1234;
+    let buyer = @0xB0B;
+
+    let mut ts = ts::begin(admin);
+    let config = test_helpers::init_config_and_get(admin, &mut ts);
+    let mut raffle = test_helpers::create_basic_raffle(
+        &config,
+        organizer,
+        organizer,
+        0,
+        1000,
+        100, // ticket_price = 100
+        5,
+        &mut ts
+    );
+
+    // Try to buy 3 tickets (cost: 300) but pay 400 (excessive)
+    ts.next_tx(buyer);
+    test_helpers::mint(buyer, 400, &mut ts);
+    let coin: Coin<SUI> = ts.take_from_sender();
+    let clock = clock::create_for_testing(ts.ctx());
+    sui_raffler::buy_tickets(&config, &mut raffle, coin, 3, &clock, ts.ctx());
+
+    clock.destroy_for_testing();
+    ts::return_shared(config);
+    ts::return_shared(raffle);
+    ts.end();
+}
+
+/// Test that can buy tickets with exact payment amount
+#[test]
+fun test_buy_tickets_exact_payment() {
+    let admin = @0xAD;
+    let organizer = @0x1234;
+    let buyer = @0xB0B;
+
+    let mut ts = ts::begin(admin);
+    let config = test_helpers::init_config_and_get(admin, &mut ts);
+    let mut raffle = test_helpers::create_basic_raffle(
+        &config,
+        organizer,
+        organizer,
+        0,
+        1000,
+        100, // ticket_price = 100
+        5,
+        &mut ts
+    );
+
+    // Buy 3 tickets with exact payment (cost: 300)
+    ts.next_tx(buyer);
+    test_helpers::mint(buyer, 300, &mut ts);
+    let coin: Coin<SUI> = ts.take_from_sender();
+    let clock = clock::create_for_testing(ts.ctx());
+    sui_raffler::buy_tickets(&config, &mut raffle, coin, 3, &clock, ts.ctx());
+
+    // Verify tickets were created and balance is correct
+    assert!(sui_raffler::get_tickets_sold(&raffle) == 3, 1);
+    assert!(sui_raffler::get_raffle_balance(&raffle) == 300, 1);
+
+    clock.destroy_for_testing();
+    ts::return_shared(config);
+    ts::return_shared(raffle);
+    ts.end();
+}

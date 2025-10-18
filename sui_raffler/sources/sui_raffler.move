@@ -384,7 +384,7 @@ module sui_raffler::sui_raffler {
         // Calculate total cost
         let total_cost = raffle.ticket_price * amount;
         let payment_value = coin::value(&payment);
-        assert!(payment_value >= total_cost, EInvalidTicketPrice);
+        assert!(payment_value == total_cost, EInvalidTicketPrice);
 
         // Add payment to raffle balance
         balance::join(&mut raffle.balance, coin::into_balance(payment));
