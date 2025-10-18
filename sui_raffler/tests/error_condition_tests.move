@@ -1033,3 +1033,57 @@ fun test_return_ticket_different_raffle() {
     ts::return_shared(raffle2);
     ts.end();
 }
+
+/// Test that cannot burn tickets when raffle is not released (insufficient tickets scenario)
+/// Note: This test demonstrates what happens when trying to burn tickets with < 3 tickets sold.
+/// The ENotMinimumTickets validation in burn_tickets exists as defensive programming,
+/// but is unreachable in practice because release_raffle requires tickets_sold >= 3.
+/// This test shows the actual error that occurs: ERaffleNotEnded.
+#[test]
+#[expected_failure(abort_code = sui_raffler::ERaffleNotEnded)]
+fun test_burn_tickets_insufficient_tickets() {
+    let admin = @0xAD;
+    let organizer = @0x1234;
+    let buyer = @0xB0B;
+
+    let mut ts = ts::begin(admin);
+    let config = test_helpers::init_config_and_get(admin, &mut ts);
+    let mut raffle = test_helpers::create_basic_raffle(
+        &config,
+        organizer,
+        organizer,
+        0,
+        1000,
+        100,
+        5,
+        &mut ts
+    );
+
+    // Buyer buys only 2 tickets (less than minimum of 3)
+    ts.next_tx(buyer);
+    test_helpers::mint(buyer, 200, &mut ts);
+    let coin: Coin<SUI> = ts.take_from_sender();
+    let clock = clock::create_for_testing(ts.ctx());
+    sui_raffler::buy_tickets(&config, &mut raffle, coin, 2, &clock, ts.ctx());
+
+    // Collect buyer's tickets
+    ts.next_tx(buyer);
+    let mut tickets = vector::empty<sui_raffler::Ticket>();
+    let mut i = 0;
+    while (i < 2) {
+        let ticket = ts.take_from_sender<sui_raffler::Ticket>();
+        vector::push_back(&mut tickets, ticket);
+        i = i + 1;
+    };
+
+    // Try to burn tickets when raffle has < 3 tickets
+    // This fails with ERaffleNotEnded because raffle.is_released = false
+    // The ENotMinimumTickets validation in burn_tickets (line 527) is defensive
+    // but unreachable because release_raffle already validates tickets_sold >= 3
+    sui_raffler::burn_tickets(&mut raffle, tickets, ts.ctx());
+
+    clock.destroy_for_testing();
+    ts::return_shared(config);
+    ts::return_shared(raffle);
+    ts.end();
+}

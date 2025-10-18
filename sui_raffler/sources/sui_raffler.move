@@ -523,7 +523,7 @@ module sui_raffler::sui_raffler {
         // Verify raffle is released
         assert!(raffle.is_released, ERaffleNotEnded);
         
-        // Check if minimum tickets are sold
+        // Check if minimum tickets are sold. Unreachable in practice because release_raffle requires tickets_sold >= 3.
         assert!(raffle.tickets_sold >= 3, ENotMinimumTickets);
         
         // Process all tickets in a single loop - burn non-winning, return winning
