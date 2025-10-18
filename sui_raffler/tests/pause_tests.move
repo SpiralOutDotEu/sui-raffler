@@ -129,3 +129,95 @@ fun test_cannot_create_raffle_when_contract_paused() {
     ts::return_shared(config);
     ts.end();
 }
+
+/// Test that cannot release raffle when contract is paused
+#[test]
+#[expected_failure(abort_code = sui_raffler::EPaused)]
+fun test_cannot_release_raffle_when_contract_paused() {
+    let admin = @0xAD;
+    let organizer = @0x1234;
+    let buyer = @0xB0B;
+
+    // Start with system address for random setup
+    let (mut ts, random_state) = test_helpers::begin_scenario_with_random(@0x0);
+
+    // Initialize module configuration
+    let mut config = test_helpers::init_config_and_get(admin, &mut ts);
+    let mut raffle = test_helpers::create_basic_raffle(
+        &config,
+        admin,
+        organizer,
+        0,
+        1000,
+        100,
+        5,
+        &mut ts
+    );
+
+    // Buyer buys tickets to meet minimum requirement
+    let mut clock = test_helpers::new_clock(&mut ts);
+    test_helpers::buy_tickets_exact(&config, &mut raffle, buyer, 3, 100, &clock, &mut ts);
+
+    // Pause the contract
+    ts.next_tx(admin);
+    sui_raffler::set_contract_paused(&mut config, true, ts.ctx());
+
+    // Set time after end time
+    clock.set_for_testing(1001);
+
+    // Try to release raffle when contract is paused (should fail)
+    ts.next_tx(admin);
+    sui_raffler::release_raffle(&config, &mut raffle, &random_state, &clock, ts.ctx());
+
+    clock.destroy_for_testing();
+    ts::return_shared(config);
+    ts::return_shared(raffle);
+    ts::return_shared(random_state);
+    ts.end();
+}
+
+/// Test that cannot release raffle when raffle is paused
+#[test]
+#[expected_failure(abort_code = sui_raffler::ERafflePaused)]
+fun test_cannot_release_raffle_when_raffle_paused() {
+    let admin = @0xAD;
+    let organizer = @0x1234;
+    let buyer = @0xB0B;
+
+    // Start with system address for random setup
+    let (mut ts, random_state) = test_helpers::begin_scenario_with_random(@0x0);
+
+    // Initialize module configuration
+    let config = test_helpers::init_config_and_get(admin, &mut ts);
+    let mut raffle = test_helpers::create_basic_raffle(
+        &config,
+        admin,
+        organizer,
+        0,
+        1000,
+        100,
+        5,
+        &mut ts
+    );
+
+    // Buyer buys tickets to meet minimum requirement
+    let mut clock = test_helpers::new_clock(&mut ts);
+    test_helpers::buy_tickets_exact(&config, &mut raffle, buyer, 3, 100, &clock, &mut ts);
+
+    // Pause the specific raffle
+    ts.next_tx(admin);
+    sui_raffler::set_raffle_paused(&config, &mut raffle, true, ts.ctx());
+
+    // Set time after end time
+    clock.set_for_testing(1001);
+
+    // Try to release raffle when raffle is paused (should fail)
+    ts.next_tx(admin);
+    sui_raffler::release_raffle(&config, &mut raffle, &random_state, &clock, ts.ctx());
+
+    clock.destroy_for_testing();
+    ts::return_shared(config);
+    ts::return_shared(raffle);
+    ts::return_shared(random_state);
+    ts.end();
+}
