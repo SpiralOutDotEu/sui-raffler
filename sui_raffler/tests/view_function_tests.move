@@ -70,3 +70,40 @@ fun test_get_address_purchase_info() {
     ts::return_shared(random_state);
     ts.end();
 }
+
+/// Test the is_raffle_visible view function
+#[test]
+fun test_is_raffle_visible() {
+    let admin = @0xAD;
+    let organizer = @0x1234;
+
+    let mut ts = ts::begin(admin);
+    let config = test_helpers::init_config_and_get(admin, &mut ts);
+    let mut raffle = test_helpers::create_basic_raffle(
+        &config,
+        organizer,
+        organizer,
+        0,
+        1000,
+        100,
+        5,
+        &mut ts
+    );
+
+    // Verify raffle is visible by default
+    assert!(sui_raffler::is_raffle_visible(&raffle), 1);
+
+    // Admin sets visibility to false
+    ts.next_tx(admin);
+    sui_raffler::set_raffle_visibility(&config, &mut raffle, false, ts.ctx());
+    assert!(!sui_raffler::is_raffle_visible(&raffle), 1);
+
+    // Admin sets visibility back to true
+    ts.next_tx(admin);
+    sui_raffler::set_raffle_visibility(&config, &mut raffle, true, ts.ctx());
+    assert!(sui_raffler::is_raffle_visible(&raffle), 1);
+
+    ts::return_shared(config);
+    ts::return_shared(raffle);
+    ts.end();
+}
