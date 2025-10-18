@@ -79,6 +79,40 @@ fun test_buy_tickets_after_end() {
     ts.end();
 }
 
+/// Test that cannot buy zero tickets
+#[test]
+#[expected_failure(abort_code = sui_raffler::EInvalidTicketAmount)]
+fun test_buy_tickets_zero_amount() {
+    let admin = @0xAD;
+    let organizer = @0x1234;
+    let buyer = @0xB0B;
+
+    let mut ts = ts::begin(admin);
+    let config = test_helpers::init_config_and_get(admin, &mut ts);
+    let mut raffle = test_helpers::create_basic_raffle(
+        &config,
+        organizer,
+        organizer,
+        0,
+        1000,
+        100,
+        5,
+        &mut ts
+    );
+
+    // Try to buy 0 tickets (should fail)
+    ts.next_tx(buyer);
+    test_helpers::mint(buyer, 100, &mut ts);
+    let coin: Coin<SUI> = ts.take_from_sender();
+    let clock = clock::create_for_testing(ts.ctx());
+    sui_raffler::buy_tickets(&config, &mut raffle, coin, 0, &clock, ts.ctx());
+
+    clock.destroy_for_testing();
+    ts::return_shared(config);
+    ts::return_shared(raffle);
+    ts.end();
+}
+
 /// Test that cannot buy more than max_tickets_per_address in a single transaction
 #[test]
 #[expected_failure(abort_code = sui_raffler::EInvalidTicketAmount)]
