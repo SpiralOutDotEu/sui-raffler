@@ -748,3 +748,85 @@ fun test_buy_tickets_exact_payment() {
     ts::return_shared(raffle);
     ts.end();
 }
+
+/// Test that cannot claim prize with ticket from different raffle
+#[test]
+#[expected_failure(abort_code = sui_raffler::EInvalidTicket)]
+fun test_claim_prize_different_raffle() {
+    let admin = @0xAD;
+    let organizer = @0x1234;
+    let buyer = @0xB0B;
+
+    // Start with system address for random setup
+    let (mut ts, random_state) = test_helpers::begin_scenario_with_random(@0x0);
+
+    // Initialize module configuration
+    let config = test_helpers::init_config_and_get(admin, &mut ts);
+    
+    // Create first raffle
+    let mut raffle1 = test_helpers::create_basic_raffle(
+        &config,
+        admin,
+        organizer,
+        0,
+        1000,
+        100,
+        5,
+        &mut ts
+    );
+
+    // Create second raffle
+    let mut raffle2 = test_helpers::create_basic_raffle(
+        &config,
+        admin,
+        organizer,
+        0,
+        1000,
+        100,
+        5,
+        &mut ts
+    );
+
+    // Buyer buys tickets from raffle1
+    let mut clock = test_helpers::new_clock(&mut ts);
+    test_helpers::buy_tickets_exact(&config, &mut raffle1, buyer, 3, 100, &clock, &mut ts);
+
+    // Buyer buys tickets from raffle2
+    test_helpers::buy_tickets_exact(&config, &mut raffle2, buyer, 3, 100, &clock, &mut ts);
+
+    // Release both raffles
+    ts.next_tx(admin);
+    clock.set_for_testing(1001);
+    sui_raffler::release_raffle(&config, &mut raffle1, &random_state, &clock, ts.ctx());
+    sui_raffler::release_raffle(&config, &mut raffle2, &random_state, &clock, ts.ctx());
+
+    // Collect tickets from raffle2 only
+    ts.next_tx(buyer);
+    let mut raffle2_tickets = vector::empty<sui_raffler::Ticket>();
+    
+    let mut i = 0;
+    while (i < 3) {
+        let ticket = ts.take_from_sender<sui_raffler::Ticket>();
+        vector::push_back(&mut raffle2_tickets, ticket);
+        i = i + 1;
+    };
+
+    // Try to claim prize with raffle2 ticket using raffle1 (should fail with EInvalidTicket)
+    // because raffle2 tickets have different raffle_id than raffle1
+    let ticket_to_claim = vector::pop_back(&mut raffle2_tickets);
+    sui_raffler::claim_prize(&mut raffle1, ticket_to_claim, ts.ctx());
+
+    // Clean up remaining tickets
+    while (!vector::is_empty(&raffle2_tickets)) {
+        let leftover = vector::pop_back(&mut raffle2_tickets);
+        transfer::public_transfer(leftover, admin);
+    };
+    vector::destroy_empty(raffle2_tickets);
+
+    clock.destroy_for_testing();
+    ts::return_shared(config);
+    ts::return_shared(raffle1);
+    ts::return_shared(raffle2);
+    ts::return_shared(random_state);
+    ts.end();
+}
