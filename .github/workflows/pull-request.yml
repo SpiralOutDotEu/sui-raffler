@@ -3,7 +3,7 @@ name: Pull Request
 on:
     pull_request:
     push:
-        branches: [mainnet, dev]
+        branches: [main, dev]
 
 jobs:
     move-test:
