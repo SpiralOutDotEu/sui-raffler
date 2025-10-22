@@ -185,7 +185,7 @@ fun test_claim_organizer_share_unauthorized() {
 
     // Try to claim organizer share as non-organizer
     ts.next_tx(non_organizer);
-    sui_raffler::claim_organizer_share(&mut raffle, ts.ctx());
+    sui_raffler::claim_organizer_share(&config, &mut raffle, ts.ctx());
 
     clock.destroy_for_testing();
     ts::return_shared(config);
@@ -263,7 +263,7 @@ fun test_claim_prize_unauthorized() {
             ts.take_from_sender<sui_raffler::Ticket>()
         }
     };
-    sui_raffler::claim_prize(&mut raffle, to_try, ts.ctx());
+    sui_raffler::claim_prize(&config, &mut raffle, to_try, ts.ctx());
 
     // Ensure vector is empty before destroying to avoid sub-status error
     while (!vector::is_empty(&buyer2_tickets)) {
