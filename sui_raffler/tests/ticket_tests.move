@@ -170,7 +170,7 @@ fun test_burn_tickets() {
 
     // Test burning tickets (should return winning tickets and burn non-winning ones)
     ts.next_tx(buyer1); // Use any address as sender
-    sui_raffler::burn_tickets(&mut raffle, all_tickets, ts.ctx());
+    sui_raffler::burn_tickets(&config, &mut raffle, all_tickets, ts.ctx());
 
     // Check that winning tickets were returned
     ts.next_tx(buyer1);

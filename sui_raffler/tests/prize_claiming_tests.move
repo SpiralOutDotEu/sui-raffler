@@ -225,17 +225,17 @@ fun test_prize_claiming() {
     if (vector::length(&first_winner_ticket) > 0) {
         ts.next_tx(buyer1);
         let ticket = vector::pop_back(&mut first_winner_ticket);
-        sui_raffler::claim_prize(&mut raffle, ticket, ts.ctx());
+        sui_raffler::claim_prize(&config, &mut raffle, ticket, ts.ctx());
     };
     if (vector::length(&second_winner_ticket) > 0) {
         ts.next_tx(buyer2);
         let ticket = vector::pop_back(&mut second_winner_ticket);
-        sui_raffler::claim_prize(&mut raffle, ticket, ts.ctx());
+        sui_raffler::claim_prize(&config, &mut raffle, ticket, ts.ctx());
     };
     if (vector::length(&third_winner_ticket) > 0) {
         ts.next_tx(buyer3);
         let ticket = vector::pop_back(&mut third_winner_ticket);
-        sui_raffler::claim_prize(&mut raffle, ticket, ts.ctx());
+        sui_raffler::claim_prize(&config, &mut raffle, ticket, ts.ctx());
     };
 
     // Clean up winner tickets
@@ -329,7 +329,7 @@ fun test_burn_tickets_returns_winning_tickets() {
     };
 
     // Try to burn tickets (should return winning tickets and burn non-winning ones)
-    sui_raffler::burn_tickets(&mut raffle, tickets, ts.ctx());
+    sui_raffler::burn_tickets(&config, &mut raffle, tickets, ts.ctx());
 
     // Check that winning tickets were returned
     ts.next_tx(buyer);

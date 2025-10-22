@@ -122,7 +122,7 @@ fun test_claim_prize_insufficient_tickets() {
     // Try to claim prize
     ts.next_tx(buyer1);
     let ticket = ts.take_from_sender<sui_raffler::Ticket>();
-    sui_raffler::claim_prize(&mut raffle, ticket, ts.ctx());
+    sui_raffler::claim_prize(&config, &mut raffle, ticket, ts.ctx());
 
     // Clean up
     clock.destroy_for_testing();
@@ -160,7 +160,7 @@ fun test_claim_organizer_share_insufficient_tickets() {
 
     // Try to claim organizer share
     ts.next_tx(organizer);
-    sui_raffler::claim_organizer_share(&mut raffle, ts.ctx());
+    sui_raffler::claim_organizer_share(&config, &mut raffle, ts.ctx());
 
     // Clean up
     clock.destroy_for_testing();

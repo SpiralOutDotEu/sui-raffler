@@ -116,7 +116,7 @@ fun test_raffle_flow() {
         let ticket = vector::pop_back(&mut buyer_tickets);
         let (is_winner, prize_amount) = sui_raffler::is_winning_ticket(&raffle, &ticket);
         if (is_winner) {
-            sui_raffler::claim_prize(&mut raffle, ticket, ts.ctx());
+            sui_raffler::claim_prize(&config, &mut raffle, ticket, ts.ctx());
             ts.next_tx(buyer);
             let prize_coin: Coin<SUI> = ts.take_from_sender();
             let received_amount = coin::value(&prize_coin);
@@ -284,7 +284,7 @@ fun test_happy_path_raffle() {
         let ticket = vector::pop_back(&mut buyer1_tickets);
         let (is_winner, prize_amount) = sui_raffler::is_winning_ticket(&raffle, &ticket);
         if (is_winner) {
-            sui_raffler::claim_prize(&mut raffle, ticket, ts.ctx());
+            sui_raffler::claim_prize(&config, &mut raffle, ticket, ts.ctx());
             ts.next_tx(buyer1);
             let prize_coin: Coin<SUI> = ts.take_from_sender();
             let received_amount = coin::value(&prize_coin);
@@ -311,7 +311,7 @@ fun test_happy_path_raffle() {
         let ticket = vector::pop_back(&mut buyer2_tickets);
         let (is_winner, prize_amount) = sui_raffler::is_winning_ticket(&raffle, &ticket);
         if (is_winner) {
-            sui_raffler::claim_prize(&mut raffle, ticket, ts.ctx());
+            sui_raffler::claim_prize(&config, &mut raffle, ticket, ts.ctx());
             ts.next_tx(buyer2);
             let prize_coin: Coin<SUI> = ts.take_from_sender();
             let received_amount = coin::value(&prize_coin);
@@ -338,7 +338,7 @@ fun test_happy_path_raffle() {
         let ticket = vector::pop_back(&mut buyer3_tickets);
         let (is_winner, prize_amount) = sui_raffler::is_winning_ticket(&raffle, &ticket);
         if (is_winner) {
-            sui_raffler::claim_prize(&mut raffle, ticket, ts.ctx());
+            sui_raffler::claim_prize(&config, &mut raffle, ticket, ts.ctx());
             ts.next_tx(buyer3);
             let prize_coin: Coin<SUI> = ts.take_from_sender();
             let received_amount = coin::value(&prize_coin);
@@ -355,7 +355,7 @@ fun test_happy_path_raffle() {
 
     // Test organizer's share claim
     ts.next_tx(organizer);
-    sui_raffler::claim_organizer_share(&mut raffle, ts.ctx());
+    sui_raffler::claim_organizer_share(&config, &mut raffle, ts.ctx());
     ts.next_tx(organizer);
     let organizer_coin: Coin<SUI> = ts.take_from_sender();
     let organizer_amount = coin::value(&organizer_coin);

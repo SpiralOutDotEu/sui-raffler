@@ -38,7 +38,7 @@ fun test_return_tickets() {
     // Return ticket for buyer1
     ts.next_tx(buyer1);
     let ticket1 = ts.take_from_sender<sui_raffler::Ticket>();
-    sui_raffler::return_ticket(&mut raffle, ticket1, &clock, ts.ctx());
+    sui_raffler::return_ticket(&config, &mut raffle, ticket1, &clock, ts.ctx());
     ts.next_tx(buyer1);
     let refund1: Coin<SUI> = ts.take_from_sender();
     assert!(coin::value(&refund1) == ticket_price, 1);
@@ -47,7 +47,7 @@ fun test_return_tickets() {
     // Return ticket for buyer2
     ts.next_tx(buyer2);
     let ticket2 = ts.take_from_sender<sui_raffler::Ticket>();
-    sui_raffler::return_ticket(&mut raffle, ticket2, &clock, ts.ctx());
+    sui_raffler::return_ticket(&config, &mut raffle, ticket2, &clock, ts.ctx());
     ts.next_tx(buyer2);
     let refund2: Coin<SUI> = ts.take_from_sender();
     assert!(coin::value(&refund2) == ticket_price, 1);

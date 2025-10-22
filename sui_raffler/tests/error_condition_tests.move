@@ -315,11 +315,11 @@ fun test_claim_organizer_share_twice() {
 
     // Claim organizer share
     ts.next_tx(organizer);
-    sui_raffler::claim_organizer_share(&mut raffle, ts.ctx());
+    sui_raffler::claim_organizer_share(&config, &mut raffle, ts.ctx());
 
     // Try to claim organizer share again
     ts.next_tx(organizer);
-    sui_raffler::claim_organizer_share(&mut raffle, ts.ctx());
+    sui_raffler::claim_organizer_share(&config, &mut raffle, ts.ctx());
 
     clock.destroy_for_testing();
     ts::return_shared(config);
@@ -368,7 +368,7 @@ fun test_burn_tickets_before_release() {
         vector::push_back(&mut tickets, ticket);
         i = i + 1;
     };
-    sui_raffler::burn_tickets(&mut raffle, tickets, ts.ctx());
+    sui_raffler::burn_tickets(&config, &mut raffle, tickets, ts.ctx());
 
     clock.destroy_for_testing();
     ts::return_shared(config);
@@ -474,7 +474,7 @@ fun test_burn_tickets_different_raffle() {
 
     // Try to burn raffle2 tickets using raffle1 (should fail with EInvalidTicket)
     // because raffle2 tickets have different raffle_id than raffle1
-    sui_raffler::burn_tickets(&mut raffle1, raffle2_tickets, ts.ctx());
+    sui_raffler::burn_tickets(&config, &mut raffle1, raffle2_tickets, ts.ctx());
 
     clock.destroy_for_testing();
     ts::return_shared(config);
@@ -814,7 +814,7 @@ fun test_claim_prize_different_raffle() {
     // Try to claim prize with raffle2 ticket using raffle1 (should fail with EInvalidTicket)
     // because raffle2 tickets have different raffle_id than raffle1
     let ticket_to_claim = vector::pop_back(&mut raffle2_tickets);
-    sui_raffler::claim_prize(&mut raffle1, ticket_to_claim, ts.ctx());
+    sui_raffler::claim_prize(&config, &mut raffle1, ticket_to_claim, ts.ctx());
 
     // Clean up remaining tickets
     while (!vector::is_empty(&raffle2_tickets)) {
@@ -861,7 +861,7 @@ fun test_claim_organizer_share_before_release() {
 
     // Try to claim organizer share before raffle is released (should fail)
     ts.next_tx(organizer);
-    sui_raffler::claim_organizer_share(&mut raffle, ts.ctx());
+    sui_raffler::claim_organizer_share(&config, &mut raffle, ts.ctx());
 
     clock.destroy_for_testing();
     ts::return_shared(config);
@@ -900,7 +900,7 @@ fun test_return_ticket_before_end_time() {
     // Try to return ticket before end time (should fail)
     ts.next_tx(buyer);
     let ticket = ts.take_from_sender<sui_raffler::Ticket>();
-    sui_raffler::return_ticket(&mut raffle, ticket, &clock, ts.ctx());
+    sui_raffler::return_ticket(&config, &mut raffle, ticket, &clock, ts.ctx());
 
     clock.destroy_for_testing();
     ts::return_shared(config);
@@ -944,7 +944,7 @@ fun test_return_ticket_after_release() {
     // Try to return ticket after raffle is released (should fail)
     ts.next_tx(buyer);
     let ticket = ts.take_from_sender<sui_raffler::Ticket>();
-    sui_raffler::return_ticket(&mut raffle, ticket, &clock, ts.ctx());
+    sui_raffler::return_ticket(&config, &mut raffle, ticket, &clock, ts.ctx());
 
     clock.destroy_for_testing();
     ts::return_shared(config);
@@ -1018,7 +1018,7 @@ fun test_return_ticket_different_raffle() {
     // Try to return raffle2 ticket using raffle1 (should fail with EInvalidTicket)
     // because raffle2 tickets have different raffle_id than raffle1
     let ticket_to_return = vector::pop_back(&mut raffle2_tickets);
-    sui_raffler::return_ticket(&mut raffle1, ticket_to_return, &clock, ts.ctx());
+    sui_raffler::return_ticket(&config, &mut raffle1, ticket_to_return, &clock, ts.ctx());
 
     // Clean up remaining tickets
     while (!vector::is_empty(&raffle2_tickets)) {
@@ -1080,7 +1080,7 @@ fun test_burn_tickets_insufficient_tickets() {
     // This fails with ERaffleNotEnded because raffle.is_released = false
     // The ENotMinimumTickets validation in burn_tickets (line 527) is defensive
     // but unreachable because release_raffle already validates tickets_sold >= 3
-    sui_raffler::burn_tickets(&mut raffle, tickets, ts.ctx());
+    sui_raffler::burn_tickets(&config, &mut raffle, tickets, ts.ctx());
 
     clock.destroy_for_testing();
     ts::return_shared(config);

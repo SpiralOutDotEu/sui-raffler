@@ -52,8 +52,12 @@ module sui_raffler::sui_raffler {
     const ENotOneTimeWitness: u64 = 19;      // Not one time witness
     const EExceedsPerUserLimit: u64 = 20;    // Exceeds per-user cumulative ticket limit
     const EInvalidCreationFee: u64 = 21;     // Invalid or missing creation fee payment
+    const EWrongVersion: u64 = 22;           // Config version does not match the latest version
+    const ENotUpgrade: u64 = 23;             // Config version is not less than current version
 
     // === Constants ===
+    // Track the current version of the module
+    const VERSION: u64 = 2;
     // Prize distribution percentages (must sum to 100)
     const FIRST_PRIZE_PERCENTAGE: u64 = 50;  // 50% of total prize pool
     const SECOND_PRIZE_PERCENTAGE: u64 = 25; // 25% of total prize pool
@@ -65,6 +69,11 @@ module sui_raffler::sui_raffler {
     // OTW - One time witness
     public struct SUI_RAFFLER has drop {}
 
+    /// Admin cap to protect privileged operations and handle migrations
+    public struct AdminCap has key {
+        id: UID,
+    }
+
     /// Module configuration that holds admin, controller, fee collector, pause, and permissionless info
     public struct Config has key {
         id: UID,
@@ -74,6 +83,7 @@ module sui_raffler::sui_raffler {
         paused: bool,
         permissionless: bool,
         creation_fee: u64,
+        version: u64,
     }
 
     /// A raffle object that holds all the raffle information
@@ -147,6 +157,8 @@ module sui_raffler::sui_raffler {
     /// This function can only be called once during module deployment
     fun init(otw: SUI_RAFFLER, ctx: &mut TxContext) {
         assert!(types::is_one_time_witness(&otw), ENotOneTimeWitness);
+
+        // Create config object
         let config = Config {
             id: object::new(ctx),
             admin: ctx.sender(),
@@ -156,11 +168,24 @@ module sui_raffler::sui_raffler {
             permissionless: true,
             // Default creator fee set to 2 SUI = 2_000_000_000 MIST
             creation_fee: 2_000_000_000,
+            version: VERSION,
         };
         transfer::share_object(config);
+
+        // Transfer admin cap to the sender
+        let admin = AdminCap { id: object::new(ctx) };
+        transfer::transfer(admin, ctx.sender());
     }
 
     // === Admin Functions ===
+    /// Migrate the config to the latest version
+    /// Only the admin can call this function
+    entry fun migrate(c: &mut Config, ctx: &TxContext) {
+        assert!(c.admin == ctx.sender(), ENotAdmin);
+        assert!(c.version < VERSION, ENotUpgrade);
+        c.version = VERSION;
+    }
+
     /// Update the admin address
     /// Only the admin can call this function
     public fun update_admin(config: &mut Config, new_admin: address, ctx: &mut TxContext) {
@@ -236,6 +261,7 @@ module sui_raffler::sui_raffler {
         clock: &Clock,
         ctx: &mut TxContext
     ) {
+        assert!(is_latest_version(config), EWrongVersion);
         // Check if contract is paused
         assert!(!is_contract_paused(config), EPaused);
         // Check if raffle is paused
@@ -299,6 +325,7 @@ module sui_raffler::sui_raffler {
         organizer: address,
         ctx: &mut TxContext
     ) {
+        assert!(is_latest_version(config), EWrongVersion);
         assert!(!is_contract_paused(config), EPaused);
         assert!(is_contract_permissionless(config) || is_admin(config, ctx.sender()), EPermissionDenied);
         assert!(start_time < end_time, EInvalidDates);
@@ -361,6 +388,7 @@ module sui_raffler::sui_raffler {
         clock: &Clock,
         ctx: &mut TxContext
     ) {
+        assert!(is_latest_version(config), EWrongVersion);
         let current_time = clock::timestamp_ms(clock);
         
         // Check if raffle is active
@@ -424,12 +452,14 @@ module sui_raffler::sui_raffler {
     /// Winners can claim their prizes after the raffle is released
     #[allow(lint(self_transfer))]
     public fun claim_prize(
+        config: &Config,
         raffle: &mut Raffle,
         ticket: Ticket,
         ctx: &mut TxContext
     ) {
+        assert!(is_latest_version(config), EWrongVersion);
         // Verify ticket belongs to this raffle
-        assert!(ticket.raffle_id == object::id(raffle), EInvalidTicket);
+       assert!(ticket.raffle_id == object::id(raffle), EInvalidTicket);
         
         // Check if minimum tickets are sold
         assert!(raffle.tickets_sold >= 3, ENotMinimumTickets);
@@ -461,9 +491,11 @@ module sui_raffler::sui_raffler {
     /// Only the organizer can claim their share after all winners have claimed their prizes
     #[allow(lint(self_transfer))]
     public fun claim_organizer_share(
+        config: &Config,
         raffle: &mut Raffle,
         ctx: &mut TxContext
     ) {
+        assert!(is_latest_version(config), EWrongVersion); 
         // Verify caller is the organizer
         assert!(tx_context::sender(ctx) == raffle.organizer, ENotAdmin);
         
@@ -488,11 +520,14 @@ module sui_raffler::sui_raffler {
     /// Return ticket and get refund when raffle has ended with less than 3 tickets
     #[allow(lint(self_transfer))]
     public fun return_ticket(
+        config: &Config,
         raffle: &mut Raffle,
         ticket: Ticket,
         clock: &Clock,
         ctx: &mut TxContext
     ) {
+        assert!(is_latest_version(config), EWrongVersion);
+
         // Check if raffle is in return state
         assert!(is_in_return_state(raffle, clock), ERaffleNotEnded);
         
@@ -516,10 +551,13 @@ module sui_raffler::sui_raffler {
     /// Winning tickets are returned to the caller, non-winning tickets are burned
     #[allow(lint(self_transfer))]
     public fun burn_tickets(
+        config: &Config,
         raffle: &mut Raffle,
         mut tickets: vector<Ticket>,
         ctx: &mut TxContext
     ) {
+        assert!(is_latest_version(config), EWrongVersion);
+        
         // Verify raffle is released
         assert!(raffle.is_released, ERaffleNotEnded);
         
@@ -551,6 +589,16 @@ module sui_raffler::sui_raffler {
     }
 
     // === View Functions ===
+    /// Check if the contract matches the latest version of the module
+    public fun is_latest_version(config: &Config): bool {
+        config.version == VERSION
+    }
+
+    /// Get the current contract version of the module
+    public fun get_current_contract_version(): u64 {
+        VERSION
+    }
+
     /// Helper: check if contract is paused
     public fun is_contract_paused(config: &Config): bool {
         config.paused
@@ -784,4 +832,8 @@ module sui_raffler::sui_raffler {
         init(SUI_RAFFLER {},  ctx);
     }
 
+    #[test_only]
+    public fun stub_config_version(config: &mut Config, version: u64){
+        config.version = version
+    }
 }

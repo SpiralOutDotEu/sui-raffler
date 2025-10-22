@@ -8,6 +8,58 @@ use sui::clock;
 use sui::coin::Coin;
 use sui::sui::SUI;
 
+/// Test the is_latest_version view function
+#[test]
+fun test_is_latest_version() {
+    let admin = @0xAD;
+    let current_version = sui_raffler::get_current_contract_version();
+    
+    let mut ts = ts::begin(admin);
+    let mut config = test_helpers::init_config_and_get(admin, &mut ts);
+    
+    // Config should be initialized with latest version
+    assert!(sui_raffler::is_latest_version(&config), 0);
+    
+    // Test with older version
+    sui_raffler::stub_config_version(&mut config, current_version - 1);
+    assert!(!sui_raffler::is_latest_version(&config), 1);
+    
+    // Test with current version
+    sui_raffler::stub_config_version(&mut config, current_version);
+    assert!(sui_raffler::is_latest_version(&config), 2);
+    
+    // Test with future version
+    sui_raffler::stub_config_version(&mut config, current_version + 1);
+    assert!(!sui_raffler::is_latest_version(&config), 3);
+    
+    ts::return_shared(config);
+    ts.end();
+}
+
+/// Test the get_current_contract_version view function
+#[test]
+fun test_get_current_contract_version() {
+    let current_version = sui_raffler::get_current_contract_version();
+    
+    // Verify it returns a valid version number (should be 2 currently)
+    assert!(current_version > 0, 0);
+    
+    // Test that it's consistent with the config version checking
+    let admin = @0xAD;
+    let mut ts = ts::begin(admin);
+    let mut config = test_helpers::init_config_and_get(admin, &mut ts);
+    
+    // Config should be initialized with current version
+    assert!(sui_raffler::is_latest_version(&config), 1);
+    
+    // Stub config to current version and verify it matches
+    sui_raffler::stub_config_version(&mut config, current_version);
+    assert!(sui_raffler::is_latest_version(&config), 2);
+    
+    ts::return_shared(config);
+    ts.end();
+}
+
 /// Test the get_address_purchase_info view function
 #[test]
 fun test_get_address_purchase_info() {
