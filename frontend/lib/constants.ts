@@ -1,19 +1,10 @@
 // Network configuration
-export const NETWORK = process.env.NEXT_PUBLIC_NETWORK as string;
-if (!NETWORK) {
-    throw new Error("NEXT_PUBLIC_NETWORK environment variable is required");
-}
+export const NETWORK = process.env.NEXT_PUBLIC_NETWORK || 'testnet';
 export const FULLNODE_URL = `https://fullnode.${NETWORK}.sui.io:443`;
 
 // Contract configuration
-export const PACKAGE_ID = process.env.NEXT_PUBLIC_PACKAGE_ID as string;
-if (!PACKAGE_ID) {
-    throw new Error("NEXT_PUBLIC_PACKAGE_ID environment variable is required");
-}
-export const CONFIG_OBJECT_ID = process.env.NEXT_PUBLIC_CONFIG_OBJECT_ID as string;
-if (!CONFIG_OBJECT_ID) {
-    throw new Error("NEXT_PUBLIC_CONFIG_OBJECT_ID environment variable is required");
-}
+export const PACKAGE_ID = process.env.NEXT_PUBLIC_PACKAGE_ID || '0x0';
+export const CONFIG_OBJECT_ID = process.env.NEXT_PUBLIC_CONFIG_OBJECT_ID || '0x0';
 
 console.log("network", NETWORK);
 console.log("packageId", PACKAGE_ID);
