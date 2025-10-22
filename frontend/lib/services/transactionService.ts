@@ -127,6 +127,7 @@ export class TransactionService {
             tx.moveCall({
                 target: `${PACKAGE_ID}::${MODULE}::claim_prize`,
                 arguments: [
+                    tx.object(CONFIG_OBJECT_ID), // Config object ID
                     tx.object(raffleId),
                     tx.object(ticketId), // Ticket object, not ticket number
                 ],
@@ -145,6 +146,7 @@ export class TransactionService {
             tx.moveCall({
                 target: `${PACKAGE_ID}::${MODULE}::claim_organizer_share`,
                 arguments: [
+                    tx.object(CONFIG_OBJECT_ID), // Config object ID
                     tx.object(raffleId),
                 ],
             });
@@ -179,6 +181,7 @@ export class TransactionService {
             tx.moveCall({
                 target: `${PACKAGE_ID}::${MODULE}::return_ticket`,
                 arguments: [
+                    tx.object(CONFIG_OBJECT_ID), // Config object ID
                     tx.object(raffleId),
                     tx.object(ticketId), // Ticket object
                     tx.object(CLOCK_OBJECT_ID), // Clock object
@@ -206,6 +209,7 @@ export class TransactionService {
             tx.moveCall({
                 target: BURN_TICKETS_TARGET,
                 arguments: [
+                    tx.object(CONFIG_OBJECT_ID), // Config object ID
                     tx.object(raffleId),
                     ticketsVector,
                 ],
