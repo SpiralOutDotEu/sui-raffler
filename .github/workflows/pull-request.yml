@@ -20,10 +20,10 @@ jobs:
             - name: install git
               run: apt-get install -y git
 
-            - name: build-suilend
+            - name: build
               run: cd sui_raffler && sui move build
 
-            - name: test-suilend
+            - name: test
               run: cd sui_raffler && sui move test
 
     frontend-build:
