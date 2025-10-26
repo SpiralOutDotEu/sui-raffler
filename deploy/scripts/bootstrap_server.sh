@@ -26,7 +26,7 @@ dpkg-reconfigure -plow unattended-upgrades
 # Node LTS + PM2 (as deploy user)
 curl -fsSL https://deb.nodesource.com/setup_lts.x | bash -
 apt install -y nodejs
-su - deploy -c "npm i -g pm2"
+npm install -g pm2
 su - deploy -c "pm2 startup systemd -u deploy --hp /home/deploy || true"
 
 # App dirs
