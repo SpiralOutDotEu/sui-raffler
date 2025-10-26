@@ -1,0 +1,74 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [ "main", "testnet" ]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 1 }
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.12.2'   # pin exact
+          cache: 'npm'
+
+      - name: Install (frontend)
+        working-directory: frontend
+        run: npm ci --ignore-scripts
+
+      - name: Build standalone
+        working-directory: frontend
+        run: npm run build
+
+      - name: Package artifact
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          REL=$(date +'%Y%m%d%H%M%S')
+          echo "REL=$REL" >> $GITHUB_ENV
+          mkdir -p release/$REL
+          cp -r .next/standalone release/$REL/.next/standalone
+          cp -r .next/static     release/$REL/.next/static
+          cp -r public           release/$REL/public || true
+          cp package.json        release/$REL/package.json
+          tar -C release -czf release.tar.gz $REL
+          shasum -a 256 release.tar.gz > release.tar.gz.sha256
+
+      - name: Prepare SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          printf "Host vps\n  HostName %s\n  User %s\n  IdentityFile ~/.ssh/id_rsa\n  StrictHostKeyChecking no\n" \
+            "${{ secrets.SSH_HOST }}" "${{ secrets.SSH_USER }}" > ~/.ssh/config
+
+      - name: Upload & deploy
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then APP_DIR="${{ secrets.APP_DIR_MAIN }}"; else APP_DIR="${{ secrets.APP_DIR_TESTNET }}"; fi
+
+          scp frontend/release.tar.gz frontend/release.tar.gz.sha256 vps:/tmp/
+          ssh vps "
+            set -euo pipefail
+            cd /tmp
+            sha256sum -c release.tar.gz.sha256
+            REL=\$(tar -tf release.tar.gz | head -n1 | cut -d/ -f1)
+            mkdir -p $APP_DIR/releases/\$REL
+            tar -C $APP_DIR/releases -xzf release.tar.gz
+            rm -f release.tar.gz release.tar.gz.sha256
+            ln -sfn $APP_DIR/releases/\$REL $APP_DIR/current
+            cp $APP_DIR/shared/.env $APP_DIR/current/.env || true
+            # Safety: ensure Next binds only localhost if your build exposes 0.0.0.0
+            sed -i 's/0.0.0.0/127.0.0.1/g' $APP_DIR/current/.next/standalone/server.js || true
+            pm2 startOrReload $APP_DIR/ecosystem.config.cjs
+            pm2 save
+            cd $APP_DIR/releases && ls -1t | tail -n +6 | xargs -r rm -rf
+          "
