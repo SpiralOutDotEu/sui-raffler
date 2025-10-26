@@ -2,7 +2,7 @@ name: Deploy to VPS
 
 on:
   push:
-    branches: [ "main", "testnet" ]
+    branches: ["main", "testnet"]
 
 permissions:
   contents: read
@@ -18,8 +18,9 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20.12.2'   # pin exact
-          cache: 'npm'
+          node-version: "22.11.0" # LTS
+          cache: "npm"
+          cache-dependency-path: "frontend/package-lock.json"
 
       - name: Install (frontend)
         working-directory: frontend
