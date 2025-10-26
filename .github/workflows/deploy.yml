@@ -13,16 +13,19 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - uses: actions/checkout@v4
-        with: { fetch-depth: 1 }
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: "22.11.0" # LTS
           cache: "npm"
           cache-dependency-path: "frontend/package-lock.json"
 
-      - name: Install (frontend)
+      - name: Install dependencies (frontend)
         working-directory: frontend
         run: npm ci --ignore-scripts
 
@@ -36,15 +39,17 @@ jobs:
           set -euo pipefail
           REL=$(date +'%Y%m%d%H%M%S')
           echo "REL=$REL" >> $GITHUB_ENV
-          mkdir -p release/$REL
+          mkdir -p release/$REL/.next
+          # copy minimal runtime produced by `output: 'standalone'`
           cp -r .next/standalone release/$REL/.next/standalone
           cp -r .next/static     release/$REL/.next/static
-          cp -r public           release/$REL/public || true
+          # optional assets
+          [ -d public ] && cp -r public release/$REL/public || true
           cp package.json        release/$REL/package.json
           tar -C release -czf release.tar.gz $REL
-          shasum -a 256 release.tar.gz > release.tar.gz.sha256
+          sha256sum release.tar.gz > release.tar.gz.sha256
 
-      - name: Prepare SSH
+      - name: Prepare SSH connection
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
@@ -52,11 +57,17 @@ jobs:
           printf "Host vps\n  HostName %s\n  User %s\n  IdentityFile ~/.ssh/id_rsa\n  StrictHostKeyChecking no\n" \
             "${{ secrets.SSH_HOST }}" "${{ secrets.SSH_USER }}" > ~/.ssh/config
 
-      - name: Upload & deploy
+      - name: Upload & deploy to VPS
         run: |
-          if [ "${{ github.ref_name }}" = "main" ]; then APP_DIR="${{ secrets.APP_DIR_MAIN }}"; else APP_DIR="${{ secrets.APP_DIR_TESTNET }}"; fi
+          # Choose target dir based on branch
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            APP_DIR="${{ secrets.APP_DIR_MAIN }}"
+          else
+            APP_DIR="${{ secrets.APP_DIR_TESTNET }}"
+          fi
 
           scp frontend/release.tar.gz frontend/release.tar.gz.sha256 vps:/tmp/
+
           ssh vps "
             set -euo pipefail
             cd /tmp
@@ -67,7 +78,6 @@ jobs:
             rm -f release.tar.gz release.tar.gz.sha256
             ln -sfn $APP_DIR/releases/\$REL $APP_DIR/current
             cp $APP_DIR/shared/.env $APP_DIR/current/.env || true
-            # Safety: ensure Next binds only localhost if your build exposes 0.0.0.0
             sed -i 's/0.0.0.0/127.0.0.1/g' $APP_DIR/current/.next/standalone/server.js || true
             pm2 startOrReload $APP_DIR/ecosystem.config.cjs
             pm2 save
