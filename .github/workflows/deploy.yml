@@ -81,27 +81,29 @@ jobs:
           else
             APP_DIR="${{ secrets.APP_DIR_TESTNET }}"
           fi
+          
+          echo "Deploying to directory: $APP_DIR"
 
           scp frontend/release.tar.gz frontend/release.tar.gz.sha256 vps:/tmp/
 
-          ssh vps "
+          ssh vps bash -e <<-EOF
             set -euo pipefail
-            trap 'echo \"Deployment failed at line \$LINENO\"; exit 1' ERR
-            APP_DIR=\"$APP_DIR\"
+            trap 'echo "Deployment failed at line \$LINENO"; exit 1' ERR
+            
             cd /tmp
             sha256sum -c release.tar.gz.sha256
             REL=\$(tar -tf release.tar.gz | head -n1 | cut -d/ -f1)
-            mkdir -p \$APP_DIR/releases/\$REL
-            tar -C \$APP_DIR/releases -xzf release.tar.gz
+            mkdir -p $APP_DIR/releases/\$REL
+            tar -C $APP_DIR/releases -xzf release.tar.gz
             rm -f release.tar.gz release.tar.gz.sha256
-            ln -sfn \$APP_DIR/releases/\$REL \$APP_DIR/current
-            cp \$APP_DIR/shared/.env \$APP_DIR/current/.env || true
-            sed -i 's/0.0.0.0/127.0.0.1/g' \$APP_DIR/current/.next/standalone/server.js || true
-            pm2 startOrReload \$APP_DIR/ecosystem.config.cjs
+            ln -sfn $APP_DIR/releases/\$REL $APP_DIR/current
+            cp $APP_DIR/shared/.env $APP_DIR/current/.env || true
+            sed -i 's/0.0.0.0/127.0.0.1/g' $APP_DIR/current/.next/standalone/server.js || true
+            pm2 startOrReload $APP_DIR/ecosystem.config.cjs
             pm2 save
             # Cleanup old releases (keep only 5 most recent)
-            cd \$APP_DIR/releases
+            cd $APP_DIR/releases
             if [ \$(ls -1t | wc -l) -gt 5 ]; then
               ls -1t | tail -n +6 | xargs rm -rf
             fi
-          "
+          EOF
