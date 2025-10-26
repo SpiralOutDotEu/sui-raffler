@@ -86,6 +86,7 @@ jobs:
 
           ssh vps "
             set -euo pipefail
+            trap 'echo \"Deployment failed at line \$LINENO\"; exit 1' ERR
             cd /tmp
             sha256sum -c release.tar.gz.sha256
             REL=\$(tar -tf release.tar.gz | head -n1 | cut -d/ -f1)
