@@ -97,5 +97,9 @@ jobs:
             sed -i 's/0.0.0.0/127.0.0.1/g' $APP_DIR/current/.next/standalone/server.js || true
             pm2 startOrReload $APP_DIR/ecosystem.config.cjs
             pm2 save
-            cd $APP_DIR/releases && ls -1t | tail -n +6 | xargs -r rm -rf
+            # Cleanup old releases (keep only 5 most recent)
+            cd $APP_DIR/releases
+            if [ \$(ls -1t | wc -l) -gt 5 ]; then
+              ls -1t | tail -n +6 | xargs rm -rf
+            fi
           "
