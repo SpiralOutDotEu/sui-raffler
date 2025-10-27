@@ -1,20 +1,22 @@
-name: Deploy to VPS
+name: Deploy Next.js to VPS
 
 on:
   push:
-    branches: ["main", "testnet"]
+    branches:
+      - main
+      - testnet
 
-permissions:
-  contents: read
+env:
+  NODE_VERSION: 22.11.0
 
 jobs:
-  build-and-deploy:
+  deploy:
+    name: Deploy to VPS
     runs-on: ubuntu-latest
-    timeout-minutes: 20
     environment: Production
 
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
@@ -22,88 +24,48 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22.11.0" # LTS
+          node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
-          cache-dependency-path: "frontend/package-lock.json"
+          cache-dependency-path: frontend/package-lock.json
 
-      - name: Install dependencies (frontend)
+      - name: Install dependencies
         working-directory: frontend
         run: npm ci --ignore-scripts
 
-      - name: Build standalone
+      - name: Build project
         working-directory: frontend
         run: npm run build
 
-      - name: Package artifact
-        working-directory: frontend
-        run: |
-          set -euo pipefail
-          REL=$(date +'%Y%m%d%H%M%S')
-          echo "REL=$REL" >> $GITHUB_ENV
-          mkdir -p release/$REL/.next
-          # copy minimal runtime produced by `output: 'standalone'`
-          cp -r .next/standalone release/$REL/.next/standalone
-          cp -r .next/static     release/$REL/.next/static
-          # optional assets
-          [ -d public ] && cp -r public release/$REL/public || true
-          cp package.json        release/$REL/package.json
-          tar -C release -czf release.tar.gz $REL
-          sha256sum release.tar.gz > release.tar.gz.sha256
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          script_stop: true
+          script: |
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            nvm use ${{ env.NODE_VERSION }}
 
-      - name: Prepare SSH connection
-        run: |
-          set -euo pipefail
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-
-          # Validate required secrets
-          if [ -z "${{ secrets.SSH_HOST }}" ] || [ -z "${{ secrets.SSH_USER }}" ]; then
-            echo "Error: SSH_HOST or SSH_USER secrets are not set"
-            exit 1
-          fi
-
-          # Create SSH config
-          cat > ~/.ssh/config <<EOF
-          Host vps
-            HostName ${{ secrets.SSH_HOST }}
-            User ${{ secrets.SSH_USER }}
-            IdentityFile ~/.ssh/id_rsa
-            StrictHostKeyChecking no
-          EOF
-          chmod 600 ~/.ssh/config
-
-      - name: Upload & deploy to VPS
-        run: |
-          # Choose target dir based on branch
-          if [ "${{ github.ref_name }}" = "main" ]; then
-            APP_DIR="${{ secrets.APP_DIR_MAIN }}"
-          else
-            APP_DIR="${{ secrets.APP_DIR_TESTNET }}"
-          fi
-          
-          echo "Deploying to directory: $APP_DIR"
-
-          scp frontend/release.tar.gz frontend/release.tar.gz.sha256 vps:/tmp/
-
-          ssh vps bash -e <<-EOF
-            set -euo pipefail
-            trap 'echo "Deployment failed at line \$LINENO"; exit 1' ERR
-            
-            cd /tmp
-            sha256sum -c release.tar.gz.sha256
-            REL=\$(tar -tf release.tar.gz | head -n1 | cut -d/ -f1)
-            mkdir -p $APP_DIR/releases/\$REL
-            tar -C $APP_DIR/releases -xzf release.tar.gz
-            rm -f release.tar.gz release.tar.gz.sha256
-            ln -sfn $APP_DIR/releases/\$REL $APP_DIR/current
-            cp $APP_DIR/shared/.env $APP_DIR/current/.env || true
-            sed -i 's/0.0.0.0/127.0.0.1/g' $APP_DIR/current/.next/standalone/server.js || true
-            pm2 startOrReload $APP_DIR/ecosystem.config.cjs
-            pm2 save
-            # Cleanup old releases (keep only 5 most recent)
-            cd $APP_DIR/releases
-            if [ \$(ls -1t | wc -l) -gt 5 ]; then
-              ls -1t | tail -n +6 | xargs rm -rf
+            # Select deployment directory based on branch
+            # main branch -> suiraffler-prod (production)
+            # testnet branch -> suiraffler-testnet (testnet)
+            if [ "${{ github.ref_name }}" = "main" ]; then
+              APP_DIR="${{ secrets.APP_DIR_PROD }}"
+              SERVICE_NAME="suiraffler-prod"
+              BRANCH="main"
+            else
+              APP_DIR="${{ secrets.APP_DIR_TESTNET }}"
+              SERVICE_NAME="suiraffler-testnet"
+              BRANCH="testnet"
             fi
-          EOF
+
+            cd $APP_DIR
+            git checkout $BRANCH
+            git pull origin $BRANCH
+            cd frontend
+            npm ci --ignore-scripts
+            npm run build
+            pm2 restart $SERVICE_NAME
