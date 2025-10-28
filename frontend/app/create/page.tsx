@@ -106,14 +106,6 @@ const quickDurationOptions = [
   { label: "1 week", value: 7 * 24 * 60 * 60 * 1000 },
 ];
 
-// Quick ticket price options
-const quickTicketPriceOptions = [
-  { label: "0.1 SUI", value: "0.1" },
-  { label: "1 SUI", value: "1" },
-  { label: "5 SUI", value: "5" },
-  { label: "10 SUI", value: "10" },
-];
-
 // Quick max tickets options
 const quickMaxTicketsOptions = [
   { label: "1", value: "1" },
