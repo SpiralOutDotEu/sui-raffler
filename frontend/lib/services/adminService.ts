@@ -159,4 +159,40 @@ export class AdminService {
             throw SuiErrorHandler.handleSuiError(error);
         }
     }
+
+    async updateCreationFee(newFee: number): Promise<TransactionResult> {
+        try {
+            const tx = new Transaction();
+
+            tx.moveCall({
+                target: `${PACKAGE_ID}::${MODULE}::update_creation_fee`,
+                arguments: [
+                    tx.object(CONFIG_OBJECT_ID),
+                    tx.pure.u64(newFee),
+                ],
+            });
+
+            return await this.signAndExecute({ transaction: tx });
+        } catch (error) {
+            throw SuiErrorHandler.handleSuiError(error);
+        }
+    }
+
+    async updateMinTicketPrice(newMin: number): Promise<TransactionResult> {
+        try {
+            const tx = new Transaction();
+
+            tx.moveCall({
+                target: `${PACKAGE_ID}::${MODULE}::update_min_ticket_price`,
+                arguments: [
+                    tx.object(CONFIG_OBJECT_ID),
+                    tx.pure.u64(newMin),
+                ],
+            });
+
+            return await this.signAndExecute({ transaction: tx });
+        } catch (error) {
+            throw SuiErrorHandler.handleSuiError(error);
+        }
+    }
 }
