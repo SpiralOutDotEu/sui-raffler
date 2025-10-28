@@ -402,7 +402,10 @@ fun test_burn_tickets_different_raffle() {
     ts.next_tx(admin);
     sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
-    let config = ts.take_shared<sui_raffler::Config>();
+    let mut config = ts.take_shared<sui_raffler::Config>();
+    // Lower min ticket price for this suite branch
+    ts.next_tx(admin);
+    sui_raffler::update_min_ticket_price(&mut config, 0, ts.ctx());
     let payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
     let payment_coin2 = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
 
