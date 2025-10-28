@@ -58,6 +58,7 @@ jobs:
             # Select deployment directory based on branch
             # main branch -> suiraffler-prod (production)
             # testnet branch -> suiraffler-testnet (testnet)
+            set +e  # Temporarily disable exit on error for if statement
             if [ "${{ github.ref_name }}" = "main" ]; then
               APP_DIR="${{ secrets.APP_DIR_PROD }}"
               SERVICE_NAME="suiraffler-prod"
@@ -67,6 +68,7 @@ jobs:
               SERVICE_NAME="suiraffler-testnet"
               BRANCH="testnet"
             fi
+            set -e  # Re-enable exit on error
 
             echo "📦 Deploying $SERVICE_NAME from branch $BRANCH to $APP_DIR"
 
