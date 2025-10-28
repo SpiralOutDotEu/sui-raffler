@@ -2,10 +2,11 @@
 
 import { useSuiClient } from "@mysten/dapp-kit";
 import { useRouter } from "next/navigation";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { PACKAGE_ID, MODULE } from "@/lib/constants";
 import { useWallet } from "@/lib/context/WalletContext";
 import { useAdminPermissions } from "@/lib/hooks/useAdminPermissions";
+import { useAdminConfig } from "@/lib/hooks/useAdminConfig";
 import { useTransactions } from "@/lib/hooks/useTransactions";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
@@ -345,6 +346,7 @@ export default function CreateRaffle() {
   const { address: currentAccount, isConnected } = useWallet();
   const suiClient = useSuiClient();
   const { isAdminOrController, creationFee } = useAdminPermissions();
+  const { data: config } = useAdminConfig();
   const txService = useTransactions();
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -356,6 +358,26 @@ export default function CreateRaffle() {
   const [organizerAddressError, setOrganizerAddressError] = useState<
     string | null
   >(null);
+
+  // Calculate minimum ticket price in SUI (1 SUI = 1 billion MIST)
+  const minTicketPriceSUI = config?.minTicketPrice
+    ? config.minTicketPrice / 1_000_000_000
+    : 0.001;
+
+  // Dynamic quick price options based on minimum ticket price
+  const quickPriceOptions = useMemo(() => {
+    const baseOptions = [
+      minTicketPriceSUI,
+      minTicketPriceSUI * 10,
+      minTicketPriceSUI * 50,
+      minTicketPriceSUI * 100,
+    ].filter((price) => price <= 1000); // Don't show prices over 1000 SUI
+
+    return baseOptions.map((price) => ({
+      label: `${parseFloat(price.toFixed(6)).toString()} SUI`,
+      value: price.toString(),
+    }));
+  }, [minTicketPriceSUI]);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -458,6 +480,15 @@ export default function CreateRaffle() {
       return;
     }
 
+    // Validate ticket price meets minimum
+    const ticketPriceValue = Number(formData.ticketPrice);
+    if (ticketPriceValue < minTicketPriceSUI) {
+      setError(
+        `Ticket price must be at least ${minTicketPriceSUI.toFixed(3)} SUI`
+      );
+      return;
+    }
+
     setIsCreating(true);
     setError(null);
     setTransactionDigest(null);
@@ -542,7 +573,7 @@ export default function CreateRaffle() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-5xl mx-auto">
         {/* Header Section */}
         <div className="bg-white rounded-2xl shadow-lg p-8 mb-8 border border-gray-100">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
@@ -806,7 +837,7 @@ export default function CreateRaffle() {
                 <span className="text-indigo-500">🎫</span>
                 Ticket Settings
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="bg-indigo-50 rounded-xl p-6">
                   <label
                     htmlFor="ticketPrice"
@@ -819,7 +850,7 @@ export default function CreateRaffle() {
                       type="number"
                       id="ticketPrice"
                       required
-                      min="0.001"
+                      min={minTicketPriceSUI}
                       step="0.001"
                       value={formData.ticketPrice}
                       onChange={(e) => {
@@ -857,10 +888,11 @@ export default function CreateRaffle() {
                     )}
                   </div>
                   <p className="mt-2 text-sm text-indigo-600 mb-4">
-                    Minimum price: 0.001 SUI
+                    Minimum price:{" "}
+                    {parseFloat(minTicketPriceSUI.toFixed(6)).toString()} SUI
                   </p>
                   <div className="flex gap-2 flex-wrap">
-                    {quickTicketPriceOptions.map((option) => (
+                    {quickPriceOptions.map((option) => (
                       <button
                         key={option.label}
                         type="button"
@@ -941,7 +973,7 @@ export default function CreateRaffle() {
                 </p>
 
                 <div className="space-y-4">
-                  <div className="flex gap-3">
+                  <div className="flex flex-col sm:flex-row gap-3">
                     <input
                       type="text"
                       id="organizerAddress"
@@ -950,7 +982,7 @@ export default function CreateRaffle() {
                       onChange={(e) =>
                         handleOrganizerAddressChange(e.target.value)
                       }
-                      className={`flex-1 px-4 py-3 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-lg bg-white ${
+                      className={`flex-1 px-4 py-3 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-base sm:text-lg bg-white ${
                         organizerAddressError
                           ? "border-red-300 focus:ring-red-500 focus:border-red-500"
                           : "border-purple-200"
@@ -964,7 +996,7 @@ export default function CreateRaffle() {
                         handleOrganizerAddressChange(address);
                       }}
                       disabled={!isConnected || !currentAccount}
-                      className="px-4 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                      className="px-4 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium whitespace-nowrap"
                     >
                       Use Current Account
                     </button>
@@ -983,7 +1015,9 @@ export default function CreateRaffle() {
                     <div className="bg-purple-100 rounded-lg p-3">
                       <p className="text-sm text-purple-800">
                         <span className="font-medium">Organizer:</span>{" "}
-                        {formData.organizerAddress}
+                        <span className="break-all">
+                          {formData.organizerAddress}
+                        </span>
                       </p>
                       {formData.organizerAddress === currentAccount && (
                         <p className="text-xs text-purple-600 mt-1">
@@ -1078,7 +1112,7 @@ export default function CreateRaffle() {
                                 key={tickets}
                                 className="py-3 px-4 text-right text-yellow-800"
                               >
-                                {amount.toFixed(2)} SUI
+                                {parseFloat(amount.toFixed(6)).toString()} SUI
                               </td>
                             );
                           })}
@@ -1099,7 +1133,7 @@ export default function CreateRaffle() {
                               key={tickets}
                               className="py-3 px-4 text-right text-yellow-800 font-semibold"
                             >
-                              {totalPrize.toFixed(2)} SUI
+                              {parseFloat(totalPrize.toFixed(6)).toString()} SUI
                             </td>
                           );
                         })}
