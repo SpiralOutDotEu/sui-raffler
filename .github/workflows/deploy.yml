@@ -53,22 +53,18 @@ jobs:
             nvm use ${{ env.NODE_VERSION }}
             echo "✅ NVM setup complete"
 
-            # Determine branch and target directory (safe case statement)
+            # Determine branch and target directory (use if/elif to avoid SSH wrapper injecting between case arms)
             BRANCH="${{ github.ref_name }}"
-            case "$BRANCH" in
-              main)
-                APP_DIR="${{ secrets.APP_DIR_PROD }}"
-                SERVICE_NAME="suiraffler-prod"
-                ;;
-              testnet)
-                APP_DIR="${{ secrets.APP_DIR_TESTNET }}"
-                SERVICE_NAME="suiraffler-testnet"
-                ;;
-              *)
-                echo "❌ Unknown branch: $BRANCH"
-                exit 1
-                ;;
-            esac
+            if [ "$BRANCH" = "main" ]; then
+              APP_DIR="${{ secrets.APP_DIR_PROD }}"
+              SERVICE_NAME="suiraffler-prod"
+            elif [ "$BRANCH" = "testnet" ]; then
+              APP_DIR="${{ secrets.APP_DIR_TESTNET }}"
+              SERVICE_NAME="suiraffler-testnet"
+            else
+              echo "❌ Unknown branch: $BRANCH"
+              exit 1
+            fi
 
             echo "📦 Deploying $SERVICE_NAME from branch $BRANCH to $APP_DIR"
 
