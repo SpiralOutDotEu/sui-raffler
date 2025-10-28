@@ -34,6 +34,7 @@ export default function AdminPage() {
   const [permissionless, setPermissionless] = useState(
     config?.permissionless ?? false
   );
+  const [newMinTicketPrice, setNewMinTicketPrice] = useState("");
   const [raffleId, setRaffleId] = useState("");
 
   // Fetch raffle data when raffleId is provided
@@ -55,6 +56,8 @@ export default function AdminPage() {
   const [isUnpausingRaffle, setIsUnpausingRaffle] = useState(false);
   const [isHidingRaffle, setIsHidingRaffle] = useState(false);
   const [isShowingRaffle, setIsShowingRaffle] = useState(false);
+  const [isUpdatingMinTicketPrice, setIsUpdatingMinTicketPrice] =
+    useState(false);
 
   const handleSuccess = (message: string) => {
     notifications.handleSuccess(message);
@@ -232,6 +235,38 @@ export default function AdminPage() {
       handleError(error);
     } finally {
       setIsShowingRaffle(false);
+    }
+  };
+
+  const handleUpdateMinTicketPrice = async () => {
+    if (!newMinTicketPrice.trim()) {
+      notifications.handleError(
+        "Please enter a valid minimum ticket price in SUI"
+      );
+      return;
+    }
+
+    const priceInSUI = Number(newMinTicketPrice);
+    if (isNaN(priceInSUI) || priceInSUI < 0) {
+      notifications.handleError("Invalid price. Please enter a valid number");
+      return;
+    }
+
+    // Convert SUI to MIST (1 SUI = 1 billion MIST)
+    const priceInMist = Math.floor(priceInSUI * 1_000_000_000);
+
+    setIsUpdatingMinTicketPrice(true);
+    try {
+      await admin.updateMinTicketPrice(priceInMist);
+      handleSuccess(
+        `Minimum ticket price updated to ${priceInSUI} SUI (${priceInMist.toLocaleString()} MIST)!`
+      );
+      setNewMinTicketPrice("");
+      await queryClient.invalidateQueries({ queryKey: ["adminConfig"] });
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setIsUpdatingMinTicketPrice(false);
     }
   };
 
@@ -899,6 +934,73 @@ export default function AdminPage() {
                       {permissionless ? "Enabled" : "Disabled"}
                     </span>
                   </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Update Minimum Ticket Price */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Update Minimum Ticket Price
+                </h2>
+                <p className="text-sm text-gray-600">
+                  Set the minimum price for raffle tickets (in SUI)
+                </p>
+              </div>
+              <div className="p-6">
+                <div className="flex gap-4 items-end">
+                  <div className="flex-1">
+                    <label
+                      htmlFor="newMinTicketPrice"
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
+                      Minimum Ticket Price (SUI)
+                    </label>
+                    <input
+                      type="number"
+                      id="newMinTicketPrice"
+                      value={newMinTicketPrice}
+                      onChange={(e) => setNewMinTicketPrice(e.target.value)}
+                      placeholder="0.001"
+                      step="0.001"
+                      min="0"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                    {newMinTicketPrice &&
+                      !isNaN(Number(newMinTicketPrice)) &&
+                      Number(newMinTicketPrice) >= 0 && (
+                        <p className="mt-1 text-sm text-gray-500">
+                          ={" "}
+                          {Math.floor(
+                            Number(newMinTicketPrice) * 1_000_000_000
+                          ).toLocaleString()}{" "}
+                          MIST
+                        </p>
+                      )}
+                  </div>
+                  <button
+                    onClick={handleUpdateMinTicketPrice}
+                    disabled={
+                      isUpdatingMinTicketPrice || !newMinTicketPrice.trim()
+                    }
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isUpdatingMinTicketPrice ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    ) : null}
+                    {isUpdatingMinTicketPrice ? "Updating..." : "Update Price"}
+                  </button>
+                </div>
+                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                  <p className="text-sm text-blue-800">
+                    <strong>Current minimum:</strong>{" "}
+                    {config?.minTicketPrice
+                      ? `${parseFloat(
+                          (config.minTicketPrice / 1_000_000_000).toFixed(6)
+                        ).toString()} SUI`
+                      : "Not set"}
+                  </p>
                 </div>
               </div>
             </div>

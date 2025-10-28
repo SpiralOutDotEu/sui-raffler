@@ -175,8 +175,12 @@ fun test_happy_path_raffle() {
     ts.next_tx(admin);
     sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
-    let config = ts.take_shared<sui_raffler::Config>();
-    // Ensure no creation fee for default tests
+    let mut config = ts.take_shared<sui_raffler::Config>();
+    // Lower min ticket price for this test case
+    ts.next_tx(admin);
+    sui_raffler::update_min_ticket_price(&mut config, 0, ts.ctx());
+    
+    // Mint a Coin<SUI> with exactly 2 SUI (2_000_000_000 MIST) for creation fee
     let payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());
     assert!(sui_raffler::get_config_fee_collector(&config) == admin, 1);
 

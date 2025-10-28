@@ -34,7 +34,11 @@ public fun init_config_and_get(admin: address, ts: &mut ts::Scenario): sui_raffl
     ts.next_tx(admin);
     sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
-    ts.take_shared<sui_raffler::Config>()
+    let mut config = ts.take_shared<sui_raffler::Config>();
+    // Lower min ticket price for unit tests to allow small ticket_price values
+    ts.next_tx(admin);
+    sui_raffler::update_min_ticket_price(&mut config, 0, ts.ctx());
+    config
 }
 
 /// Helper: create a basic raffle with shared defaults
@@ -119,7 +123,10 @@ public fun setup_raffle_with_two_tickets(
     ts.next_tx(admin);
     sui_raffler::init_for_testing(ts.ctx());
     ts.next_tx(admin);
-    let config = ts.take_shared<sui_raffler::Config>();
+    let mut config = ts.take_shared<sui_raffler::Config>();
+    // Lower min ticket price for this scenario
+    ts.next_tx(admin);
+    sui_raffler::update_min_ticket_price(&mut config, 0, ts.ctx());
     
      // Mint a Coin<SUI> with exactly 2 SUI (2_000_000_000 MIST) for creation fee
     let payment_coin = coin::mint_for_testing<SUI>(2_000_000_000, ts.ctx());

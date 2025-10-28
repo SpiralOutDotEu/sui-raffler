@@ -83,6 +83,7 @@ module sui_raffler::sui_raffler {
         paused: bool,
         permissionless: bool,
         creation_fee: u64,
+        min_ticket_price: u64,
         version: u64,
     }
 
@@ -168,6 +169,8 @@ module sui_raffler::sui_raffler {
             permissionless: true,
             // Default creator fee set to 2 SUI = 2_000_000_000 MIST
             creation_fee: 2_000_000_000,
+            // Default minimum ticket price: 0.001 SUI = 1_000_000 MIST
+            min_ticket_price: 1_000_000,
             version: VERSION,
         };
         transfer::share_object(config);
@@ -228,6 +231,13 @@ module sui_raffler::sui_raffler {
     public fun update_creation_fee(config: &mut Config, new_fee: u64, ctx: &mut TxContext) {
         assert!(config.admin == tx_context::sender(ctx), ENotAdmin);
         config.creation_fee = new_fee;
+    }
+
+    /// Update minimum ticket price (in MIST)
+    /// Only the admin can call this function
+    public fun update_min_ticket_price(config: &mut Config, new_min: u64, ctx: &mut TxContext) {
+        assert!(config.admin == tx_context::sender(ctx), ENotAdmin);
+        config.min_ticket_price = new_min;
     }
 
     /// Set contract pause state globally
@@ -330,6 +340,7 @@ module sui_raffler::sui_raffler {
         assert!(is_contract_permissionless(config) || is_admin(config, ctx.sender()), EPermissionDenied);
         assert!(start_time < end_time, EInvalidDates);
         assert!(ticket_price > 0, EInvalidTicketPrice);
+        assert!(ticket_price >= config.min_ticket_price, EInvalidTicketPrice);
         assert!(max_tickets_per_address > 0, EInvalidMaxTickets);
         assert!(!(organizer == @0x0), EInvalidOrganizer);
 
@@ -597,6 +608,11 @@ module sui_raffler::sui_raffler {
     /// Get the current contract version of the module
     public fun get_current_contract_version(): u64 {
         VERSION
+    }
+
+    /// Get the configured minimum ticket price (in MIST)
+    public fun get_min_ticket_price(config: &Config): u64 {
+        config.min_ticket_price
     }
 
     /// Helper: check if contract is paused

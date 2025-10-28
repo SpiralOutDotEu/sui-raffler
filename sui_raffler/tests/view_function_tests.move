@@ -298,3 +298,23 @@ fun test_get_raffle_stats_raffle_ended() {
     ts::return_shared(raffle);
     ts.end();
 }
+
+/// Test the get_min_ticket_price view function
+#[test]
+fun test_get_min_ticket_price() {
+    let admin = @0xAD;
+
+    let mut ts = ts::begin(admin);
+    let mut config = test_helpers::init_config_and_get(admin, &mut ts);
+
+    // Helper lowers min to 0 for unit tests
+    assert!(sui_raffler::get_min_ticket_price(&config) == 0, 0);
+
+    // Update and verify
+    ts.next_tx(admin);
+    sui_raffler::update_min_ticket_price(&mut config, 200, ts.ctx());
+    assert!(sui_raffler::get_min_ticket_price(&config) == 200, 1);
+
+    ts::return_shared(config);
+    ts.end();
+}
