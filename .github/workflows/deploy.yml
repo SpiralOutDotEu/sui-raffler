@@ -45,9 +45,15 @@ jobs:
           port: 22
           script_stop: true
           script: |
+            set -e  # Exit on error
+            set -x  # Print commands as they execute
+
+            echo "🔧 Setting up NVM..."
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
             nvm use ${{ env.NODE_VERSION }}
+
+            echo "✅ NVM setup complete"
 
             # Select deployment directory based on branch
             # main branch -> suiraffler-prod (production)
@@ -62,10 +68,27 @@ jobs:
               BRANCH="testnet"
             fi
 
-            cd $APP_DIR
-            git checkout $BRANCH
-            git pull origin $BRANCH
-            cd frontend
-            npm ci --ignore-scripts
-            npm run build
-            pm2 restart $SERVICE_NAME
+            echo "📦 Deploying $SERVICE_NAME from branch $BRANCH to $APP_DIR"
+
+            echo "🗂️  Changing to app directory..."
+            cd $APP_DIR || { echo "❌ Failed to cd to $APP_DIR"; exit 1; }
+
+            echo "🔀 Checking out branch $BRANCH..."
+            git checkout $BRANCH || { echo "❌ Failed to checkout branch $BRANCH"; exit 1; }
+
+            echo "⬇️  Pulling latest changes..."
+            git pull origin $BRANCH || { echo "❌ Failed to pull from origin $BRANCH"; exit 1; }
+
+            echo "📁 Changing to frontend directory..."
+            cd frontend || { echo "❌ Failed to cd to frontend"; exit 1; }
+
+            echo "📥 Installing dependencies..."
+            npm ci --ignore-scripts || { echo "❌ Failed to install dependencies"; exit 1; }
+
+            echo "🔨 Building project..."
+            npm run build || { echo "❌ Failed to build project"; exit 1; }
+
+            echo "🔄 Restarting PM2 service..."
+            pm2 restart $SERVICE_NAME || { echo "❌ Failed to restart PM2 service"; exit 1; }
+
+            echo "✅ Deployment successful!"
