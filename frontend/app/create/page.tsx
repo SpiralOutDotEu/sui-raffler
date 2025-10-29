@@ -8,6 +8,7 @@ import { useWallet } from "@/lib/context/WalletContext";
 import { useAdminPermissions } from "@/lib/hooks/useAdminPermissions";
 import { useAdminConfig } from "@/lib/hooks/useAdminConfig";
 import { useTransactions } from "@/lib/hooks/useTransactions";
+import { useApiFetch } from "@/lib/hooks/useApiFetch";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
@@ -173,6 +174,7 @@ function ImageUpload({
   const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const apiFetch = useApiFetch();
 
   const uploadFile = useCallback(
     async (file: File) => {
@@ -191,7 +193,7 @@ function ImageUpload({
         const formData = new FormData();
         formData.append("file", file);
 
-        const response = await fetch("/api/v1/ipfs/upload", {
+        const response = await apiFetch("/api/v1/ipfs/upload", {
           method: "POST",
           body: formData,
         });
@@ -216,7 +218,7 @@ function ImageUpload({
         setIsUploading(false);
       }
     },
-    [onImageUpload]
+    [onImageUpload, apiFetch]
   );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {

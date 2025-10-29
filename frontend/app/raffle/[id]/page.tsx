@@ -141,7 +141,6 @@ export default function RaffleDetail() {
         raffle.ticket_price
       );
 
-      console.log("Buy tickets result:", result);
       setTransactionDigest(result.digest);
       handleSuccess("Tickets purchased successfully!");
 
