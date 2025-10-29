@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cacheService } from '@/lib/services/cache';
+import { validateTurnstileRequest } from '@/lib/utils/turnstileValidator';
 
 export async function GET(request: NextRequest) {
+    // Validate Turnstile token
+    const validationError = await validateTurnstileRequest(request);
+    if (validationError) {
+        return validationError;
+    }
     try {
         const searchParams = request.nextUrl.searchParams;
         const cid = searchParams.get('cid');

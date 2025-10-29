@@ -70,11 +70,10 @@ export default function Releases() {
         ],
       });
 
-      const result = await signAndExecute({
+      await signAndExecute({
         transaction: tx,
       });
 
-      console.log("release_raffle result.effects:", result.effects);
       setReleaseSuccess((prev) => ({
         ...prev,
         [raffleId]:

@@ -15,6 +15,7 @@ import {
     UserPurchaseInfo
 } from '../types';
 import { SuiErrorHandler } from '../utils/errorHandler';
+import { fetchWithTurnstile } from '@/lib/utils/fetchWithTurnstile';
 
 export class SuiApiService {
     constructor(private client: SuiClient) { }
@@ -39,7 +40,7 @@ export class SuiApiService {
             // Get image URL from IPFS
             let imageUrl = "";
             try {
-                const imageResponse = await fetch(`/api/v1/ipfs/retrieve?cid=${fields.image}`);
+                const imageResponse = await fetchWithTurnstile(`/api/v1/ipfs/retrieve?cid=${fields.image}`);
                 if (imageResponse.ok) {
                     const blob = await imageResponse.blob();
                     imageUrl = URL.createObjectURL(blob);
@@ -92,7 +93,7 @@ export class SuiApiService {
                                 // Get image URL from IPFS
                                 let imageUrl = "";
                                 try {
-                                    const response = await fetch(`/api/v1/ipfs/retrieve?cid=${fields.image}`);
+                                    const response = await fetchWithTurnstile(`/api/v1/ipfs/retrieve?cid=${fields.image}`);
                                     if (response.ok) {
                                         const blob = await response.blob();
                                         imageUrl = URL.createObjectURL(blob);
@@ -228,8 +229,6 @@ export class SuiApiService {
             // Add timeout and retry logic
             const maxRetries = 2;
             let lastError: unknown;
-
-            console.log('Fetching winners for raffle:', raffleId);
 
             for (let attempt = 0; attempt <= maxRetries; attempt++) {
                 try {

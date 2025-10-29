@@ -6,10 +6,6 @@ export const FULLNODE_URL = `https://fullnode.${NETWORK}.sui.io:443`;
 export const PACKAGE_ID = process.env.NEXT_PUBLIC_PACKAGE_ID || '0x0';
 export const CONFIG_OBJECT_ID = process.env.NEXT_PUBLIC_CONFIG_OBJECT_ID || '0x0';
 
-console.log("network", NETWORK);
-console.log("packageId", PACKAGE_ID);
-console.log("configObjectId", CONFIG_OBJECT_ID);
-
 export const MODULE = "sui_raffler";
 
 // Shared objects
@@ -33,6 +29,7 @@ export const CREATE_RAFFLE_TARGET = `${PACKAGE_ID}::${MODULE}::create_raffle`;
 export const BUY_TICKETS_TARGET = `${PACKAGE_ID}::${MODULE}::buy_tickets`;
 export const RELEASE_RAFFLE_TARGET = `${PACKAGE_ID}::${MODULE}::release_raffle`;
 export const BURN_TICKETS_TARGET = `${PACKAGE_ID}::${MODULE}::burn_tickets`;
+export const GET_ADDRESS_PURCHASE_INFO_TARGET = `${PACKAGE_ID}::${MODULE}::get_address_purchase_info`;
 
 // Cache configuration
 export const CACHE_MAX_ITEMS = 1000;
@@ -80,6 +77,3 @@ export const QUICK_MAX_TICKETS_OPTIONS = [
     { label: "20", value: "20" },
     { label: "50", value: "50" },
 ];
-
-// Transaction targets for new functions
-export const GET_ADDRESS_PURCHASE_INFO_TARGET = `${PACKAGE_ID}::${MODULE}::get_address_purchase_info`;

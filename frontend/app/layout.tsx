@@ -154,6 +154,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        {/* Cloudflare Turnstile Script */}
+        <script
+          src="https://challenges.cloudflare.com/turnstile/v0/api.js"
+          async
+          defer
+        />
         {/* Structured Data for Rich Snippets */}
         <script
           type="application/ld+json"
