@@ -3,6 +3,7 @@ import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
 import { PACKAGE_ID, CONFIG_OBJECT_ID, RANDOM_OBJECT_ID } from '@/lib/constants';
+import { verifyRecaptchaToken } from '@/lib/services/recaptcha';
 
 interface RaffleFields {
     is_released: boolean;
@@ -18,6 +19,25 @@ const client = new SuiClient({ url: getFullnodeUrl('testnet') });
 
 export async function POST(request: Request) {
     try {
+        // Verify reCAPTCHA token (allow JSON body or header)
+        let recaptchaToken: string | null = null;
+        const contentType = request.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+            try {
+                const body = await request.json();
+                recaptchaToken = (body && body.recaptchaToken) || null;
+            } catch {
+                recaptchaToken = null;
+            }
+        }
+        const verification = await verifyRecaptchaToken(recaptchaToken, 'release_raffle');
+        if (!verification.success) {
+            return NextResponse.json(
+                { error: 'reCAPTCHA verification failed', details: verification.errorCodes?.join(', ') },
+                { status: 403 }
+            );
+        }
+
         // Extract raffleId from the URL
         const url = new URL(request.url);
         const pathParts = url.pathname.split('/');
