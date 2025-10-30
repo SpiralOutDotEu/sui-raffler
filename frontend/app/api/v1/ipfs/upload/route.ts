@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PinataService } from '@/lib/services/pinata';
+import { verifyRecaptchaToken } from '@/lib/services/recaptcha';
 
 export async function POST(request: NextRequest) {
     try {
         const formData = await request.formData();
+        const recaptchaToken = formData.get('recaptchaToken') as string | null;
+        const verification = await verifyRecaptchaToken(recaptchaToken, 'upload_image');
+        if (!verification.success) {
+            return NextResponse.json(
+                { error: 'reCAPTCHA verification failed', details: verification.errorCodes?.join(', ') },
+                { status: 403 }
+            );
+        }
         const file = formData.get('file') as File;
 
         if (!file) {

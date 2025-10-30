@@ -12,6 +12,7 @@ import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import Image from "next/image";
+import { executeRecaptcha } from "@/lib/utils/recaptchaClient";
 
 // Helper function to format relative time
 function formatRelativeTime(target: number, currentTime: number) {
@@ -190,6 +191,10 @@ function ImageUpload({
         setIsUploading(true);
         const formData = new FormData();
         formData.append("file", file);
+
+        // Execute reCAPTCHA v3 for upload action
+        const token = await executeRecaptcha("upload_image");
+        formData.append("recaptchaToken", token);
 
         const response = await fetch("/api/v1/ipfs/upload", {
           method: "POST",
