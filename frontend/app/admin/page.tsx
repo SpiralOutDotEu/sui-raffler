@@ -313,7 +313,20 @@ export default function AdminPage() {
     );
   }
 
-  // Admin permissions check
+  // Debug logging (remove in production)
+  console.log("Admin permissions check:", {
+    isAdmin,
+    isController,
+    isAdminOrController,
+    config: config
+      ? {
+          admin: config.admin,
+          controller: config.controller,
+          feeCollector: config.feeCollector,
+        }
+      : null,
+    currentAddress: address,
+  });
 
   // Additional safety check - ensure we have config data and address
   if (!config || !address) {
