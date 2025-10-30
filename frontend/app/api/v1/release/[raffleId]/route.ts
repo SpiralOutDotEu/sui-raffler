@@ -1,9 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
 import { PACKAGE_ID, CONFIG_OBJECT_ID, RANDOM_OBJECT_ID } from '@/lib/constants';
-import { validateTurnstileRequest } from '@/lib/utils/turnstileValidator';
 
 interface RaffleFields {
     is_released: boolean;
@@ -17,12 +16,7 @@ interface ClockFields {
 // Initialize Sui client with testnet
 const client = new SuiClient({ url: getFullnodeUrl('testnet') });
 
-export async function POST(request: NextRequest) {
-    // Validate Turnstile token
-    const validationError = await validateTurnstileRequest(request);
-    if (validationError) {
-        return validationError;
-    }
+export async function POST(request: Request) {
     try {
         // Extract raffleId from the URL
         const url = new URL(request.url);
@@ -59,14 +53,19 @@ export async function POST(request: NextRequest) {
 
         // Get sender address
         const sender = keypair.getPublicKey().toSuiAddress();
+        console.log('Sender address:', sender);
 
         // Get raffle object
+        console.log('Fetching raffle with ID:', raffleId);
+
         const raffle = await client.getObject({
             id: raffleId,
             options: {
                 showContent: true,
             },
         });
+
+        console.log('Raffle response:', JSON.stringify(raffle, null, 2));
 
         if (!raffle.data) {
             console.error('No data in raffle response');
@@ -93,6 +92,7 @@ export async function POST(request: NextRequest) {
         }
 
         const raffleFields = raffle.data.content.fields as unknown as RaffleFields;
+        console.log('Raffle fields:', JSON.stringify(raffleFields, null, 2));
 
         // Check if raffle is already released
         if (raffleFields.is_released) {

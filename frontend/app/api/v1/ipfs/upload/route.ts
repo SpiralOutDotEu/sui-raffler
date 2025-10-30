@@ -1,14 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PinataService } from '@/lib/services/pinata';
-import { validateTurnstileRequest } from '@/lib/utils/turnstileValidator';
 
 export async function POST(request: NextRequest) {
-    // Validate Turnstile token
-    const validationError = await validateTurnstileRequest(request);
-    if (validationError) {
-        return validationError;
-    }
-
     try {
         const formData = await request.formData();
         const file = formData.get('file') as File;

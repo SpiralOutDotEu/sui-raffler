@@ -10,7 +10,6 @@ import { useUserTickets } from "@/lib/hooks/useUserTickets";
 import { useRaffleWinners } from "@/lib/hooks/useRaffleWinners";
 import { useTransactions } from "@/lib/hooks/useTransactions";
 import { useNotifications } from "@/lib/hooks/useNotifications";
-import { useApiFetch } from "@/lib/hooks/useApiFetch";
 import { useUserPurchaseInfo } from "@/lib/hooks/useUserPurchaseInfo";
 import { useRaffleReturnState } from "@/lib/hooks/useRaffleReturnState";
 import { getRelativeTime, truncateAddress } from "@/lib/utils/formatters";
@@ -73,7 +72,6 @@ export default function RaffleDetail() {
   const { address: currentAccount, isConnected } = useWallet();
   const transactions = useTransactions();
   const { handleError, handleSuccess } = useNotifications();
-  const apiFetch = useApiFetch();
   const queryClient = useQueryClient();
   const { data: userTickets = [], isLoading: isLoadingTickets } =
     useUserTickets(id as string, currentAccount);
@@ -143,6 +141,7 @@ export default function RaffleDetail() {
         raffle.ticket_price
       );
 
+      console.log("Buy tickets result:", result);
       setTransactionDigest(result.digest);
       handleSuccess("Tickets purchased successfully!");
 
@@ -419,7 +418,7 @@ export default function RaffleDetail() {
     setTransactionDigest(null);
 
     try {
-      const response = await apiFetch(`/api/v1/release/${raffle.id}`, {
+      const response = await fetch(`/api/v1/release/${raffle.id}`, {
         method: "POST",
       });
       const data = await response.json();
