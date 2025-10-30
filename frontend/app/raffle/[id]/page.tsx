@@ -16,6 +16,7 @@ import { getRelativeTime, truncateAddress } from "@/lib/utils/formatters";
 import { validateTicketAmount } from "@/lib/utils/validators";
 import Image from "next/image";
 import PausedRaffleModal from "@/components/PausedRaffleModal";
+import { executeRecaptcha } from "@/lib/utils/recaptchaClient";
 
 // Add this helper function near the other helper functions
 function calculateQuickTicketOptions(maxTickets: number) {
@@ -418,8 +419,13 @@ export default function RaffleDetail() {
     setTransactionDigest(null);
 
     try {
+      // Execute reCAPTCHA v3 for release action
+      const recaptchaToken = await executeRecaptcha("release_raffle");
+
       const response = await fetch(`/api/v1/release/${raffle.id}`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recaptchaToken }),
       });
       const data = await response.json();
 
