@@ -2,7 +2,7 @@
 
 import { useSuiClient } from "@mysten/dapp-kit";
 import { useRouter } from "next/navigation";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { PACKAGE_ID, MODULE } from "@/lib/constants";
 import { useWallet } from "@/lib/context/WalletContext";
 import { useAdminPermissions } from "@/lib/hooks/useAdminPermissions";
