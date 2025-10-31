@@ -856,7 +856,9 @@ export default function CreateRaffle() {
             <div className="bg-gradient-to-r from-yellow-50 to-amber-50 rounded-xl p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
                 <span className="text-yellow-500">🏆</span>
-                Prize Distribution
+                {formData.ticketPrice
+                  ? "Prize Distribution and Winning Estimations"
+                  : "Prize Distribution"}
               </h2>
               {!formData.ticketPrice ? (
                 <div className="space-y-3">
@@ -969,6 +971,36 @@ export default function CreateRaffle() {
                 </div>
               )}
             </div>
+
+            {/* Creation Fee Info */}
+            {creationFee !== undefined && creationFee > 0 && (
+              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                <div className="flex items-center gap-2">
+                  <svg
+                    className="h-5 w-5 text-gray-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  <span className="text-sm text-gray-700">
+                    Creation fee:{" "}
+                    <span className="font-semibold text-gray-900">
+                      {parseFloat(
+                        (creationFee / 1_000_000_000).toFixed(6)
+                      ).toString()}{" "}
+                      SUI
+                    </span>
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* Submit Button */}
             <button
