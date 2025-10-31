@@ -35,6 +35,7 @@ export default function AdminPage() {
     config?.permissionless ?? false
   );
   const [newMinTicketPrice, setNewMinTicketPrice] = useState("");
+  const [newCreationFee, setNewCreationFee] = useState("");
   const [raffleId, setRaffleId] = useState("");
 
   // Fetch raffle data when raffleId is provided
@@ -58,6 +59,7 @@ export default function AdminPage() {
   const [isShowingRaffle, setIsShowingRaffle] = useState(false);
   const [isUpdatingMinTicketPrice, setIsUpdatingMinTicketPrice] =
     useState(false);
+  const [isUpdatingCreationFee, setIsUpdatingCreationFee] = useState(false);
 
   const handleSuccess = (message: string) => {
     notifications.handleSuccess(message);
@@ -267,6 +269,36 @@ export default function AdminPage() {
       handleError(error);
     } finally {
       setIsUpdatingMinTicketPrice(false);
+    }
+  };
+
+  const handleUpdateCreationFee = async () => {
+    if (!newCreationFee.trim()) {
+      notifications.handleError("Please enter a valid creation fee in SUI");
+      return;
+    }
+
+    const feeInSUI = Number(newCreationFee);
+    if (isNaN(feeInSUI) || feeInSUI < 0) {
+      notifications.handleError("Invalid fee. Please enter a valid number");
+      return;
+    }
+
+    // Convert SUI to MIST (1 SUI = 1 billion MIST)
+    const feeInMist = Math.floor(feeInSUI * 1_000_000_000);
+
+    setIsUpdatingCreationFee(true);
+    try {
+      await admin.updateCreationFee(feeInMist);
+      handleSuccess(
+        `Creation fee updated to ${feeInSUI} SUI (${feeInMist.toLocaleString()} MIST)!`
+      );
+      setNewCreationFee("");
+      await queryClient.invalidateQueries({ queryKey: ["adminConfig"] });
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setIsUpdatingCreationFee(false);
     }
   };
 
@@ -609,6 +641,60 @@ export default function AdminPage() {
                 >
                   {config?.permissionless ? "Enabled" : "Disabled"}
                 </span>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-4">
+                <div className="flex items-center mb-3">
+                  <svg
+                    className="h-5 w-5 text-indigo-600 mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  <h3 className="text-lg font-medium text-gray-900">
+                    Creation Fee
+                  </h3>
+                </div>
+                <p className="text-sm font-mono text-gray-600">
+                  {config?.creationFee
+                    ? `${parseFloat(
+                        (config.creationFee / 1_000_000_000).toFixed(6)
+                      ).toString()} SUI`
+                    : "Not set"}
+                </p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-4">
+                <div className="flex items-center mb-3">
+                  <svg
+                    className="h-5 w-5 text-yellow-600 mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  <h3 className="text-lg font-medium text-gray-900">
+                    Minimum Ticket Price
+                  </h3>
+                </div>
+                <p className="text-sm font-mono text-gray-600">
+                  {config?.minTicketPrice
+                    ? `${parseFloat(
+                        (config.minTicketPrice / 1_000_000_000).toFixed(6)
+                      ).toString()} SUI`
+                    : "Not set"}
+                </p>
               </div>
             </div>
           </div>
@@ -998,6 +1084,71 @@ export default function AdminPage() {
                     {config?.minTicketPrice
                       ? `${parseFloat(
                           (config.minTicketPrice / 1_000_000_000).toFixed(6)
+                        ).toString()} SUI`
+                      : "Not set"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Update Creation Fee */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Update Creation Fee
+                </h2>
+                <p className="text-sm text-gray-600">
+                  Set the fee required to create a new raffle (in SUI)
+                </p>
+              </div>
+              <div className="p-6">
+                <div className="flex gap-4 items-end">
+                  <div className="flex-1">
+                    <label
+                      htmlFor="newCreationFee"
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
+                      Creation Fee (SUI)
+                    </label>
+                    <input
+                      type="number"
+                      id="newCreationFee"
+                      value={newCreationFee}
+                      onChange={(e) => setNewCreationFee(e.target.value)}
+                      placeholder="2.0"
+                      step="0.001"
+                      min="0"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                    {newCreationFee &&
+                      !isNaN(Number(newCreationFee)) &&
+                      Number(newCreationFee) >= 0 && (
+                        <p className="mt-1 text-sm text-gray-500">
+                          ={" "}
+                          {Math.floor(
+                            Number(newCreationFee) * 1_000_000_000
+                          ).toLocaleString()}{" "}
+                          MIST
+                        </p>
+                      )}
+                  </div>
+                  <button
+                    onClick={handleUpdateCreationFee}
+                    disabled={isUpdatingCreationFee || !newCreationFee.trim()}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isUpdatingCreationFee ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    ) : null}
+                    {isUpdatingCreationFee ? "Updating..." : "Update Fee"}
+                  </button>
+                </div>
+                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                  <p className="text-sm text-blue-800">
+                    <strong>Current creation fee:</strong>{" "}
+                    {config?.creationFee
+                      ? `${parseFloat(
+                          (config.creationFee / 1_000_000_000).toFixed(6)
                         ).toString()} SUI`
                       : "Not set"}
                   </p>
