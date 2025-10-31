@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRaffles } from "@/lib/hooks/useRaffles";
 import Image from "next/image";
 
@@ -68,11 +68,14 @@ type SortOption =
   | "ending_soon";
 type FilterOption = "all" | "active" | "ended" | "upcoming";
 
+const ITEMS_PER_PAGE = 6;
+
 export default function Explore() {
   const { data: raffles, isLoading, error } = useRaffles();
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("newest");
   const [filterBy, setFilterBy] = useState<FilterOption>("all");
+  const [currentPage, setCurrentPage] = useState(1);
 
   const filteredAndSortedRaffles = useMemo(() => {
     if (!raffles) return [];
@@ -131,6 +134,58 @@ export default function Explore() {
 
     return filtered;
   }, [raffles, searchQuery, sortBy, filterBy]);
+
+  // Reset to page 1 when filters or search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, sortBy, filterBy]);
+
+  // Calculate pagination
+  const totalPages = Math.ceil(
+    filteredAndSortedRaffles.length / ITEMS_PER_PAGE
+  );
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const paginatedRaffles = filteredAndSortedRaffles.slice(startIndex, endIndex);
+
+  // Generate page numbers for pagination UI
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    const maxVisible = 5;
+
+    if (totalPages <= maxVisible) {
+      // Show all pages if total is less than max
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      // Always show first page
+      pages.push(1);
+
+      if (currentPage > 3) {
+        pages.push("...");
+      }
+
+      // Show pages around current page
+      const start = Math.max(2, currentPage - 1);
+      const end = Math.min(totalPages - 1, currentPage + 1);
+
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+
+      if (currentPage < totalPages - 2) {
+        pages.push("...");
+      }
+
+      // Always show last page
+      if (totalPages > 1) {
+        pages.push(totalPages);
+      }
+    }
+
+    return pages;
+  };
 
   if (isLoading) {
     return (
@@ -212,9 +267,29 @@ export default function Explore() {
           </div>
         </div>
 
+        {/* Results Count */}
+        <div className="bg-white rounded-2xl shadow-lg p-4 mb-6 border border-gray-100">
+          <p className="text-gray-600">
+            Showing{" "}
+            <span className="font-semibold text-gray-900">
+              {filteredAndSortedRaffles.length === 0
+                ? 0
+                : `${startIndex + 1}-${Math.min(
+                    endIndex,
+                    filteredAndSortedRaffles.length
+                  )}`}
+            </span>{" "}
+            of{" "}
+            <span className="font-semibold text-gray-900">
+              {filteredAndSortedRaffles.length}
+            </span>{" "}
+            raffles
+          </p>
+        </div>
+
         {/* Raffles Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredAndSortedRaffles.map((raffle) => {
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          {paginatedRaffles.map((raffle) => {
             const now = Date.now();
             const isActive =
               raffle.start_time <= now &&
@@ -358,6 +433,100 @@ export default function Explore() {
             </div>
           )}
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="bg-gradient-to-r from-indigo-50 via-white to-purple-50 rounded-2xl shadow-lg p-4 sm:p-6 border border-indigo-100">
+            <div className="flex justify-center">
+              {/* Pagination Controls */}
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-center">
+                {/* Previous Button */}
+                <button
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.max(1, prev - 1))
+                  }
+                  disabled={currentPage === 1}
+                  className="min-w-[44px] sm:min-w-[48px] px-3 sm:px-4 py-2 sm:py-2.5 border-2 border-gray-300 rounded-lg hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-gray-300 disabled:hover:bg-transparent disabled:hover:text-gray-500 transition-all duration-200 font-semibold text-sm sm:text-base text-gray-700 shadow-sm hover:shadow-md flex items-center justify-center gap-1 sm:gap-1.5"
+                  aria-label="Previous page"
+                >
+                  <svg
+                    className="w-4 h-4 sm:w-5 sm:h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2.5"
+                      d="M15 19l-7-7 7-7"
+                    />
+                  </svg>
+                  <span className="hidden sm:inline">Previous</span>
+                </button>
+
+                {/* Page Numbers */}
+                <div className="flex items-center gap-1.5 sm:gap-2 bg-white/60 rounded-xl p-1.5 sm:p-2 border border-gray-200 shadow-sm">
+                  {getPageNumbers().map((page, index) => {
+                    if (page === "...") {
+                      return (
+                        <span
+                          key={`ellipsis-${index}`}
+                          className="px-2 sm:px-3 py-2 sm:py-2.5 text-gray-400 font-medium text-sm sm:text-base"
+                        >
+                          ...
+                        </span>
+                      );
+                    }
+
+                    const pageNum = page as number;
+                    const isActive = currentPage === pageNum;
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`min-w-[44px] sm:min-w-[48px] px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg font-semibold text-sm sm:text-base transition-all duration-200 ${
+                          isActive
+                            ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/30 scale-105"
+                            : "text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 hover:shadow-sm"
+                        }`}
+                        aria-label={`Go to page ${pageNum}`}
+                        aria-current={isActive ? "page" : undefined}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Next Button */}
+                <button
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                  }
+                  disabled={currentPage === totalPages}
+                  className="min-w-[44px] sm:min-w-[48px] px-3 sm:px-4 py-2 sm:py-2.5 border-2 border-gray-300 rounded-lg hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-gray-300 disabled:hover:bg-transparent disabled:hover:text-gray-500 transition-all duration-200 font-semibold text-sm sm:text-base text-gray-700 shadow-sm hover:shadow-md flex items-center justify-center gap-1 sm:gap-1.5"
+                  aria-label="Next page"
+                >
+                  <span className="hidden sm:inline">Next</span>
+                  <svg
+                    className="w-4 h-4 sm:w-5 sm:h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2.5"
+                      d="M9 5l7 7-7 7"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
