@@ -501,9 +501,9 @@ export default function RaffleDetail() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Left Panel - Image */}
             <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-2xl p-6 flex items-center justify-center">
-              <div className="aspect-square w-full max-w-md rounded-2xl overflow-hidden bg-white shadow-lg">
+              <div className="w-full max-w-md rounded-2xl overflow-hidden flex items-center justify-center min-h-[300px] max-h-[500px]">
                 {isHidden ? (
-                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-red-100 to-red-200">
+                  <div className="w-full h-full min-h-[300px] flex items-center justify-center bg-gradient-to-br from-red-100 to-red-200">
                     <div className="text-center">
                       <svg
                         className="h-16 w-16 text-red-400 mx-auto mb-4"
@@ -530,11 +530,11 @@ export default function RaffleDetail() {
                     alt={raffle.name}
                     width={500}
                     height={500}
-                    className="w-full h-auto rounded-lg"
+                    className="w-full h-auto max-h-[500px] object-contain rounded-lg"
                     unoptimized
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600">
+                  <div className="w-full min-h-[300px] flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600">
                     <span className="text-6xl">🎟️</span>
                   </div>
                 )}
