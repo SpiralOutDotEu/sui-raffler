@@ -955,7 +955,7 @@ export default function CreateRaffle() {
                         { position: "3rd Place", percentage: 10 },
                         { position: "Organizer", percentage: 10 },
                         { position: "Protocol Fee", percentage: 5 },
-                      ].map((row, index) => (
+                      ].map((row) => (
                         <tr
                           key={row.position}
                           className="hover:bg-gray-50 dark:hover:bg-[#1a202c]/50 transition-colors duration-200 bg-white dark:bg-[#2d3748] even:bg-gray-50/50 dark:even:bg-[#1a202c]/30"
