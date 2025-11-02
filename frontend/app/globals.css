@@ -233,3 +233,32 @@ html.dark .MuiPickersPopper-paper {
 html.dark .MuiPickersCalendar-root {
   background-color: rgb(45, 55, 72) !important;
 }
+
+/* Wallet dropdown border styling */
+/* Target dapp-kit dropdown menu container using Radix UI popper */
+[data-radix-popper-content-wrapper] {
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  border-radius: 8px !important;
+}
+
+.dark [data-radix-popper-content-wrapper] {
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 8px !important;
+}
+
+/* Target the menu content inside the popper */
+[data-radix-popper-content-wrapper] > div,
+[data-radix-popper-content-wrapper] [role="menu"] {
+  border-radius: 8px !important;
+}
+
+/* Fallback: target any dropdown menu that might be from wallet components */
+div[role="menu"][data-state] {
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  border-radius: 8px !important;
+}
+
+.dark div[role="menu"][data-state] {
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 8px !important;
+}

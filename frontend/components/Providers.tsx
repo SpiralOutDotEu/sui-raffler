@@ -8,6 +8,7 @@ import { getFullnodeUrl } from "@mysten/sui/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WalletProvider } from "@/lib/context/WalletContext";
 import { ThemeProvider } from "@/lib/context/ThemeContext";
+import { lightWalletTheme, darkWalletTheme } from "@/lib/themes/walletThemes";
 import Header from "./Header";
 import Footer from "./Footer";
 import Script from "next/script";
@@ -23,7 +24,18 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
         <SuiClientProvider networks={networks} defaultNetwork="testnet">
-          <SuiWalletProvider autoConnect>
+          <SuiWalletProvider
+            autoConnect
+            theme={[
+              {
+                variables: lightWalletTheme,
+              },
+              {
+                selector: ".dark",
+                variables: darkWalletTheme,
+              },
+            ]}
+          >
             <WalletProvider>
               <Script
                 id="recaptcha-v3"
