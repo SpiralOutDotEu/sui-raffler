@@ -174,3 +174,62 @@ html.dark .MuiPickersInputBase-sectionsContainer * {
   background-color: rgb(99, 102, 241) !important;
   color: rgb(255, 255, 255) !important;
 }
+
+/* Calendar date numbers - ensure visibility */
+.dark .MuiPickersCalendar-root,
+.dark .MuiDayCalendar-root,
+.dark .MuiDayCalendar-weekContainer,
+.dark .MuiDayCalendar-weekDayLabel,
+.dark .MuiPickersDay-root {
+  color: rgb(255, 255, 255) !important;
+}
+
+.dark
+  .MuiPickersDay-root:not(.Mui-disabled):not(.Mui-selected):not(.Mui-selected) {
+  color: rgb(255, 255, 255) !important;
+}
+
+.dark .MuiPickersDay-root:hover:not(.Mui-disabled) {
+  background-color: rgba(99, 102, 241, 0.3) !important;
+  color: rgb(255, 255, 255) !important;
+}
+
+.dark .MuiPickersCalendarHeader-labelContainer,
+.dark .MuiPickersCalendarHeader-label,
+.dark .MuiPickersCalendarHeader-switchViewButton {
+  color: rgb(255, 255, 255) !important;
+}
+
+.dark .MuiPickersArrowSwitcher-button {
+  color: rgb(255, 255, 255) !important;
+}
+
+/* Calendar month/year selection */
+.dark .MuiPickersMonth-root,
+.dark .MuiPickersYear-root,
+.dark .MuiPickersMonth-root:not(.Mui-disabled),
+.dark .MuiPickersYear-root:not(.Mui-disabled) {
+  color: rgb(255, 255, 255) !important;
+}
+
+.dark .MuiPickersMonth-root:hover:not(.Mui-disabled),
+.dark .MuiPickersYear-root:hover:not(.Mui-disabled) {
+  background-color: rgba(99, 102, 241, 0.3) !important;
+  color: rgb(255, 255, 255) !important;
+}
+
+.dark .MuiPickersMonth-root.Mui-selected,
+.dark .MuiPickersYear-root.Mui-selected {
+  background-color: rgb(99, 102, 241) !important;
+  color: rgb(255, 255, 255) !important;
+}
+
+/* Ensure calendar paper background is dark */
+html.dark .MuiPaper-root.MuiPickersPopper-paper,
+html.dark .MuiPickersPopper-paper {
+  background-color: rgb(45, 55, 72) !important;
+}
+
+html.dark .MuiPickersCalendar-root {
+  background-color: rgb(45, 55, 72) !important;
+}
