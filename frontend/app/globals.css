@@ -1,26 +1,176 @@
 @import "tailwindcss";
 
+/* Enable dark mode in Tailwind CSS v4 */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Color Scheme */
 :root {
-  --background: #171717;
-  --foreground: #ffffff;
+  /* Light theme (default) */
+  --color-background: #ffffff;
+  --color-background-secondary: #f7fafc;
+  --color-foreground: #1a202c;
+  --color-foreground-secondary: #718096;
+  --color-border: #e2e8f0;
+  --color-card: #ffffff;
+
+  /* Accent colors (same for both themes) */
+  --color-accent-blue: #3182ce;
+  --color-accent-green: #48bb78;
+  --color-accent-red: #e53e3e;
+  --color-accent-orange: #ed8936;
+
+  /* Button colors */
+  --color-button-primary: #3182ce;
+  --color-button-primary-hover: #2c5aa0;
+  --color-button-yes: #48bb78;
+  --color-button-yes-hover: #38a169;
+  --color-button-no: #e53e3e;
+  --color-button-no-hover: #c53030;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+.dark {
+  /* Dark theme */
+  --color-background: #1a202c;
+  --color-background-secondary: #2d3748;
+  --color-foreground: #ffffff;
+  --color-foreground-secondary: #a0aec0;
+  --color-border: #4a5568;
+  --color-card: #2d3748;
+
+  /* Button colors for dark mode */
+  --color-button-primary: #3182ce;
+  --color-button-primary-hover: #4299e1;
+  --color-button-yes: #48bb78;
+  --color-button-yes-hover: #68d391;
+  --color-button-no: #e53e3e;
+  --color-button-no-hover: #fc8181;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #ededed;
-    --foreground: #0a0a0a;
-  }
+@theme {
+  /* Theme variables that map to Tailwind utilities */
+  --color-bg: var(--color-background);
+  --color-bg-secondary: var(--color-background-secondary);
+  --color-text: var(--color-foreground);
+  --color-text-secondary: var(--color-foreground-secondary);
+  --color-border-default: var(--color-border);
+  --color-card-bg: var(--color-card);
+
+  /* Accent colors */
+  --color-blue: var(--color-accent-blue);
+  --color-green: var(--color-accent-green);
+  --color-red: var(--color-accent-red);
+  --color-orange: var(--color-accent-orange);
+
+  /* Font settings */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Smooth transitions for theme switching */
+* {
+  transition-property: background-color, border-color, color;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Override for specific elements that shouldn't transition */
+button,
+a {
+  transition: all 0.2s ease;
+}
+
+/* MUI DateTimePicker dark mode styles */
+.dark .MuiInputBase-input,
+.dark .MuiInputBase-input input,
+.dark input.MuiInputBase-input,
+.dark .MuiTextField-root .MuiInputBase-input {
+  color: rgb(255, 255, 255) !important;
+}
+
+.dark .MuiInputLabel-root,
+.dark .MuiInputLabel-root.MuiInputLabel-root {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.dark .MuiOutlinedInput-notchedOutline {
+  border-color: rgba(255, 255, 255, 0.23) !important;
+}
+
+.dark .MuiInputBase-root:hover .MuiOutlinedInput-notchedOutline {
+  border-color: rgba(255, 255, 255, 0.87) !important;
+}
+
+.dark .MuiInputBase-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: rgb(99, 102, 241) !important;
+}
+
+.dark .MuiInputLabel-root.Mui-focused {
+  color: rgb(99, 102, 241) !important;
+}
+
+/* Ensure all MUI input text is white in dark mode */
+html.dark .MuiOutlinedInput-input,
+html.dark .MuiInputBase-input,
+html.dark .MuiInputBase-root input,
+html.dark .MuiTextField-root input,
+html.dark input[class*="MuiInputBase"],
+html.dark .MuiOutlinedInput-root input,
+html.dark .MuiInputBase-root.MuiOutlinedInput-root input {
+  color: rgb(255, 255, 255) !important;
+}
+
+/* Additional specificity for nested inputs */
+.dark .MuiInputBase-root .MuiInputBase-input,
+.dark .MuiTextField-root .MuiInputBase-input,
+.dark .MuiOutlinedInput-root .MuiInputBase-input {
+  color: rgb(255, 255, 255) !important;
+}
+
+/* MUI Date Picker sections (the date/time display when selecting dates) */
+.dark .MuiPickersSectionList-root,
+.dark .MuiPickersSectionList-root *,
+.dark .MuiPickersInputBase-sectionsContainer,
+.dark .MuiPickersInputBase-sectionsContainer *,
+.dark .MuiPickersSection-root,
+.dark .MuiPickersSection-root *,
+.dark .MuiPickersSection-separator,
+html.dark .MuiPickersSectionList-root,
+html.dark .MuiPickersSectionList-root *,
+html.dark .MuiPickersInputBase-sectionsContainer,
+html.dark .MuiPickersInputBase-sectionsContainer * {
+  color: rgb(255, 255, 255) !important;
+}
+
+/* MUI Date Picker popup/calendar */
+.dark .MuiPickersPopper-root,
+.dark .MuiPickersPopper-root *,
+.dark .MuiPaper-root.MuiPickersPopper-paper,
+.dark .MuiPaper-root.MuiPickersPopper-paper *,
+.dark .MuiPickersCalendarHeader-root,
+.dark .MuiPickersCalendarHeader-root *,
+.dark .MuiDayCalendar-root,
+.dark .MuiDayCalendar-root *,
+.dark .MuiPickersDay-root {
+  color: rgb(255, 255, 255) !important;
+}
+
+.dark .MuiPickersPopper-paper {
+  background-color: rgb(45, 55, 72) !important;
+  color: rgb(255, 255, 255) !important;
+}
+
+.dark .MuiPickersDay-root:not(.Mui-disabled) {
+  color: rgb(255, 255, 255) !important;
+}
+
+.dark .MuiPickersDay-root.Mui-selected {
+  background-color: rgb(99, 102, 241) !important;
+  color: rgb(255, 255, 255) !important;
 }
