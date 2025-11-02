@@ -190,7 +190,7 @@ export default function Explore() {
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-[200px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 dark:border-indigo-400"></div>
       </div>
     );
   }
@@ -198,28 +198,28 @@ export default function Explore() {
   if (error) {
     return (
       <div className="p-4">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-red-600">Error loading raffles: {error.message}</p>
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <p className="text-red-600 dark:text-red-400">Error loading raffles: {error.message}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#1a202c] py-12 px-4 sm:px-6 lg:px-8 transition-colors duration-200">
       <div className="max-w-7xl mx-auto">
         {/* Header Section */}
-        <div className="bg-white rounded-2xl shadow-lg p-8 mb-8 border border-gray-100">
+        <div className="bg-white dark:bg-[#2d3748] rounded-2xl shadow-lg dark:shadow-black/20 p-8 mb-8 border border-gray-100 dark:border-[#4a5568] transition-colors duration-200">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold shadow-lg">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 dark:from-indigo-600 dark:to-purple-700 flex items-center justify-center text-white text-2xl font-bold shadow-lg">
                 🔍
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white transition-colors duration-200">
                   Explore Raffles
                 </h1>
-                <p className="text-gray-500 mt-1">
+                <p className="text-gray-500 dark:text-gray-400 mt-1 transition-colors duration-200">
                   Find and participate in exciting raffles on SUI
                 </p>
               </div>
@@ -228,7 +228,7 @@ export default function Explore() {
         </div>
 
         {/* Filters and Search Section */}
-        <div className="bg-white rounded-2xl shadow-lg p-8 mb-8 border border-gray-100">
+        <div className="bg-white dark:bg-[#2d3748] rounded-2xl shadow-lg dark:shadow-black/20 p-8 mb-8 border border-gray-100 dark:border-[#4a5568] transition-colors duration-200">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="md:col-span-2">
               <input
@@ -236,14 +236,14 @@ export default function Explore() {
                 placeholder="Search by ID or organizer..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-lg bg-gray-50"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-[#4a5568] rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 text-lg bg-gray-50 dark:bg-[#1a202c] text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 transition-colors duration-200"
               />
             </div>
             <div>
               <select
                 value={filterBy}
                 onChange={(e) => setFilterBy(e.target.value as FilterOption)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-lg bg-gray-50"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-[#4a5568] rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 text-lg bg-gray-50 dark:bg-[#1a202c] text-gray-900 dark:text-white transition-colors duration-200"
               >
                 <option value="all">All Raffles</option>
                 <option value="active">Active</option>
@@ -255,7 +255,7 @@ export default function Explore() {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as SortOption)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-lg bg-gray-50"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-[#4a5568] rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400 text-lg bg-gray-50 dark:bg-[#1a202c] text-gray-900 dark:text-white transition-colors duration-200"
               >
                 <option value="newest">Newest First</option>
                 <option value="oldest">Oldest First</option>
@@ -268,10 +268,10 @@ export default function Explore() {
         </div>
 
         {/* Results Count */}
-        <div className="bg-white rounded-2xl shadow-lg p-4 mb-6 border border-gray-100">
-          <p className="text-gray-600">
+        <div className="bg-white dark:bg-[#2d3748] rounded-2xl shadow-lg dark:shadow-black/20 p-4 mb-6 border border-gray-100 dark:border-[#4a5568] transition-colors duration-200">
+          <p className="text-gray-600 dark:text-gray-300 transition-colors duration-200">
             Showing{" "}
-            <span className="font-semibold text-gray-900">
+            <span className="font-semibold text-gray-900 dark:text-white transition-colors duration-200">
               {filteredAndSortedRaffles.length === 0
                 ? 0
                 : `${startIndex + 1}-${Math.min(
@@ -280,7 +280,7 @@ export default function Explore() {
                   )}`}
             </span>{" "}
             of{" "}
-            <span className="font-semibold text-gray-900">
+            <span className="font-semibold text-gray-900 dark:text-white transition-colors duration-200">
               {filteredAndSortedRaffles.length}
             </span>{" "}
             raffles
@@ -303,9 +303,9 @@ export default function Explore() {
                 href={`/raffle/${raffle.id}`}
                 className="block"
               >
-                <div className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-200 h-full border border-gray-100 overflow-hidden">
+                <div className="bg-white dark:bg-[#2d3748] rounded-2xl shadow-lg dark:shadow-black/20 hover:shadow-xl dark:hover:shadow-black/30 transition-shadow duration-200 h-full border border-gray-100 dark:border-[#4a5568] overflow-hidden transition-colors duration-200">
                   {/* Image Section */}
-                  <div className="relative h-48 bg-gray-100">
+                  <div className="relative h-48 bg-gray-100 dark:bg-[#1a202c]">
                     {raffle.image ? (
                       <Image
                         src={raffle.image}
@@ -316,8 +316,8 @@ export default function Explore() {
                         unoptimized
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                        <span className="text-gray-400">
+                      <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-[#1a202c]">
+                        <span className="text-gray-400 dark:text-gray-500">
                           No image available
                         </span>
                       </div>
@@ -327,11 +327,11 @@ export default function Explore() {
                       <span
                         className={`px-3 py-1 rounded-full text-sm font-semibold ${
                           isActive
-                            ? "bg-green-100 text-green-700"
+                            ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
                             : isUpcoming
-                            ? "bg-blue-100 text-blue-700"
-                            : "bg-gray-100 text-gray-700"
-                        }`}
+                            ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
+                            : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                        } transition-colors duration-200`}
                       >
                         {isActive
                           ? "Active"
@@ -345,28 +345,28 @@ export default function Explore() {
                   {/* Content Section */}
                   <div className="p-6">
                     <div className="flex justify-between items-start mb-4">
-                      <h2 className="text-xl font-bold text-gray-900 line-clamp-1">
+                      <h2 className="text-xl font-bold text-gray-900 dark:text-white line-clamp-1 transition-colors duration-200">
                         {raffle.name}
                       </h2>
-                      <span className="text-sm text-gray-500">
+                      <span className="text-sm text-gray-500 dark:text-gray-400 transition-colors duration-200">
                         #{raffle.id.slice(0, 8)}...
                       </span>
                     </div>
 
-                    <p className="text-gray-600 mb-4 line-clamp-2">
+                    <p className="text-gray-600 dark:text-gray-300 mb-4 line-clamp-2 transition-colors duration-200">
                       {raffle.description}
                     </p>
 
                     <div className="space-y-4">
-                      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-4">
-                        <h3 className="text-lg font-bold text-gray-900 mb-2">
+                      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 border border-indigo-100 dark:border-indigo-800/30 transition-colors duration-200">
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2 transition-colors duration-200">
                           Prize Pool:{" "}
                           {raffle.is_released
                             ? ((raffle.prize_pool || 0) / 1e9).toFixed(2)
                             : ((raffle.balance || 0) / 1e9).toFixed(2)}{" "}
                           SUI
                         </h3>
-                        <p className="text-gray-600">
+                        <p className="text-gray-600 dark:text-gray-300 transition-colors duration-200">
                           Ticket Price: {(raffle.ticket_price / 1e9).toFixed(2)}{" "}
                           SUI
                         </p>
@@ -374,17 +374,17 @@ export default function Explore() {
 
                       {/* Stats Grid */}
                       <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-gray-50 rounded-xl p-4">
-                          <p className="text-sm text-gray-600">Tickets Sold</p>
-                          <p className="text-lg font-semibold text-gray-900">
+                        <div className="bg-gray-50 dark:bg-[#1a202c] rounded-xl p-4 border border-gray-100 dark:border-[#4a5568] transition-colors duration-200">
+                          <p className="text-sm text-gray-600 dark:text-gray-400 transition-colors duration-200">Tickets Sold</p>
+                          <p className="text-lg font-semibold text-gray-900 dark:text-white transition-colors duration-200">
                             {raffle.tickets_sold}
                           </p>
                         </div>
-                        <div className="bg-gray-50 rounded-xl p-4">
-                          <p className="text-sm text-gray-600">
+                        <div className="bg-gray-50 dark:bg-[#1a202c] rounded-xl p-4 border border-gray-100 dark:border-[#4a5568] transition-colors duration-200">
+                          <p className="text-sm text-gray-600 dark:text-gray-400 transition-colors duration-200">
                             {raffle.end_time <= now ? "Ended" : "Time Left"}
                           </p>
-                          <p className="text-lg font-semibold text-gray-900">
+                          <p className="text-lg font-semibold text-gray-900 dark:text-white transition-colors duration-200">
                             {raffle.end_time <= now
                               ? `Ended ${getRelativeTime(raffle.end_time)}`
                               : getRelativeTime(raffle.end_time)}
@@ -393,17 +393,17 @@ export default function Explore() {
                       </div>
 
                       {/* Time Info */}
-                      <div className="bg-gray-50 rounded-xl p-4">
+                      <div className="bg-gray-50 dark:bg-[#1a202c] rounded-xl p-4 border border-gray-100 dark:border-[#4a5568] transition-colors duration-200">
                         <div className="space-y-2">
                           <div className="flex justify-between text-sm">
-                            <span className="text-gray-600">Start Time</span>
-                            <span className="text-gray-900">
+                            <span className="text-gray-600 dark:text-gray-400 transition-colors duration-200">Start Time</span>
+                            <span className="text-gray-900 dark:text-white transition-colors duration-200">
                               {formatTimeForDisplay(raffle.start_time)}
                             </span>
                           </div>
                           <div className="flex justify-between text-sm">
-                            <span className="text-gray-600">End Time</span>
-                            <span className="text-gray-900">
+                            <span className="text-gray-600 dark:text-gray-400 transition-colors duration-200">End Time</span>
+                            <span className="text-gray-900 dark:text-white transition-colors duration-200">
                               {formatTimeForDisplay(raffle.end_time)}
                             </span>
                           </div>
@@ -418,14 +418,14 @@ export default function Explore() {
 
           {filteredAndSortedRaffles.length === 0 && (
             <div className="col-span-full">
-              <div className="bg-white rounded-2xl shadow-lg p-8 border border-gray-100 text-center">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="bg-white dark:bg-[#2d3748] rounded-2xl shadow-lg dark:shadow-black/20 p-8 border border-gray-100 dark:border-[#4a5568] text-center transition-colors duration-200">
+                <div className="w-16 h-16 bg-gray-100 dark:bg-[#1a202c] rounded-full flex items-center justify-center mx-auto mb-4 transition-colors duration-200">
                   <span className="text-2xl">🔍</span>
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2 transition-colors duration-200">
                   No Raffles Found
                 </h3>
-                <p className="text-gray-600">
+                <p className="text-gray-600 dark:text-gray-300 transition-colors duration-200">
                   Try adjusting your search or filters to find what you&apos;re
                   looking for.
                 </p>
@@ -436,7 +436,7 @@ export default function Explore() {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="bg-gradient-to-r from-indigo-50 via-white to-purple-50 rounded-2xl shadow-lg p-4 sm:p-6 border border-indigo-100">
+          <div className="bg-gradient-to-r from-indigo-50 via-white to-purple-50 dark:from-indigo-900/20 dark:via-[#2d3748] dark:to-purple-900/20 rounded-2xl shadow-lg dark:shadow-black/20 p-4 sm:p-6 border border-indigo-100 dark:border-indigo-800/30 transition-colors duration-200">
             <div className="flex justify-center">
               {/* Pagination Controls */}
               <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-center">
@@ -446,7 +446,7 @@ export default function Explore() {
                     setCurrentPage((prev) => Math.max(1, prev - 1))
                   }
                   disabled={currentPage === 1}
-                  className="min-w-[44px] sm:min-w-[48px] px-3 sm:px-4 py-2 sm:py-2.5 border-2 border-gray-300 rounded-lg hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-gray-300 disabled:hover:bg-transparent disabled:hover:text-gray-500 transition-all duration-200 font-semibold text-sm sm:text-base text-gray-700 shadow-sm hover:shadow-md flex items-center justify-center gap-1 sm:gap-1.5"
+                  className="min-w-[44px] sm:min-w-[48px] px-3 sm:px-4 py-2 sm:py-2.5 border-2 border-gray-300 dark:border-[#4a5568] rounded-lg hover:border-indigo-400 dark:hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-700 dark:hover:text-indigo-300 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-gray-300 dark:disabled:hover:border-[#4a5568] disabled:hover:bg-transparent disabled:hover:text-gray-500 dark:disabled:hover:text-gray-400 transition-all duration-200 font-semibold text-sm sm:text-base text-gray-700 dark:text-gray-300 shadow-sm hover:shadow-md flex items-center justify-center gap-1 sm:gap-1.5"
                   aria-label="Previous page"
                 >
                   <svg
@@ -466,13 +466,13 @@ export default function Explore() {
                 </button>
 
                 {/* Page Numbers */}
-                <div className="flex items-center gap-1.5 sm:gap-2 bg-white/60 rounded-xl p-1.5 sm:p-2 border border-gray-200 shadow-sm">
+                <div className="flex items-center gap-1.5 sm:gap-2 bg-white/60 dark:bg-[#1a202c]/60 rounded-xl p-1.5 sm:p-2 border border-gray-200 dark:border-[#4a5568] shadow-sm transition-colors duration-200">
                   {getPageNumbers().map((page, index) => {
                     if (page === "...") {
                       return (
                         <span
                           key={`ellipsis-${index}`}
-                          className="px-2 sm:px-3 py-2 sm:py-2.5 text-gray-400 font-medium text-sm sm:text-base"
+                          className="px-2 sm:px-3 py-2 sm:py-2.5 text-gray-400 dark:text-gray-500 font-medium text-sm sm:text-base transition-colors duration-200"
                         >
                           ...
                         </span>
@@ -487,8 +487,8 @@ export default function Explore() {
                         onClick={() => setCurrentPage(pageNum)}
                         className={`min-w-[44px] sm:min-w-[48px] px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg font-semibold text-sm sm:text-base transition-all duration-200 ${
                           isActive
-                            ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/30 scale-105"
-                            : "text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 hover:shadow-sm"
+                            ? "bg-gradient-to-r from-indigo-500 to-purple-600 dark:from-indigo-600 dark:to-purple-700 text-white shadow-lg shadow-indigo-500/30 dark:shadow-indigo-800/30 scale-105"
+                            : "text-gray-700 dark:text-gray-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-700 dark:hover:text-indigo-300 hover:shadow-sm"
                         }`}
                         aria-label={`Go to page ${pageNum}`}
                         aria-current={isActive ? "page" : undefined}
@@ -505,7 +505,7 @@ export default function Explore() {
                     setCurrentPage((prev) => Math.min(totalPages, prev + 1))
                   }
                   disabled={currentPage === totalPages}
-                  className="min-w-[44px] sm:min-w-[48px] px-3 sm:px-4 py-2 sm:py-2.5 border-2 border-gray-300 rounded-lg hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-gray-300 disabled:hover:bg-transparent disabled:hover:text-gray-500 transition-all duration-200 font-semibold text-sm sm:text-base text-gray-700 shadow-sm hover:shadow-md flex items-center justify-center gap-1 sm:gap-1.5"
+                  className="min-w-[44px] sm:min-w-[48px] px-3 sm:px-4 py-2 sm:py-2.5 border-2 border-gray-300 dark:border-[#4a5568] rounded-lg hover:border-indigo-400 dark:hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-700 dark:hover:text-indigo-300 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-gray-300 dark:disabled:hover:border-[#4a5568] disabled:hover:bg-transparent disabled:hover:text-gray-500 dark:disabled:hover:text-gray-400 transition-all duration-200 font-semibold text-sm sm:text-base text-gray-700 dark:text-gray-300 shadow-sm hover:shadow-md flex items-center justify-center gap-1 sm:gap-1.5"
                   aria-label="Next page"
                 >
                   <span className="hidden sm:inline">Next</span>
