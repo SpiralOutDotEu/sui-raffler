@@ -162,6 +162,7 @@ export default function CreateRaffle() {
   const txService = useTransactions();
   const { theme } = useTheme();
   const isDark = theme === "dark";
+  const [mounted, setMounted] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [transactionDigest, setTransactionDigest] = useState<string | null>(
@@ -201,6 +202,10 @@ export default function CreateRaffle() {
     maxTicketsPerAddress: "",
     organizerAddress: "",
   });
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -495,67 +500,85 @@ export default function CreateRaffle() {
                     ))}
                   </div>
                 </div>
-                <LocalizationProvider dateAdapter={AdapterDateFns}>
-                  <DateTimePicker
-                    label="Select Start Time"
-                    value={
-                      formData.startTime
-                        ? new Date(
-                            isoStringToBlockchainTime(formData.startTime)
-                          )
-                        : null
-                    }
-                    onChange={(newValue) => {
-                      if (newValue) {
-                        setFormData({
-                          ...formData,
-                          startTime: blockchainTimeToISOString(
-                            newValue.getTime()
-                          ),
-                        });
+                {mounted ? (
+                  <LocalizationProvider dateAdapter={AdapterDateFns}>
+                    <DateTimePicker
+                      label="Select Start Time"
+                      value={
+                        formData.startTime
+                          ? new Date(
+                              isoStringToBlockchainTime(formData.startTime)
+                            )
+                          : null
                       }
-                    }}
-                    slotProps={{
-                      textField: {
-                        fullWidth: true,
-                        required: true,
-                        className: "bg-white dark:bg-[#1a202c]",
-                        sx: {
-                          "& .MuiInputBase-input": {
-                            color: isDark ? "#ffffff" : "#111827",
-                          },
-                          "& .MuiInputLabel-root": {
-                            color: isDark ? "rgba(255, 255, 255, 0.7)" : "rgba(0, 0, 0, 0.6)",
-                          },
-                          "& .MuiOutlinedInput-notchedOutline": {
-                            borderColor: isDark ? "rgba(255, 255, 255, 0.23)" : "rgba(0, 0, 0, 0.23)",
-                          },
-                          "&:hover .MuiOutlinedInput-notchedOutline": {
-                            borderColor: isDark ? "rgba(255, 255, 255, 0.87)" : "rgba(0, 0, 0, 0.87)",
-                          },
-                          "& .MuiInputBase-root.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                            borderColor: "#6366f1",
-                          },
-                          "& .MuiInputLabel-root.Mui-focused": {
-                            color: "#6366f1",
-                          },
-                          "& .MuiPickersSectionList-root": {
-                            color: isDark ? "#ffffff !important" : "#111827",
-                          },
-                          "& .MuiPickersSectionList-root *": {
-                            color: isDark ? "#ffffff !important" : "#111827",
-                          },
-                          "& .MuiPickersInputBase-sectionsContainer": {
-                            color: isDark ? "#ffffff !important" : "#111827",
-                          },
-                          "& .MuiPickersInputBase-sectionsContainer *": {
-                            color: isDark ? "#ffffff !important" : "#111827",
+                      onChange={(newValue) => {
+                        if (newValue) {
+                          setFormData({
+                            ...formData,
+                            startTime: blockchainTimeToISOString(
+                              newValue.getTime()
+                            ),
+                          });
+                        }
+                      }}
+                      slotProps={{
+                        textField: {
+                          fullWidth: true,
+                          required: true,
+                          className: "bg-white dark:bg-[#1a202c]",
+                          sx: {
+                            "& .MuiInputBase-input": {
+                              color: isDark ? "#ffffff" : "#111827",
+                            },
+                            "& .MuiInputLabel-root": {
+                              color: isDark
+                                ? "rgba(255, 255, 255, 0.7)"
+                                : "rgba(0, 0, 0, 0.6)",
+                            },
+                            "& .MuiOutlinedInput-notchedOutline": {
+                              borderColor: isDark
+                                ? "rgba(255, 255, 255, 0.23)"
+                                : "rgba(0, 0, 0, 0.23)",
+                            },
+                            "&:hover .MuiOutlinedInput-notchedOutline": {
+                              borderColor: isDark
+                                ? "rgba(255, 255, 255, 0.87)"
+                                : "rgba(0, 0, 0, 0.87)",
+                            },
+                            "& .MuiInputBase-root.Mui-focused .MuiOutlinedInput-notchedOutline":
+                              {
+                                borderColor: "#6366f1",
+                              },
+                            "& .MuiInputLabel-root.Mui-focused": {
+                              color: "#6366f1",
+                            },
+                            "& .MuiPickersSectionList-root": {
+                              color: isDark ? "#ffffff !important" : "#111827",
+                            },
+                            "& .MuiPickersSectionList-root *": {
+                              color: isDark ? "#ffffff !important" : "#111827",
+                            },
+                            "& .MuiPickersInputBase-sectionsContainer": {
+                              color: isDark ? "#ffffff !important" : "#111827",
+                            },
+                            "& .MuiPickersInputBase-sectionsContainer *": {
+                              color: isDark ? "#ffffff !important" : "#111827",
+                            },
                           },
                         },
-                      },
-                    }}
-                  />
-                </LocalizationProvider>
+                      }}
+                    />
+                  </LocalizationProvider>
+                ) : (
+                  <div className="w-full">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Select Start Time
+                    </label>
+                    <div className="w-full px-4 py-3 border border-gray-300 dark:border-[#4a5568] rounded-lg bg-gray-50 dark:bg-[#1a202c] text-gray-500 dark:text-gray-400">
+                      Loading...
+                    </div>
+                  </div>
+                )}
                 {formData.startTime && (
                   <p className="mt-2 text-sm text-purple-600 dark:text-purple-400 transition-colors duration-200">
                     Raffle will start{" "}
@@ -591,91 +614,111 @@ export default function CreateRaffle() {
                     ))}
                   </div>
                 </div>
-                <LocalizationProvider dateAdapter={AdapterDateFns}>
-                  <DateTimePicker
-                    label="Select End Time"
-                    value={
-                      formData.endTime
-                        ? new Date(isoStringToBlockchainTime(formData.endTime))
-                        : null
-                    }
-                    onChange={(newValue) => {
-                      if (newValue) {
-                        const newEndTime = newValue.getTime();
-                        const startTime = formData.startTime
-                          ? isoStringToBlockchainTime(formData.startTime)
-                          : currentBlockchainTime;
-                        const error = validateEndTime(
-                          startTime,
-                          newEndTime,
-                          currentBlockchainTime
-                        );
-
-                        if (error) {
-                          setError(error);
-                          return;
-                        }
-
-                        setFormData({
-                          ...formData,
-                          endTime: blockchainTimeToISOString(newEndTime),
-                        });
-                        setError(null);
+                {mounted ? (
+                  <LocalizationProvider dateAdapter={AdapterDateFns}>
+                    <DateTimePicker
+                      label="Select End Time"
+                      value={
+                        formData.endTime
+                          ? new Date(
+                              isoStringToBlockchainTime(formData.endTime)
+                            )
+                          : null
                       }
-                    }}
-                    minDateTime={
-                      formData.startTime
-                        ? new Date(
-                            isoStringToBlockchainTime(formData.startTime)
-                          )
-                        : new Date(currentBlockchainTime)
-                    }
-                    slotProps={{
-                      textField: {
-                        fullWidth: true,
-                        required: true,
-                        className: "bg-white dark:bg-[#1a202c]",
-                        error: !!error && error.includes("End time"),
-                        helperText:
-                          error && error.includes("End time")
-                            ? error
-                            : undefined,
-                        sx: {
-                          "& .MuiInputBase-input": {
-                            color: isDark ? "#ffffff" : "#111827",
-                          },
-                          "& .MuiInputLabel-root": {
-                            color: isDark ? "rgba(255, 255, 255, 0.7)" : "rgba(0, 0, 0, 0.6)",
-                          },
-                          "& .MuiOutlinedInput-notchedOutline": {
-                            borderColor: isDark ? "rgba(255, 255, 255, 0.23)" : "rgba(0, 0, 0, 0.23)",
-                          },
-                          "&:hover .MuiOutlinedInput-notchedOutline": {
-                            borderColor: isDark ? "rgba(255, 255, 255, 0.87)" : "rgba(0, 0, 0, 0.87)",
-                          },
-                          "& .MuiInputBase-root.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                            borderColor: "#6366f1",
-                          },
-                          "& .MuiInputLabel-root.Mui-focused": {
-                            color: "#6366f1",
-                          },
-                          "& .MuiPickersSectionList-root": {
-                            color: isDark ? "#ffffff !important" : "#111827",
-                          },
-                          "& .MuiPickersSectionList-root *": {
-                            color: isDark ? "#ffffff !important" : "#111827",
-                          },
-                          "& .MuiPickersInputBase-sectionsContainer": {
-                            color: isDark ? "#ffffff !important" : "#111827",
-                          },
-                          "& .MuiPickersInputBase-sectionsContainer *": {
-                            color: isDark ? "#ffffff !important" : "#111827",
+                      onChange={(newValue) => {
+                        if (newValue) {
+                          const newEndTime = newValue.getTime();
+                          const startTime = formData.startTime
+                            ? isoStringToBlockchainTime(formData.startTime)
+                            : currentBlockchainTime;
+                          const error = validateEndTime(
+                            startTime,
+                            newEndTime,
+                            currentBlockchainTime
+                          );
+
+                          if (error) {
+                            setError(error);
+                            return;
+                          }
+
+                          setFormData({
+                            ...formData,
+                            endTime: blockchainTimeToISOString(newEndTime),
+                          });
+                          setError(null);
+                        }
+                      }}
+                      minDateTime={
+                        formData.startTime
+                          ? new Date(
+                              isoStringToBlockchainTime(formData.startTime)
+                            )
+                          : new Date(currentBlockchainTime)
+                      }
+                      slotProps={{
+                        textField: {
+                          fullWidth: true,
+                          required: true,
+                          className: "bg-white dark:bg-[#1a202c]",
+                          error: !!error && error.includes("End time"),
+                          helperText:
+                            error && error.includes("End time")
+                              ? error
+                              : undefined,
+                          sx: {
+                            "& .MuiInputBase-input": {
+                              color: isDark ? "#ffffff" : "#111827",
+                            },
+                            "& .MuiInputLabel-root": {
+                              color: isDark
+                                ? "rgba(255, 255, 255, 0.7)"
+                                : "rgba(0, 0, 0, 0.6)",
+                            },
+                            "& .MuiOutlinedInput-notchedOutline": {
+                              borderColor: isDark
+                                ? "rgba(255, 255, 255, 0.23)"
+                                : "rgba(0, 0, 0, 0.23)",
+                            },
+                            "&:hover .MuiOutlinedInput-notchedOutline": {
+                              borderColor: isDark
+                                ? "rgba(255, 255, 255, 0.87)"
+                                : "rgba(0, 0, 0, 0.87)",
+                            },
+                            "& .MuiInputBase-root.Mui-focused .MuiOutlinedInput-notchedOutline":
+                              {
+                                borderColor: "#6366f1",
+                              },
+                            "& .MuiInputLabel-root.Mui-focused": {
+                              color: "#6366f1",
+                            },
+                            "& .MuiPickersSectionList-root": {
+                              color: isDark ? "#ffffff !important" : "#111827",
+                            },
+                            "& .MuiPickersSectionList-root *": {
+                              color: isDark ? "#ffffff !important" : "#111827",
+                            },
+                            "& .MuiPickersInputBase-sectionsContainer": {
+                              color: isDark ? "#ffffff !important" : "#111827",
+                            },
+                            "& .MuiPickersInputBase-sectionsContainer *": {
+                              color: isDark ? "#ffffff !important" : "#111827",
+                            },
                           },
                         },
-                      },
-                    }}
-                  />
-                </LocalizationProvider>
+                      }}
+                    />
+                  </LocalizationProvider>
+                ) : (
+                  <div className="w-full">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Select End Time
+                    </label>
+                    <div className="w-full px-4 py-3 border border-gray-300 dark:border-[#4a5568] rounded-lg bg-gray-50 dark:bg-[#1a202c] text-gray-500 dark:text-gray-400">
+                      Loading...
+                    </div>
+                  </div>
+                )}
                 {formData.startTime && formData.endTime && (
                   <p className="mt-2 text-sm text-purple-600 dark:text-purple-400 transition-colors duration-200">
                     Raffle will last for{" "}
@@ -903,18 +946,44 @@ export default function CreateRaffle() {
               {!formData.ticketPrice ? (
                 <div className="space-y-3">
                   {[
-                    { position: "1st Place", percentage: 50, color: "text-gray-700 dark:text-gray-300" },
-                    { position: "2nd Place", percentage: 25, color: "text-gray-700 dark:text-gray-300" },
-                    { position: "3rd Place", percentage: 10, color: "text-gray-700 dark:text-gray-300" },
-                    { position: "Organizer", percentage: 10, color: "text-gray-700 dark:text-gray-300" },
-                    { position: "Protocol Fee", percentage: 5, color: "text-gray-700 dark:text-gray-300" },
+                    {
+                      position: "1st Place",
+                      percentage: 50,
+                      color: "text-gray-700 dark:text-gray-300",
+                    },
+                    {
+                      position: "2nd Place",
+                      percentage: 25,
+                      color: "text-gray-700 dark:text-gray-300",
+                    },
+                    {
+                      position: "3rd Place",
+                      percentage: 10,
+                      color: "text-gray-700 dark:text-gray-300",
+                    },
+                    {
+                      position: "Organizer",
+                      percentage: 10,
+                      color: "text-gray-700 dark:text-gray-300",
+                    },
+                    {
+                      position: "Protocol Fee",
+                      percentage: 5,
+                      color: "text-gray-700 dark:text-gray-300",
+                    },
                   ].map((row) => (
                     <div
                       key={row.position}
                       className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-[#4a5568] last:border-0 transition-colors duration-200"
                     >
-                      <span className={`${row.color} transition-colors duration-200`}>{row.position}</span>
-                      <span className={`font-semibold ${row.color} transition-colors duration-200`}>
+                      <span
+                        className={`${row.color} transition-colors duration-200`}
+                      >
+                        {row.position}
+                      </span>
+                      <span
+                        className={`font-semibold ${row.color} transition-colors duration-200`}
+                      >
                         {row.percentage}%
                       </span>
                     </div>
@@ -1079,7 +1148,9 @@ export default function CreateRaffle() {
 
             {error && (
               <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg transition-colors duration-200">
-                <p className="text-red-600 dark:text-red-400 transition-colors duration-200">{error}</p>
+                <p className="text-red-600 dark:text-red-400 transition-colors duration-200">
+                  {error}
+                </p>
               </div>
             )}
 
