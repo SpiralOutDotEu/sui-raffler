@@ -566,6 +566,48 @@ export default function CreateRaffle() {
                             },
                           },
                         },
+                        popper: {
+                          sx: {
+                            "& .MuiPaper-root": {
+                              backgroundColor: isDark
+                                ? "rgb(45, 55, 72) !important"
+                                : "#ffffff",
+                              color: isDark ? "#ffffff !important" : "#111827",
+                            },
+                            "& .MuiPickersDay-root": {
+                              color: isDark ? "#ffffff !important" : "#111827",
+                            },
+                            "& .MuiPickersDay-root:not(.Mui-disabled)": {
+                              color: isDark ? "#ffffff !important" : "#111827",
+                            },
+                            "& .MuiPickersDay-root:hover:not(.Mui-disabled)": {
+                              backgroundColor: isDark
+                                ? "rgba(99, 102, 241, 0.3) !important"
+                                : "rgba(0, 0, 0, 0.04)",
+                            },
+                            "& .MuiPickersDay-root.Mui-selected": {
+                              backgroundColor: isDark
+                                ? "rgb(99, 102, 241) !important"
+                                : "#6366f1",
+                              color: "#ffffff !important",
+                            },
+                            "& .MuiPickersCalendarHeader-root": {
+                              color: isDark ? "#ffffff !important" : "#111827",
+                            },
+                            "& .MuiPickersCalendarHeader-labelContainer": {
+                              color: isDark ? "#ffffff !important" : "#111827",
+                            },
+                            "& .MuiPickersCalendarHeader-switchViewButton": {
+                              color: isDark ? "#ffffff !important" : "#111827",
+                            },
+                            "& .MuiPickersArrowSwitcher-button": {
+                              color: isDark ? "#ffffff !important" : "#111827",
+                            },
+                            "& .MuiDayCalendar-weekDayLabel": {
+                              color: isDark ? "#ffffff !important" : "#111827",
+                            },
+                          },
+                        },
                       }}
                     />
                   </LocalizationProvider>
@@ -702,6 +744,48 @@ export default function CreateRaffle() {
                               color: isDark ? "#ffffff !important" : "#111827",
                             },
                             "& .MuiPickersInputBase-sectionsContainer *": {
+                              color: isDark ? "#ffffff !important" : "#111827",
+                            },
+                          },
+                        },
+                        popper: {
+                          sx: {
+                            "& .MuiPaper-root": {
+                              backgroundColor: isDark
+                                ? "rgb(45, 55, 72) !important"
+                                : "#ffffff",
+                              color: isDark ? "#ffffff !important" : "#111827",
+                            },
+                            "& .MuiPickersDay-root": {
+                              color: isDark ? "#ffffff !important" : "#111827",
+                            },
+                            "& .MuiPickersDay-root:not(.Mui-disabled)": {
+                              color: isDark ? "#ffffff !important" : "#111827",
+                            },
+                            "& .MuiPickersDay-root:hover:not(.Mui-disabled)": {
+                              backgroundColor: isDark
+                                ? "rgba(99, 102, 241, 0.3) !important"
+                                : "rgba(0, 0, 0, 0.04)",
+                            },
+                            "& .MuiPickersDay-root.Mui-selected": {
+                              backgroundColor: isDark
+                                ? "rgb(99, 102, 241) !important"
+                                : "#6366f1",
+                              color: "#ffffff !important",
+                            },
+                            "& .MuiPickersCalendarHeader-root": {
+                              color: isDark ? "#ffffff !important" : "#111827",
+                            },
+                            "& .MuiPickersCalendarHeader-labelContainer": {
+                              color: isDark ? "#ffffff !important" : "#111827",
+                            },
+                            "& .MuiPickersCalendarHeader-switchViewButton": {
+                              color: isDark ? "#ffffff !important" : "#111827",
+                            },
+                            "& .MuiPickersArrowSwitcher-button": {
+                              color: isDark ? "#ffffff !important" : "#111827",
+                            },
+                            "& .MuiDayCalendar-weekDayLabel": {
                               color: isDark ? "#ffffff !important" : "#111827",
                             },
                           },
