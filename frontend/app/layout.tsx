@@ -152,8 +152,34 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var savedTheme = localStorage.getItem('theme');
+                  var finalTheme;
+                  
+                  if (savedTheme === 'light' || savedTheme === 'dark') {
+                    finalTheme = savedTheme;
+                  } 
+                  else {
+                    var systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    finalTheme = systemPrefersDark ? 'dark' : 'light';
+                  }
+                  
+                  if (finalTheme === 'dark') {
+                    document.documentElement.classList.add('dark');
+                  } else {
+                    document.documentElement.classList.remove('dark');
+                  }
+                } catch (e) {}
+              })();
+            `,
+          }}
+        />
         {/* Structured Data for Rich Snippets */}
         <script
           type="application/ld+json"
@@ -274,12 +300,11 @@ export default function RootLayout({
       </head>
       <body className={inter.className}>
         {/* Testnet Warning Banner */}
-        <div className="fixed top-0 left-0 w-full bg-gradient-to-r from-indigo-100 via-purple-100 to-indigo-100 border-b border-indigo-200 text-indigo-700 text-center text-sm font-semibold py-1 px-2 shadow z-60">
+        <div className="fixed top-0 left-0 w-full bg-gradient-to-r from-indigo-100 via-purple-100 to-indigo-100 dark:from-indigo-900 dark:via-purple-900 dark:to-indigo-900 border-b border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-200 text-center text-sm font-semibold py-1 px-2 shadow z-60 transition-colors duration-200">
           ⚠️ This is the <span className="font-bold">testnet</span> version.
           Everything might break or be reset at any time. ⚠️
         </div>
         <div className="pt-6">
-          {/* Adjust pt-6 if banner height changes */}
           <Providers>{children}</Providers>
         </div>
         <Toaster
