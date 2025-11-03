@@ -43,7 +43,14 @@ export default function Providers({ children }: { children: React.ReactNode }) {
                 strategy="afterInteractive"
               />
               <Header />
-              <main className="pt-16">{children}</main>
+              <main
+                className="transition-all duration-200"
+                style={{
+                  paddingTop: `calc(max(1.5rem, calc(var(--testnet-banner-height, 0px) + 0.25rem)) + 4rem)`,
+                }}
+              >
+                {children}
+              </main>
               <Footer />
             </WalletProvider>
           </SuiWalletProvider>
