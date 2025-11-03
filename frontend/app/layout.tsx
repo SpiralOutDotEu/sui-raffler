@@ -301,7 +301,11 @@ export default function RootLayout({
       </head>
       <body className={inter.className}>
         <TestnetBanner 
-          isVisible={process.env.NEXT_PUBLIC_SHOW_TESTNET_BANNER !== "false"}
+          isVisible={
+            process.env.NEXT_PUBLIC_NETWORK === "testnet" ||
+            process.env.NEXT_PUBLIC_NETWORK === "devnet"
+          }
+          network={process.env.NEXT_PUBLIC_NETWORK}
         />
         <div className="pt-6">
           <Providers>{children}</Providers>
