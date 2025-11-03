@@ -2,6 +2,7 @@ import "@mysten/dapp-kit/dist/index.css";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Providers from "@/components/Providers";
+import { TestnetBanner } from "@/components/TestnetBanner";
 import type { Metadata } from "next";
 import { Toaster } from "react-hot-toast";
 
@@ -299,11 +300,9 @@ export default function RootLayout({
         <meta name="fairness" content="blockchain-verified" />
       </head>
       <body className={inter.className}>
-        {/* Testnet Warning Banner */}
-        <div className="fixed top-0 left-0 w-full bg-gradient-to-r from-indigo-100 via-purple-100 to-indigo-100 dark:from-indigo-900 dark:via-purple-900 dark:to-indigo-900 border-b border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-200 text-center text-sm font-semibold py-1 px-2 shadow z-60 transition-colors duration-200">
-          ⚠️ This is the <span className="font-bold">testnet</span> version.
-          Everything might break or be reset at any time. ⚠️
-        </div>
+        <TestnetBanner 
+          isVisible={process.env.NEXT_PUBLIC_SHOW_TESTNET_BANNER !== "false"}
+        />
         <div className="pt-6">
           <Providers>{children}</Providers>
         </div>
