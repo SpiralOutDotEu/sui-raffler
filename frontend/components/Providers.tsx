@@ -9,6 +9,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WalletProvider } from "@/lib/context/WalletContext";
 import { ThemeProvider } from "@/lib/context/ThemeContext";
 import { lightWalletTheme, darkWalletTheme } from "@/lib/themes/walletThemes";
+import { NETWORK } from "@/lib/constants";
 import Header from "./Header";
 import Footer from "./Footer";
 import Script from "next/script";
@@ -16,14 +17,16 @@ import Script from "next/script";
 const queryClient = new QueryClient();
 
 const networks = {
-  testnet: { url: getFullnodeUrl("testnet") },
+  [NETWORK]: {
+    url: getFullnodeUrl(NETWORK as "testnet" | "devnet" | "mainnet"),
+  },
 };
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
-        <SuiClientProvider networks={networks} defaultNetwork="testnet">
+        <SuiClientProvider networks={networks} defaultNetwork={NETWORK}>
           <SuiWalletProvider
             autoConnect
             theme={[

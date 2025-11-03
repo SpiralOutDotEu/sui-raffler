@@ -3,7 +3,7 @@
 import { useSuiClient } from "@mysten/dapp-kit";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useMemo } from "react";
-import { PACKAGE_ID, MODULE } from "@/lib/constants";
+import { PACKAGE_ID, MODULE, NETWORK } from "@/lib/constants";
 import { useWallet } from "@/lib/context/WalletContext";
 import { useAdminPermissions } from "@/lib/hooks/useAdminPermissions";
 import { useAdminConfig } from "@/lib/hooks/useAdminConfig";
@@ -1247,7 +1247,7 @@ export default function CreateRaffle() {
                   Redirecting to your raffle page...
                 </p>
                 <a
-                  href={`https://suiexplorer.com/txblock/${transactionDigest}?network=testnet`}
+                  href={`https://suiexplorer.com/txblock/${transactionDigest}?network=${NETWORK}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 underline inline-flex items-center transition-colors duration-200"

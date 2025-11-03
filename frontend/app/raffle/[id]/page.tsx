@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useResolveSuiNSName } from "@mysten/dapp-kit";
-import { ORGANIZER_PERCENTAGE } from "@/lib/constants";
+import { ORGANIZER_PERCENTAGE, NETWORK } from "@/lib/constants";
 import { useWallet } from "@/lib/context/WalletContext";
 import { useRaffle } from "@/lib/hooks/useRaffle";
 import { useUserTickets } from "@/lib/hooks/useUserTickets";
@@ -404,7 +404,7 @@ export default function RaffleDetail() {
 
       setTransactionDigest(data.digest);
       handleSuccess(
-        `Raffle released successfully! View transaction: https://suiexplorer.com/txblock/${data.digest}?network=testnet`
+        `Raffle released successfully! View transaction: https://suiexplorer.com/txblock/${data.digest}?network=${NETWORK}`
       );
 
       window.location.reload();
@@ -694,7 +694,7 @@ export default function RaffleDetail() {
                         </svg>
                       </button>
                       <a
-                        href={`https://suiexplorer.com/address/${raffle.organizer}?network=testnet`}
+                        href={`https://suiexplorer.com/address/${raffle.organizer}?network=${NETWORK}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
@@ -744,7 +744,7 @@ export default function RaffleDetail() {
                         </svg>
                       </button>
                       <a
-                        href={`https://suiexplorer.com/object/${raffle.id}?network=testnet`}
+                        href={`https://suiexplorer.com/object/${raffle.id}?network=${NETWORK}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
@@ -1453,7 +1453,7 @@ export default function RaffleDetail() {
                         🎉 Raffle released successfully!
                       </p>
                       <a
-                        href={`https://suiexplorer.com/txblock/${transactionDigest}?network=testnet`}
+                        href={`https://suiexplorer.com/txblock/${transactionDigest}?network=${NETWORK}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 underline inline-flex items-center transition-colors duration-200"
