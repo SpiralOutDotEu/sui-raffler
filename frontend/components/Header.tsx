@@ -22,7 +22,12 @@ export default function Header() {
   return (
     <>
       {/* Header */}
-      <header className="bg-white dark:bg-[#1a202c] border-b border-gray-100 dark:border-[#2d3748] fixed w-full top-6 z-50 transition-colors duration-200">
+      <header
+        className="bg-white dark:bg-[#1a202c] border-b border-gray-100 dark:border-[#2d3748] fixed w-full z-50 transition-all duration-200"
+        style={{
+          top: `max(1.5rem, calc(var(--testnet-banner-height, 0px) + 0.25rem))`,
+        }}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo and Brand */}

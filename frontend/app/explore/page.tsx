@@ -327,9 +327,9 @@ export default function Explore() {
                       <span
                         className={`px-3 py-1 rounded-full text-sm font-semibold ${
                           isActive
-                            ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
+                            ? "bg-green-100 dark:bg-green-900/80 text-green-700 dark:text-green-400"
                             : isUpcoming
-                            ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
+                            ? "bg-blue-100 dark:bg-blue-900/80 text-blue-700 dark:text-blue-400"
                             : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
                         } transition-colors duration-200`}
                       >

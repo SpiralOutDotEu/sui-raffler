@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
-import { PACKAGE_ID, CONFIG_OBJECT_ID, RANDOM_OBJECT_ID } from '@/lib/constants';
+import { PACKAGE_ID, CONFIG_OBJECT_ID, RANDOM_OBJECT_ID, NETWORK } from '@/lib/constants';
 import { verifyRecaptchaToken } from '@/lib/services/recaptcha';
 
 interface RaffleFields {
@@ -14,8 +14,8 @@ interface ClockFields {
     timestamp_ms: string;
 }
 
-// Initialize Sui client with testnet
-const client = new SuiClient({ url: getFullnodeUrl('testnet') });
+// Initialize Sui client with network from environment
+const client = new SuiClient({ url: getFullnodeUrl(NETWORK as 'testnet' | 'devnet' | 'mainnet') });
 
 export async function POST(request: Request) {
     try {
