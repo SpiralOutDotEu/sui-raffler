@@ -19,6 +19,7 @@ module sui_raffler::sui_raffler;
 // https://docs.sui.io/concepts/sui-move-concepts/conventions
 
 module sui_raffler::sui_raffler {
+    // === Imports ===
     use sui::coin::{Self, Coin};
     use sui::balance::{Self, Balance};
     use sui::sui::SUI;
@@ -29,18 +30,7 @@ module sui_raffler::sui_raffler {
     use sui::types;
     use sui::table::{Self, Table};
 
-    // OTW - One time witness
-    public struct SUI_RAFFLER has drop {}
-
-    // === Constants ===
-    // Prize distribution percentages (must sum to 100)
-    const FIRST_PRIZE_PERCENTAGE: u64 = 50;  // 50% of total prize pool
-    const SECOND_PRIZE_PERCENTAGE: u64 = 25; // 25% of total prize pool
-    const THIRD_PRIZE_PERCENTAGE: u64 = 10;  // 10% of total prize pool
-    const ORGANIZER_PERCENTAGE: u64 = 10;    // 10% of total prize pool
-    const PROTOCOL_FEE_PERCENTAGE: u64 = 5;  // 5% of total prize pool
-
-    // === Error Codes ===
+    // === Errors ===
     const ENotAdmin: u64 = 0;                // Caller is not the admin
     const EInvalidDates: u64 = 1;            // Start time must be before end time
     const EInvalidTicketPrice: u64 = 2;      // Ticket price must be greater than 0
@@ -61,6 +51,28 @@ module sui_raffler::sui_raffler {
     const ENotMinimumTickets: u64 = 18;      // Not enough tickets sold for raffle release
     const ENotOneTimeWitness: u64 = 19;      // Not one time witness
     const EExceedsPerUserLimit: u64 = 20;    // Exceeds per-user cumulative ticket limit
+    const EInvalidCreationFee: u64 = 21;     // Invalid or missing creation fee payment
+    const EWrongVersion: u64 = 22;           // Config version does not match the latest version
+    const ENotUpgrade: u64 = 23;             // Config version is not less than current version
+
+    // === Constants ===
+    // Track the current version of the module
+    const VERSION: u64 = 2;
+    // Prize distribution percentages (must sum to 100)
+    const FIRST_PRIZE_PERCENTAGE: u64 = 50;  // 50% of total prize pool
+    const SECOND_PRIZE_PERCENTAGE: u64 = 25; // 25% of total prize pool
+    const THIRD_PRIZE_PERCENTAGE: u64 = 10;  // 10% of total prize pool
+    const ORGANIZER_PERCENTAGE: u64 = 10;    // 10% of total prize pool
+    const PROTOCOL_FEE_PERCENTAGE: u64 = 5;  // 5% of total prize pool
+
+    // === Structs ===
+    // OTW - One time witness
+    public struct SUI_RAFFLER has drop {}
+
+    /// Admin cap to protect privileged operations and handle migrations
+    public struct AdminCap has key {
+        id: UID,
+    }
 
     /// Module configuration that holds admin, controller, fee collector, pause, and permissionless info
     public struct Config has key {
@@ -70,6 +82,9 @@ module sui_raffler::sui_raffler {
         fee_collector: address,
         paused: bool,
         permissionless: bool,
+        creation_fee: u64,
+        min_ticket_price: u64,
+        version: u64,
     }
 
     /// A raffle object that holds all the raffle information
@@ -93,6 +108,7 @@ module sui_raffler::sui_raffler {
         organizer_claimed: bool,  // Whether organizer has claimed their share
         protocol_claimed: bool,   // Whether protocol fees have been claimed
         paused: bool,            // Whether this specific raffle is paused
+        visible: bool,           // Whether this raffle is visible on frontend
         purchases_by_address: Table<address, u64>, // Cumulative tickets purchased per address
     }
 
@@ -137,12 +153,13 @@ module sui_raffler::sui_raffler {
         new_fee_collector: address,
     }
 
-    // === Functions ===
-
+    // === Package Functions ===
     /// Initialize the module with admin, controller, and fee collector addresses
     /// This function can only be called once during module deployment
     fun init(otw: SUI_RAFFLER, ctx: &mut TxContext) {
         assert!(types::is_one_time_witness(&otw), ENotOneTimeWitness);
+
+        // Create config object
         let config = Config {
             id: object::new(ctx),
             admin: ctx.sender(),
@@ -150,8 +167,26 @@ module sui_raffler::sui_raffler {
             fee_collector: ctx.sender(),
             paused: false,
             permissionless: true,
+            // Default creator fee set to 2 SUI = 2_000_000_000 MIST
+            creation_fee: 2_000_000_000,
+            // Default minimum ticket price: 0.001 SUI = 1_000_000 MIST
+            min_ticket_price: 1_000_000,
+            version: VERSION,
         };
         transfer::share_object(config);
+
+        // Transfer admin cap to the sender
+        let admin = AdminCap { id: object::new(ctx) };
+        transfer::transfer(admin, ctx.sender());
+    }
+
+    // === Admin Functions ===
+    /// Migrate the config to the latest version
+    /// Only the admin can call this function
+    entry fun migrate(c: &mut Config, ctx: &TxContext) {
+        assert!(c.admin == ctx.sender(), ENotAdmin);
+        assert!(c.version < VERSION, ENotUpgrade);
+        c.version = VERSION;
     }
 
     /// Update the admin address
@@ -191,173 +226,39 @@ module sui_raffler::sui_raffler {
         config.permissionless = value;
     }
 
-    /// Pause the contract globally
+    /// Update raffle creation fee (in MIST)
+    /// Only the admin can call this function
+    public fun update_creation_fee(config: &mut Config, new_fee: u64, ctx: &mut TxContext) {
+        assert!(config.admin == tx_context::sender(ctx), ENotAdmin);
+        config.creation_fee = new_fee;
+    }
+
+    /// Update minimum ticket price (in MIST)
+    /// Only the admin can call this function
+    public fun update_min_ticket_price(config: &mut Config, new_min: u64, ctx: &mut TxContext) {
+        assert!(config.admin == tx_context::sender(ctx), ENotAdmin);
+        config.min_ticket_price = new_min;
+    }
+
+    /// Set contract pause state globally
     /// Only the admin or controller can call this function
-    public fun pause(config: &mut Config, ctx: &mut TxContext) {
+    public fun set_contract_paused(config: &mut Config, paused: bool, ctx: &mut TxContext) {
         assert!(is_admin_or_controller(config, tx_context::sender(ctx)), ENotAuthorized);
-        config.paused = true;
+        config.paused = paused;
     }
 
-    /// Unpause the contract globally
+    /// Set raffle pause state
     /// Only the admin or controller can call this function
-    public fun unpause(config: &mut Config, ctx: &mut TxContext) {
+    public fun set_raffle_paused(config: &Config, raffle: &mut Raffle, paused: bool, ctx: &mut TxContext) {
         assert!(is_admin_or_controller(config, tx_context::sender(ctx)), ENotAuthorized);
-        config.paused = false;
+        raffle.paused = paused;
     }
 
-    /// Pause a specific raffle
+    /// Set raffle visibility (hide/show from frontend)
     /// Only the admin or controller can call this function
-    public fun pause_raffle(config: &Config, raffle: &mut Raffle, ctx: &mut TxContext) {
+    public fun set_raffle_visibility(config: &Config, raffle: &mut Raffle, visible: bool, ctx: &mut TxContext) {
         assert!(is_admin_or_controller(config, tx_context::sender(ctx)), ENotAuthorized);
-        raffle.paused = true;
-    }
-
-    /// Unpause a specific raffle
-    /// Only the admin or controller can call this function
-    public fun unpause_raffle(config: &Config, raffle: &mut Raffle, ctx: &mut TxContext) {
-        assert!(is_admin_or_controller(config, tx_context::sender(ctx)), ENotAuthorized);
-        raffle.paused = false;
-    }
-
-    /// Helper: check if contract is paused
-    public fun is_paused(config: &Config): bool {
-        config.paused
-    }
-
-    /// Helper: check if a raffle is paused
-    public fun is_raffle_paused(raffle: &Raffle): bool {
-        raffle.paused
-    }
-
-    /// Helper: check if sender is admin
-    public fun is_admin(config: &Config, sender: address): bool {
-        config.admin == sender
-    }
-
-    /// Helper: check if sender is controller
-    public fun is_controller(config: &Config, sender: address): bool {
-        config.controller == sender
-    }
-
-    /// Helper: check if sender is admin or controller
-    public fun is_admin_or_controller(config: &Config, sender: address): bool {
-        config.admin == sender || config.controller == sender
-    }
-
-    /// Create a new raffle
-    /// Anyone can create a raffle by specifying the parameters
-    public fun create_raffle(
-        config: &Config,
-        name: String,
-        description: String,
-        image: String,
-        start_time: u64,
-        end_time: u64,
-        ticket_price: u64,
-        max_tickets_per_address: u64,
-        organizer: address,
-        ctx: &mut TxContext
-    ) {
-        assert!(!config.paused, EPaused);
-        assert!(config.permissionless || tx_context::sender(ctx) == config.admin, EPermissionDenied);
-        assert!(start_time < end_time, EInvalidDates);
-        assert!(ticket_price > 0, EInvalidTicketPrice);
-        assert!(max_tickets_per_address > 0, EInvalidMaxTickets);
-        assert!(!(organizer == @0x0), EInvalidOrganizer);
-        let raffle_uid = object::new(ctx);
-        event::emit(RaffleCreated {
-            raffle_id: object::uid_to_inner(&raffle_uid),
-            organizer,
-            start_time,
-            end_time,
-            ticket_price,
-        });
-        transfer::share_object(Raffle {
-            id: raffle_uid,
-            name,
-            description,
-            image,
-            start_time,
-            end_time,
-            ticket_price,
-            max_tickets_per_address,
-            organizer,
-            fee_collector: config.fee_collector,
-            balance: balance::zero(),
-            tickets_sold: 0,
-            is_released: false,
-            winning_tickets: vector::empty(),
-            prize_pool: 0,
-            organizer_claimed: false,
-            protocol_claimed: false,
-            paused: false,
-            purchases_by_address: table::new<address, u64>(ctx),
-        });
-    }
-
-    /// Buy tickets for a raffle
-    /// Users can buy multiple tickets in a single transaction up to max_tickets_per_address
-    public fun buy_tickets(
-        raffle: &mut Raffle,
-        payment: Coin<SUI>,
-        amount: u64,
-        clock: &Clock,
-        ctx: &mut TxContext
-    ) {
-        let current_time = clock::timestamp_ms(clock);
-        
-        // Check if raffle is active
-        assert!(current_time >= raffle.start_time && current_time <= raffle.end_time, ERaffleNotActive);
-        // Check if raffle is paused
-        assert!(!raffle.paused, ERafflePaused);
-        
-        // Validate amount
-        assert!(amount > 0 && amount <= raffle.max_tickets_per_address, EInvalidTicketAmount);
-        // Enforce cumulative per-user limit across transactions
-        let buyer = tx_context::sender(ctx);
-        if (!table::contains<address, u64>(&raffle.purchases_by_address, buyer)) {
-            table::add<address, u64>(&mut raffle.purchases_by_address, buyer, 0);
-        };
-        let purchased_ref = table::borrow_mut<address, u64>(&mut raffle.purchases_by_address, buyer);
-        assert!(*purchased_ref + amount <= raffle.max_tickets_per_address, EExceedsPerUserLimit);
-        
-        // Calculate total cost
-        let total_cost = raffle.ticket_price * amount;
-        let payment_value = coin::value(&payment);
-        assert!(payment_value >= total_cost, EInvalidTicketPrice);
-
-        // Add payment to raffle balance
-        balance::join(&mut raffle.balance, coin::into_balance(payment));
-
-        // Create tickets
-        let start_ticket = raffle.tickets_sold + 1;
-        let end_ticket = start_ticket + amount - 1;
-        
-        // Update tickets sold
-        raffle.tickets_sold = end_ticket;
-        // Update buyer cumulative counter
-        *purchased_ref = *purchased_ref + amount;
-
-        // Create and transfer tickets
-        let mut i = 0;
-        while (i < amount) {
-            let ticket = Ticket {
-                id: object::new(ctx),
-                raffle_id: object::id(raffle),
-                ticket_number: start_ticket + i,
-            };
-            transfer::public_transfer(ticket, tx_context::sender(ctx));
-            i = i + 1;
-        };
-
-        // Emit event
-        event::emit(TicketsPurchased {
-            raffle_id: object::id(raffle),
-            buyer: tx_context::sender(ctx),
-            amount,
-            start_ticket,
-            end_ticket,
-        });
+        raffle.visible = visible;
     }
 
     /// Release the raffle and select winners
@@ -370,17 +271,18 @@ module sui_raffler::sui_raffler {
         clock: &Clock,
         ctx: &mut TxContext
     ) {
+        assert!(is_latest_version(config), EWrongVersion);
         // Check if contract is paused
-        assert!(!config.paused, EPaused);
+        assert!(!is_contract_paused(config), EPaused);
         // Check if raffle is paused
-        assert!(!raffle.paused, ERafflePaused);
+        assert!(!is_raffle_paused(raffle), ERafflePaused);
         // Only admin or controller can call
-        if (!(config.admin == tx_context::sender(ctx) || config.controller == tx_context::sender(ctx))) {
+        if (!(is_admin(config, tx_context::sender(ctx)) || is_controller(config, tx_context::sender(ctx)))) {
             abort(ENotController)
         };
         let current_time = clock::timestamp_ms(clock);
         // Check if raffle has ended
-        assert!(current_time > raffle.end_time, ERaffleNotEnded);
+        assert!(is_raffle_ended(raffle, current_time), ERaffleNotEnded);
         // Check if raffle is already released
         assert!(!raffle.is_released, ERaffleAlreadyReleased);
         // Check if minimum tickets are sold
@@ -416,33 +318,159 @@ module sui_raffler::sui_raffler {
         });
     }
 
-    /// Internal function to claim protocol fees from the raffle
-    fun claim_protocol_fees_internal(
+    // === Public Functions ===
+    /// Create a new raffle
+    /// Anyone can create a raffle by specifying the parameters
+    #[allow(lint(self_transfer))]
+    public fun create_raffle(
         config: &Config,
-        raffle: &mut Raffle,
+        payment: Coin<SUI>,
+        name: String,
+        description: String,
+        image: String,
+        start_time: u64,
+        end_time: u64,
+        ticket_price: u64,
+        max_tickets_per_address: u64,
+        organizer: address,
         ctx: &mut TxContext
     ) {
-        // Verify protocol fees haven't been claimed yet
-        assert!(!raffle.protocol_claimed, EAlreadyClaimed);
+        assert!(is_latest_version(config), EWrongVersion);
+        assert!(!is_contract_paused(config), EPaused);
+        assert!(is_contract_permissionless(config) || is_admin(config, ctx.sender()), EPermissionDenied);
+        assert!(start_time < end_time, EInvalidDates);
+        assert!(ticket_price > 0, EInvalidTicketPrice);
+        assert!(ticket_price >= config.min_ticket_price, EInvalidTicketPrice);
+        assert!(max_tickets_per_address > 0, EInvalidMaxTickets);
+        assert!(!(organizer == @0x0), EInvalidOrganizer);
 
-        // Mark as claimed
-        raffle.protocol_claimed = true;
+        // Creation fee handling: non-admin/controller must pay exact fee to fee_collector
+        let sender = ctx.sender();
+        let is_privileged = is_admin_or_controller(config, sender);
+        let paid = coin::value(&payment);
+        if (is_privileged || config.creation_fee == 0) {
+            // No payment needed; refund to sender
+            transfer::public_transfer(payment, sender);
+        } else {
+            // Require exact fee
+            assert!(paid == config.creation_fee, EInvalidCreationFee);
+            transfer::public_transfer(payment, config.fee_collector);
+        };
+        let raffle_uid = object::new(ctx);
+        event::emit(RaffleCreated {
+            raffle_id: object::uid_to_inner(&raffle_uid),
+            organizer,
+            start_time,
+            end_time,
+            ticket_price,
+        });
+        transfer::share_object(Raffle {
+            id: raffle_uid,
+            name,
+            description,
+            image,
+            start_time,
+            end_time,
+            ticket_price,
+            max_tickets_per_address,
+            organizer,
+            fee_collector: config.fee_collector,
+            balance: balance::zero(),
+            tickets_sold: 0,
+            is_released: false,
+            winning_tickets: vector::empty(),
+            prize_pool: 0,
+            organizer_claimed: false,
+            protocol_claimed: false,
+            paused: false,
+            visible: true,
+            purchases_by_address: table::new<address, u64>(ctx),
+        });
+    }
 
-        // Calculate and transfer protocol fees
-        let protocol_fee = (raffle.prize_pool * PROTOCOL_FEE_PERCENTAGE) / 100;
-        let fee = coin::from_balance(balance::split(&mut raffle.balance, protocol_fee), ctx);
-        transfer::public_transfer(fee, config.fee_collector);
+    /// Buy tickets for a raffle
+    /// Users can buy multiple tickets in a single transaction up to max_tickets_per_address
+    #[allow(lint(self_transfer))]
+    public fun buy_tickets(
+        config: &Config,
+        raffle: &mut Raffle,
+        payment: Coin<SUI>,
+        amount: u64,
+        clock: &Clock,
+        ctx: &mut TxContext
+    ) {
+        assert!(is_latest_version(config), EWrongVersion);
+        let current_time = clock::timestamp_ms(clock);
+        
+        // Check if raffle is active
+        assert!(is_raffle_active(raffle, current_time), ERaffleNotActive);
+        // Check if contract is paused
+        assert!(!is_contract_paused(config), EPaused);
+        // Check if raffle is paused
+        assert!(!is_raffle_paused(raffle), ERafflePaused);
+        
+        // Validate amount
+        assert!(amount > 0 && amount <= raffle.max_tickets_per_address, EInvalidTicketAmount);
+
+        // Enforce cumulative per-user limit across transactions
+        let buyer = tx_context::sender(ctx);
+        if (!table::contains<address, u64>(&raffle.purchases_by_address, buyer)) {
+            table::add<address, u64>(&mut raffle.purchases_by_address, buyer, 0);
+        };
+        let purchased_ref = table::borrow_mut<address, u64>(&mut raffle.purchases_by_address, buyer);
+        assert!(*purchased_ref + amount <= raffle.max_tickets_per_address, EExceedsPerUserLimit);
+        
+        // Calculate total cost
+        let total_cost = raffle.ticket_price * amount;
+        let payment_value = coin::value(&payment);
+        assert!(payment_value == total_cost, EInvalidTicketPrice);
+
+        // Add payment to raffle balance
+        balance::join(&mut raffle.balance, coin::into_balance(payment));
+
+        // Create tickets
+        let start_ticket = raffle.tickets_sold + 1;
+        let end_ticket = start_ticket + amount - 1;
+        
+        // Update tickets sold
+        raffle.tickets_sold = end_ticket;
+        // Update buyer cumulative counter
+        *purchased_ref = *purchased_ref + amount;
+
+        // Create and transfer tickets
+        let mut i = 0;
+        while (i < amount) {
+            let ticket = Ticket {
+                id: object::new(ctx),
+                raffle_id: object::id(raffle),
+                ticket_number: start_ticket + i,
+            };
+            transfer::public_transfer(ticket, tx_context::sender(ctx));
+            i = i + 1;
+        };
+
+        // Emit event
+        event::emit(TicketsPurchased {
+            raffle_id: object::id(raffle),
+            buyer: tx_context::sender(ctx),
+            amount,
+            start_ticket,
+            end_ticket,
+        });
     }
 
     /// Claim prize with a winning ticket
     /// Winners can claim their prizes after the raffle is released
+    #[allow(lint(self_transfer))]
     public fun claim_prize(
+        config: &Config,
         raffle: &mut Raffle,
         ticket: Ticket,
         ctx: &mut TxContext
     ) {
+        assert!(is_latest_version(config), EWrongVersion);
         // Verify ticket belongs to this raffle
-        assert!(ticket.raffle_id == object::id(raffle), EInvalidTicket);
+       assert!(ticket.raffle_id == object::id(raffle), EInvalidTicket);
         
         // Check if minimum tickets are sold
         assert!(raffle.tickets_sold >= 3, ENotMinimumTickets);
@@ -472,10 +500,13 @@ module sui_raffler::sui_raffler {
 
     /// Claim organizer's share of the raffle
     /// Only the organizer can claim their share after all winners have claimed their prizes
+    #[allow(lint(self_transfer))]
     public fun claim_organizer_share(
+        config: &Config,
         raffle: &mut Raffle,
         ctx: &mut TxContext
     ) {
+        assert!(is_latest_version(config), EWrongVersion); 
         // Verify caller is the organizer
         assert!(tx_context::sender(ctx) == raffle.organizer, ENotAdmin);
         
@@ -497,19 +528,17 @@ module sui_raffler::sui_raffler {
         transfer::public_transfer(organizer_prize, raffle.organizer);
     }
 
-    /// Check if a raffle is in return state (ended with less than 3 tickets)
-    public fun is_in_return_state(raffle: &Raffle, clock: &Clock): bool {
-        let current_time = clock::timestamp_ms(clock);
-        current_time > raffle.end_time && !raffle.is_released && raffle.tickets_sold < 3
-    }
-
     /// Return ticket and get refund when raffle has ended with less than 3 tickets
+    #[allow(lint(self_transfer))]
     public fun return_ticket(
+        config: &Config,
         raffle: &mut Raffle,
         ticket: Ticket,
         clock: &Clock,
         ctx: &mut TxContext
     ) {
+        assert!(is_latest_version(config), EWrongVersion);
+
         // Check if raffle is in return state
         assert!(is_in_return_state(raffle, clock), ERaffleNotEnded);
         
@@ -528,7 +557,114 @@ module sui_raffler::sui_raffler {
         object::delete(id);
     }
 
+    /// Burn multiple non-winning tickets at once
+    /// Can only be called after the raffle is released
+    /// Winning tickets are returned to the caller, non-winning tickets are burned
+    #[allow(lint(self_transfer))]
+    public fun burn_tickets(
+        config: &Config,
+        raffle: &mut Raffle,
+        mut tickets: vector<Ticket>,
+        ctx: &mut TxContext
+    ) {
+        assert!(is_latest_version(config), EWrongVersion);
+        
+        // Verify raffle is released
+        assert!(raffle.is_released, ERaffleNotEnded);
+        
+        // Check if minimum tickets are sold. Unreachable in practice because release_raffle requires tickets_sold >= 3.
+        assert!(raffle.tickets_sold >= 3, ENotMinimumTickets);
+        
+        // Process all tickets in a single loop - burn non-winning, return winning
+        while (!vector::is_empty(&tickets)) {
+            let ticket = vector::pop_back(&mut tickets);
+            
+            // Verify ticket belongs to this raffle
+            assert!(ticket.raffle_id == object::id(raffle), EInvalidTicket);
+            
+            // Check if ticket is a winning ticket
+            let ticket_number = ticket.ticket_number;
+            if (vector::contains(&raffle.winning_tickets, &ticket_number)) {
+                // Return winning ticket to caller immediately
+                
+                transfer::public_transfer(ticket, tx_context::sender(ctx));
+            } else {
+                // Burn non-winning ticket immediately
+                let Ticket { id, raffle_id: _, ticket_number: _ } = ticket;
+                object::delete(id);
+            };
+        };
+        
+        // Destroy the empty vector
+        vector::destroy_empty(tickets);
+    }
+
     // === View Functions ===
+    /// Check if the contract matches the latest version of the module
+    public fun is_latest_version(config: &Config): bool {
+        config.version == VERSION
+    }
+
+    /// Get the current contract version of the module
+    public fun get_current_contract_version(): u64 {
+        VERSION
+    }
+
+    /// Get the configured minimum ticket price (in MIST)
+    public fun get_min_ticket_price(config: &Config): u64 {
+        config.min_ticket_price
+    }
+
+    /// Helper: check if contract is paused
+    public fun is_contract_paused(config: &Config): bool {
+        config.paused
+    }
+
+    /// Helper: check if a raffle is paused
+    public fun is_raffle_paused(raffle: &Raffle): bool {
+        raffle.paused
+    }
+
+    /// Helper: check if a raffle is visible
+    public fun is_raffle_visible(raffle: &Raffle): bool {
+        raffle.visible
+    }
+
+    /// Helper: check if sender is admin
+    public fun is_admin(config: &Config, sender: address): bool {
+        config.admin == sender
+    }
+
+    /// Helper: check if sender is controller
+    public fun is_controller(config: &Config, sender: address): bool {
+        config.controller == sender
+    }
+
+    /// Helper: check if sender is admin or controller
+    public fun is_admin_or_controller(config: &Config, sender: address): bool {
+        config.admin == sender || config.controller == sender
+    }
+
+    /// Helper: check if contract is permissionless
+    public fun is_contract_permissionless(config: &Config): bool {
+        config.permissionless
+    }
+
+    /// Helper: check if raffle is currently active (within start and end time)
+    public fun is_raffle_active(raffle: &Raffle, current_time: u64): bool {
+        current_time >= raffle.start_time && current_time <= raffle.end_time
+    }
+
+    /// Helper: check if raffle has ended (current time is after end time)
+    public fun is_raffle_ended(raffle: &Raffle, current_time: u64): bool {
+        current_time > raffle.end_time
+    }
+
+    /// Check if a raffle is in return state (ended with less than 3 tickets)
+    public fun is_in_return_state(raffle: &Raffle, clock: &Clock): bool {
+        let current_time = clock::timestamp_ms(clock);
+        is_raffle_ended(raffle, current_time) && !raffle.is_released && raffle.tickets_sold < 3
+    }
 
     /// Get per-address purchase info: (purchased_so_far, remaining_allowed)
     public fun get_address_purchase_info(raffle: &Raffle, addr: address): (
@@ -651,7 +787,7 @@ module sui_raffler::sui_raffler {
         } else {
             0
         };
-        let is_active = current_time >= raffle.start_time && current_time <= raffle.end_time;
+        let is_active = is_raffle_active(raffle, current_time);
         (
             raffle.tickets_sold,
             balance::value(&raffle.balance),
@@ -661,8 +797,27 @@ module sui_raffler::sui_raffler {
         )
     }
 
-    // === Test Helpers ===
+    // === Private Functions ===
+    /// Internal function to claim protocol fees from the raffle
+    fun claim_protocol_fees_internal(
+        config: &Config,
+        raffle: &mut Raffle,
+        ctx: &mut TxContext
+    ) {
+        // Verify protocol fees haven't been claimed yet. 
+        // Unreachable in practice because release_raffle requires protocol_claimed = false.
+        assert!(!raffle.protocol_claimed, EAlreadyClaimed);
 
+        // Mark as claimed
+        raffle.protocol_claimed = true;
+
+        // Calculate and transfer protocol fees
+        let protocol_fee = (raffle.prize_pool * PROTOCOL_FEE_PERCENTAGE) / 100;
+        let fee = coin::from_balance(balance::split(&mut raffle.balance, protocol_fee), ctx);
+        transfer::public_transfer(fee, config.fee_collector);
+    }
+
+    // === Test Functions ===
     #[test_only]
     public fun get_raffle_balance(raffle: &Raffle): u64 {
         balance::value(&raffle.balance)
@@ -682,12 +837,19 @@ module sui_raffler::sui_raffler {
     public fun get_config_fee_collector(config: &Config): address {
         config.fee_collector
     }
+
+    #[test_only]
+    public fun get_raffle_visibility(raffle: &Raffle): bool {
+        raffle.visible
+    }
     
     #[test_only]
     public fun init_for_testing(ctx: &mut TxContext){
         init(SUI_RAFFLER {},  ctx);
     }
 
+    #[test_only]
+    public fun stub_config_version(config: &mut Config, version: u64){
+        config.version = version
+    }
 }
-
-

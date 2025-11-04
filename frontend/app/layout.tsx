@@ -1,7 +1,8 @@
 import "@mysten/dapp-kit/dist/index.css";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import Providers from "@/app/components/Providers";
+import Providers from "@/components/Providers";
+import { TestnetBanner } from "@/components/TestnetBanner";
 import type { Metadata } from "next";
 import { Toaster } from "react-hot-toast";
 
@@ -152,8 +153,34 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var savedTheme = localStorage.getItem('theme');
+                  var finalTheme;
+                  
+                  if (savedTheme === 'light' || savedTheme === 'dark') {
+                    finalTheme = savedTheme;
+                  } 
+                  else {
+                    var systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    finalTheme = systemPrefersDark ? 'dark' : 'light';
+                  }
+                  
+                  if (finalTheme === 'dark') {
+                    document.documentElement.classList.add('dark');
+                  } else {
+                    document.documentElement.classList.remove('dark');
+                  }
+                } catch (e) {}
+              })();
+            `,
+          }}
+        />
         {/* Structured Data for Rich Snippets */}
         <script
           type="application/ld+json"
@@ -273,16 +300,26 @@ export default function RootLayout({
         <meta name="fairness" content="blockchain-verified" />
       </head>
       <body className={inter.className}>
-        {/* Testnet Warning Banner */}
-        <div className="fixed top-0 left-0 w-full bg-gradient-to-r from-indigo-100 via-purple-100 to-indigo-100 border-b border-indigo-200 text-indigo-700 text-center text-sm font-semibold py-1 px-2 shadow z-60">
-          ⚠️ This is the <span className="font-bold">testnet</span> version.
-          Everything might break or be reset at any time. ⚠️
-        </div>
+        <TestnetBanner 
+          isVisible={
+            process.env.NEXT_PUBLIC_NETWORK === "testnet" ||
+            process.env.NEXT_PUBLIC_NETWORK === "devnet"
+          }
+          network={process.env.NEXT_PUBLIC_NETWORK}
+        />
         <div className="pt-6">
-          {/* Adjust pt-6 if banner height changes */}
           <Providers>{children}</Providers>
         </div>
-        <Toaster position="bottom-right" />
+        <Toaster
+          position="top-center"
+          gutter={20}
+          toastOptions={{
+            duration: 10000,
+            style: {
+              zIndex: 9999,
+            },
+          }}
+        />
       </body>
     </html>
   );

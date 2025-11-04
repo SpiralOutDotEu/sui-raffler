@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cacheService } from '@/app/services/cache';
+import { cacheService } from '@/lib/services/cache';
 
 export async function GET(request: NextRequest) {
     try {
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
         const cachedImage = cacheService.get(cid);
         if (cachedImage) {
             // Return cached image with appropriate content type
-            return new NextResponse(cachedImage, {
+            return new NextResponse(new Uint8Array(cachedImage), {
                 headers: {
                     'Content-Type': 'image/jpeg', // Default to JPEG if we don't know the type
                     'Cache-Control': 'public, max-age=31536000', // Cache for 1 year
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
         cacheService.set(cid, imageData);
 
         // Return the image with appropriate content type
-        return new NextResponse(imageData, {
+        return new NextResponse(new Uint8Array(imageData), {
             headers: {
                 'Content-Type': response.headers.get('Content-Type') || 'image/jpeg',
                 'Cache-Control': 'public, max-age=31536000',

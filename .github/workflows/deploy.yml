@@ -1,0 +1,73 @@
+name: Deploy Next.js to VPS
+
+on:
+  push:
+    branches:
+      - main
+      - testnet
+
+env:
+  NODE_VERSION: 22.11.0
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: Production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci --ignore-scripts
+
+      - name: Build project
+        working-directory: frontend
+        run: npm run build
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          script_stop: true
+          script: |
+            set -e
+
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+            nvm use ${{ env.NODE_VERSION }} > /dev/null 2>&1
+
+            BRANCH="${{ github.ref_name }}"
+            if [ "$BRANCH" = "main" ]; then
+              APP_DIR="${{ secrets.APP_DIR_PROD }}"
+              SERVICE_NAME="suiraffler-prod"
+            elif [ "$BRANCH" = "testnet" ]; then
+              APP_DIR="${{ secrets.APP_DIR_TESTNET }}"
+              SERVICE_NAME="suiraffler-testnet"
+            else
+              echo "❌ Unknown branch"
+              exit 1
+            fi
+
+            cd "$APP_DIR"
+            git checkout "$BRANCH" > /dev/null 2>&1
+            git pull origin "$BRANCH" > /dev/null 2>&1
+            cd frontend
+            npm ci --ignore-scripts > /dev/null 2>&1
+            npm run build > /dev/null 2>&1
+            pm2 restart "$SERVICE_NAME" > /dev/null 2>&1
+
+            echo "✅ Deployment completed"
