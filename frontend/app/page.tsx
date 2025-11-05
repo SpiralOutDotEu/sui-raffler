@@ -33,16 +33,16 @@ export default function Home() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <Link
-                href="/create"
+                href="/explore"
                 className="px-8 py-4 bg-gradient-to-r from-indigo-500 to-purple-600 dark:from-indigo-600 dark:to-purple-700 text-white rounded-lg font-semibold hover:from-indigo-600 hover:to-purple-700 dark:hover:from-indigo-500 dark:hover:to-purple-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-all text-lg shadow-lg"
               >
-                Create a Raffle
+                Explore Raffles
               </Link>
               <Link
-                href="/explore"
+                href="/create"
                 className="px-8 py-4 bg-white dark:bg-[#2d3748] border-2 border-indigo-500 dark:border-indigo-600 text-indigo-600 dark:text-indigo-400 rounded-lg font-semibold hover:bg-indigo-50 dark:hover:bg-[#374151] focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-all text-lg shadow-lg"
               >
-                Explore Raffles
+                Create a Raffle
               </Link>
             </div>
           </div>
@@ -176,16 +176,16 @@ export default function Home() {
           </h2>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
-              href="/create"
+              href="/explore"
               className="px-8 py-4 bg-white text-indigo-600 rounded-lg font-semibold hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-indigo-600 transition-all text-lg shadow-lg"
             >
-              Create a Raffle
+              Explore Raffles
             </Link>
             <Link
-              href="/explore"
+              href="/create"
               className="px-8 py-4 bg-transparent border-2 border-white text-white rounded-lg font-semibold hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-indigo-600 transition-all text-lg"
             >
-              Explore Raffles
+              Create a Raffle
             </Link>
           </div>
         </div>
