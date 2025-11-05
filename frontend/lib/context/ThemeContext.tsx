@@ -14,17 +14,14 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const getInitialTheme = (): Theme => {
-    if (typeof window === "undefined") return "light";
-    
+    if (typeof window === "undefined") return "dark";
+
     const savedTheme = localStorage.getItem("theme") as Theme | null;
     if (savedTheme === "light" || savedTheme === "dark") {
       return savedTheme;
     }
-    
-    const systemPrefersDark = window.matchMedia(
-      "(prefers-color-scheme: dark)"
-    ).matches;
-    return systemPrefersDark ? "dark" : "light";
+
+    return "dark";
   };
 
   const [theme, setThemeState] = useState<Theme>(getInitialTheme);
@@ -47,25 +44,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       applyTheme(currentTheme);
     } else {
       applyTheme(theme);
-    }
-
-    const savedTheme = localStorage.getItem("theme");
-    if (!savedTheme) {
-      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-      const handleSystemThemeChange = (e: MediaQueryListEvent) => {
-        const newTheme = e.matches ? "dark" : "light";
-        setThemeState(newTheme);
-        applyTheme(newTheme);
-      };
-
-      if (mediaQuery.addEventListener) {
-        mediaQuery.addEventListener("change", handleSystemThemeChange);
-        return () => mediaQuery.removeEventListener("change", handleSystemThemeChange);
-      } 
-      else if (mediaQuery.addListener) {
-        mediaQuery.addListener(handleSystemThemeChange);
-        return () => mediaQuery.removeListener(handleSystemThemeChange);
-      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -97,4 +75,3 @@ export function useTheme() {
   }
   return context;
 }
-
