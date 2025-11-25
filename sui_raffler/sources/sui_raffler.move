@@ -263,8 +263,7 @@ module sui_raffler::sui_raffler {
 
     /// Release the raffle and select winners
     /// Can only be called after the raffle end time
-    #[allow(lint(public_random))]
-    public fun release_raffle(
+    entry fun release_raffle(
         config: &Config,
         raffle: &mut Raffle,
         random: &Random,
